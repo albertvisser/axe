@@ -2,6 +2,13 @@ Files in this directory
 =======================
 AXE stands for "Albert's XML editor"
 
+xmleditor.py
+    Starter program for the stuff in package "axe"
+    imports axe(_wx)
+
+Files in the package
+--------------------
+
 __init__.py
     (empty) package indicator
 axe_ppg.py
@@ -20,9 +27,6 @@ axedtd_wx.py
     imports shutil, copy, xml.etree.ElementTree, wx
 parsedtd.py
     dtd parser, intended to be used by axedtd
-xmleditor.py
-    Starter program
-    imports axe(_wx)
 
 axe.ico
     homemade application icon
