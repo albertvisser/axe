@@ -8,6 +8,8 @@ ATTSTART = '<!ATTLIST'
 ENTSTART = '<!ENTITY'
 END = '>'
 
+def DTDParser(**argv):
+    return _DTDParser(**argv)._dtd
 def valid_name(name):
     """
     nakijken welke tekens er niet in een naam mogen voorkomen
@@ -136,13 +138,13 @@ class _Element(object):
     def __setattr__(self, name, value):
         if name == "name":
             if not valid_name(value):
-                raise ValueError('illegal value for Element.name')
+                raise ValueError, 'illegal value for Element.name'
         elif name == "type":
             if value and value not in ('EMPTY','ANY'):
-                raise ValueError('illegal value for Element.type')
+                raise ValueError, 'illegal value for Element.type'
         elif name == "occurrence":
             if value and value not in ('','*','+','?'):
-                raise ValueError('illegal value for Element.occurrence')
+                raise ValueError, 'illegal value for Element.occurrence'
         object.__setattr__(self, name, value)
 
     def __str__(self):
@@ -202,19 +204,19 @@ class _Attribute(object):
     def __setattr__(self, name, value):
         if name == "name":
             if not valid_name(value):
-                raise ValueError('illegal value for Attribute.name')
+                raise ValueError, 'illegal value for Attribute.name'
         elif name == "type":
             if value and value not in self.atttypes:
-                raise ValueError('illegal value for Attribute.type')
+                raise ValueError, 'illegal value for Attribute.type'
         elif name == "value_type":
             if value and value not in self.valtypes:
-                raise ValueError('illegal value for Attribute.valuetype')
+                raise ValueError, 'illegal value for Attribute.valuetype'
         elif name == "default":
             if value and self.value_type and self.value_type == 'impl':
-                raise ValueError('illegal value for Attribute.default')
+                raise ValueError, 'illegal value for Attribute.default'
         elif name == "value_list":
             if value and self.type and self.type != 'ENUM':
-                raise ValueError('illegal value for Attribute.valuelist')
+                raise ValueError, 'illegal value for Attribute.valuelist'
         object.__setattr__(self, name, value)
 
     def __str__(self):
@@ -241,10 +243,10 @@ class _Entity(object):
     def __setattr__(self, name, value):
         if name == "name":
             if not valid_name(value):
-                raise ValueError('illegal value for Entity.name')
+                raise ValueError, 'illegal value for Entity.name'
         elif name == "type":
             if value and value not in ('ent','ext'):
-                raise ValueError('illegal value for Entity.type')
+                raise ValueError, 'illegal value for Entity.type'
         object.__setattr__(self, name, value)
 
     def __str__(self):
@@ -254,7 +256,7 @@ class _Entity(object):
             value = 'SYSTEM ' + self.value
         return ' '.join((ENTSTART, self.name,value)) + END
 
-class DTDParser(object):
+class _DTDParser(object):
     def __init__(self,dtdfile=None,fromstring=''):
         parse_buf = ""
         line_buf = []
@@ -294,7 +296,7 @@ class DTDParser(object):
         self._finalize()
 
     def _parse(self,buffer):
-        print("buffer:",buffer)
+        print "buffer:",buffer
         if buffer[:2] != "<!":
             raise DTDParsingError("Illegal statement start at line " + str(self._line))
         test = buffer.split(None,1)
@@ -350,40 +352,45 @@ class DTDParser(object):
     def _parse_attribute(self,inp):
         try:
             parent,data = inp.split(None,1)
-            print("parent:",parent)
+            print "parent:",parent
             while data:
                 name,data = data.split(None,1)
-                print("name:",name)
+                print "name:",name
                 if data.startswith("("):
                     ix = data.find(')')
-                    print("ix:",ix)
+                    print "ix:",ix
                     if ix == -1:
-                        raise DTDParsingError('Incorrect attribute definition')
+                        raise DTDParsingError('Incorrect attribute definition: unbalanced parentheses')
                     enum,data = data.split(")",1)
                     enum = enum[1:].split('|')
-                    print("enum",enum)
+                    print "enum",enum
                     data = data.lstrip()
-                    print("data:",data)
+                    print "data:",data
                     if data.startswith('"'):
                         ix = data[1:].find('"')
                         if ix == -1:
-                            raise DTDParsingError('Incorrect attribute definition')
+                            raise DTDParsingError('Incorrect attribute definition: unbalanced quotes for enum default')
                         decl = 'dflt'
                         item = data[1:ix+1]
-                        print("item:",item)
+                        print "item:",item
                         data = data[ix+2:].lstrip()
-                        print("data:",data)
+                        print "data:",data
                     else:
                         decl,data = data.split(None,1)
+                        print "decl:",decl
+                        print "data:",data
                     new = Attribute(self._dtd_dic[parent],name=name,
                         type = "ENUM",decl=decl,items=enum,value=item)
-                    if len(data) > 1:
-                        data = data[1]
+                    #~ if len(data) > 1:
+                        #~ data = data[1]
+                        #~ print "data:",data
                 else:
                     type,decl,data = data.split(None,2)
-                    print("type:",type)
+                    print "type:",type
+                    print "data:",data
                     if decl == '#FIXED':
                         value,data = data.split(None,1)
+                        print "data:",data
                         new = Attribute(self._dtd_dic[parent],name=name,
                             type = type,decl='fix',value=item)
                     elif decl.startswith('"'):
@@ -391,14 +398,14 @@ class DTDParser(object):
                             new = Attribute(self._dtd_dic[parent],name=name,
                                 type = type,decl='dflt',value=decl[1:-1])
                         else:
-                            raise DTDParsingError('Incorrect attribute definition')
+                            raise DTDParsingError('Incorrect attribute definition: unbalanced quotes for value')
                     else:
                         if decl == '#REQUIRED':
                             decl = 'req'
                         elif decl == '#IMPLIED':
                             decl = 'impl'
                         else:
-                            raise DTDParsingError('Incorrect attribute definition')
+                            raise DTDParsingError('Incorrect attribute definition: wrong value declaration')
                         new = Attribute(self._dtd_dic[parent],name=name,
                             type = type,decl=decl)
         except ValueError:
@@ -471,14 +478,31 @@ def test_parse_dtd():
 <!ENTITY writer "Donald Duck.">
 <!ENTITY copyright SYSTEM "http://www.w3schools.com/entities.dtd">
 """)
-    except DTDParsingError as msg:
-        print(msg)
+    except DTDParsingError,msg:
+        print msg
     return email
 
 def main():
     ## print test_build_dtd()
     ## print
-    print(str(test_parse_dtd()))
+    data = test_parse_dtd()
+    for item in data:
+        print str(item)
+    for i,item in enumerate(data):
+        print "--- item",i,":"
+        for key,val in item.__dict__.items():
+            print key,val
+        try:
+            for sub in item.subelement_list:
+                print "------subelem:"
+                for key,val in sub.__dict__.items():
+                    print key,val
+            for sub in item.attribute_list:
+                print "------subattr:"
+                for key,val in sub.__dict__.items():
+                    print key,val
+        except:
+            pass
     #raw_input()
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import os,sys,shutil,copy
 from xml.etree.ElementTree import Element, ElementTree, SubElement
+import parseDTD as pd
 ELTYPES = ('pcdata','one','opt','mul','mulopt')
 ATTTYPES = ('cdata','enum','id')
 VALTYPES = ('opt','req','fix','dflt')
@@ -33,6 +34,7 @@ SYMBOLS = {
 TITEL = "Albert's (Simple) DTD-editor"
 HMASK = "DTD files (*.dtd)|*.dtd|All files (*.*)|*.*"
 IMASK = "All files|*.*"
+
 import wx
 if os.name == 'ce':
     DESKTOP = False
@@ -83,9 +85,9 @@ def is_entitydef(data):
     else:
         return False
 
-def ParseDTD(data=None,file=None):
-    root = Element('Root_Element')
-    return ElementTree(root)
+#~ def ParseDTD(data=None,file=None):
+    #~ root = Element('Root_Element')
+    #~ return ElementTree(root)
 
 
 class ElementDialog(wx.Dialog):
@@ -602,6 +604,21 @@ class MainFrame(wx.Frame):
 
     def openxml(self,ev=None):
         ## self.openfile()
+        try:
+            email = pd.DTDParser(fromstring="""\
+<!ELEMENT note (to,from,heading,body)>
+<!ELEMENT to (#PCDATA)>
+<!ELEMENT from (#PCDATA)>
+<!ELEMENT heading (#PCDATA)>
+<!ELEMENT body (#PCDATA)>
+<!ATTLIST body NAME CDATA #IMPLIED CATEGORY (HandTool|Table|Shop-Professional) "HandTool" PARTNUM CDATA #IMPLIED PLANT (Pittsburgh|Milwaukee|Chicago) "Chicago" INVENTORY (InStock|Backordered|Discontinued) "InStock">
+<!ENTITY writer "Donald Duck.">
+<!ENTITY copyright SYSTEM "http://www.w3schools.com/entities.dtd">
+    """)
+        except pd.DTDParsingError,msg:
+            print msg
+            return
+        self.rt = email
         self.init_tree()
 
     def _openfile(self,h):
@@ -624,7 +641,7 @@ class MainFrame(wx.Frame):
         if dlg.ShowModal() == wx.ID_OK:
             h = dlg.GetPath()
             if not self._openfile(h):
-                dlg = wx.MessageBox('parsing error, probably not well-formed xml',
+                dlg = wx.MessageBox('dtd parsing error',
                                self.title, wx.OK | wx.ICON_INFORMATION)
                 dlg.ShowModal()
                 dlg.Destroy()
