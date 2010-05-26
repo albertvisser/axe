@@ -2,7 +2,10 @@ import os,sys,shutil,copy
 from xml.etree.ElementTree import Element, ElementTree, SubElement
 ELSTART = '<>'
 TITEL = "Albert's (Simple) XML-editor"
-HMASK = "XML files (*.xml)|*.xml|All files (*.*)|*.*"
+if os.name == "nt":
+    HMASK = "XML files (*.xml)|*.xml|All files (*.*)|*.*"
+elif os.name == "posix":
+    HMASK = "XML files (*.xml, *.XML)|*.xml;*.XML|All files (*.*)|*.*"
 IMASK = "All files|*.*"
 PPATH = os.path.split(__file__)[0]
 import wx
@@ -493,14 +496,27 @@ class MainFrame(wx.Frame):
         ## pass
 
     def OnKeyUp(self, ev=None):
-        pt = ev.GetPosition()
         ky = ev.GetKeyCode()
-        item, flags = self.tree.HitTest(pt)
+        item = self.tree.Selection
         if item and item != self.top:
             if ky == wx.WXK_DELETE:
                 self.delete()
             elif ky == wx.WXK_F2:
                 self.edit()
+            elif ky == wx.WXK_RETURN:
+                if self.tree.ItemHasChildren(item):
+                    if self.tree.IsExpanded(item):
+                        self.tree.Collapse(item)
+                    else:
+                        self.tree.Expand(item)
+                        item, dummy = self.tree.GetFirstChild(item)
+                        self.tree.SelectItem(item)
+                else:
+                    self.edit()
+            elif ky == wx.WXK_BACK:
+                if self.tree.IsExpanded(item):
+                    self.tree.Collapse(item)
+                self.tree.SelectItem(self.tree.GetItemParent(item))
         ev.Skip()
 
     def checkselection(self):
@@ -716,7 +732,7 @@ class MainFrame(wx.Frame):
        self.close()
 class MainGui(object):
     def __init__(self,args):
-        app = wx.App(redirect=False) # True,filename="axe.log")
+        app = wx.App(redirect=True,filename="axe.log")
         if len(args) > 1:
             frm = MainFrame(None, -1, fn=args[1])
         else:
