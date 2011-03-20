@@ -327,9 +327,11 @@ class MainFrame(wx.Frame):
         self.pasteafter_item.Enable(active)
 
     def newxml(self,ev=None):
-        h = wx.Dialog.askstring("AXE", "Enter a name (tag) for the root element")
-        if h is not None:
-            self.init_tree("(untitled)")
+        h = wx.GetTextFromUser("Enter a name (tag) for the root element", self.title)
+        if h:
+            self.rt = Element(h)
+            self.xmlfn = ""
+            self.init_tree()
 
     def openxml(self,ev=None):
         self.openfile()
@@ -443,7 +445,7 @@ class MainFrame(wx.Frame):
         elif self.xmlfn:
             titel = self.xmlfn
         else:
-            titel = '[untitled]'
+            titel = '[unsaved file]'
         self.top = self.tree.AddRoot(titel)
         self.SetTitle(" - ".join((os.path.split(titel)[-1],TITEL)))
 
