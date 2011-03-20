@@ -217,6 +217,7 @@ class MainFrame(wx.Frame):
 
         self.cut_att = None
         self.cut_el = None
+        self.tree_dirty = False
         if self.xmlfn == '':
             self.rt = Element('New')
             self.openxml()
@@ -326,16 +327,28 @@ class MainFrame(wx.Frame):
         self.pastebefore_item.Enable(active)
         self.pasteafter_item.Enable(active)
 
+    def check_tree(self):
+        print "check_tree aangeroepen"
+        if self.tree_dirty:
+            h = wx.MessageBox("XML data has been modified - save before continuing?",
+                self.title,
+                style = wx.YES_NO)
+            if h == wx.YES:
+                self.savexml()
+
     def newxml(self,ev=None):
-        h = wx.GetTextFromUser("Enter a name (tag) for the root element", self.title)
+        self.check_tree()
+        h = wx.GetTextFromUser("Enter a name (tag) for the root element",
+            self.title)
         if h:
             self.rt = Element(h)
             self.xmlfn = ""
             self.init_tree()
 
     def openxml(self,ev=None):
-        self.openfile()
-        self.init_tree()
+        self.check_tree()
+        if self.openfile():
+            self.init_tree()
 
     def _openfile(self,h):
         try:
@@ -354,14 +367,17 @@ class MainFrame(wx.Frame):
             wildcard=HMASK,
             style=wx.OPEN
             )
-        if dlg.ShowModal() == wx.ID_OK:
+        ret = dlg.ShowModal()
+        if ret == wx.ID_OK:
             h = dlg.GetPath()
             if not self._openfile(h):
                 dlg = wx.MessageBox('parsing error, probably not well-formed xml',
                                self.title, wx.OK | wx.ICON_INFORMATION)
                 dlg.ShowModal()
                 dlg.Destroy()
+                return False
         dlg.Destroy()
+        return (ret == wx.ID_OK)
 
     def savexmlfile(self,oldfile=''):
         def expandnode(rt,root):
@@ -391,6 +407,7 @@ class MainFrame(wx.Frame):
         root = Element(data[0]) # .split(None,1)
         expandnode(rt,root)
         h = ElementTree(root).write(self.xmlfn,encoding="iso-8859-1")
+        self.tree_dirty = False
 
     def savexml(self,ev=None):
         ## print "savexml(): ", self.xmlfn
@@ -423,6 +440,8 @@ class MainFrame(wx.Frame):
             )
 
     def quit(self,ev=None):
+        print "quit aangeroepen, self.dirty is", self.tree_dirty
+        self.check_tree()
         self.Close()
 
     def init_tree(self,name=''):
@@ -456,6 +475,8 @@ class MainFrame(wx.Frame):
             add_to_tree(el,rt)
         #self.tree.selection = self.top
         # set_selection()
+        self.tree_dirty = False
+
 
     def on_bdown(self, ev=None):
         if wx.recon_context(self.tree, ev):
@@ -554,6 +575,7 @@ class MainFrame(wx.Frame):
                 h = (self.data["tag"],self.data["text"])
                 self.tree.SetItemText(self.item,getshortname(h))
                 self.tree.SetItemPyData(self.item,h)
+                self.tree_dirty = True
         else:
             nam,val = self.tree.GetItemPyData(self.item) # self.item.get_data()
             data = {'item': self.item, 'name': nam, 'value': val}
@@ -562,6 +584,7 @@ class MainFrame(wx.Frame):
                 h = (self.data["name"],self.data["value"])
                 self.tree.SetItemText(self.item,getshortname(h,attr=True))
                 self.tree.SetItemPyData(self.item,h)
+                self.tree_dirty = True
         edt.Destroy()
 
     def cut(self, ev=None):
@@ -615,6 +638,7 @@ class MainFrame(wx.Frame):
                 self.cut_att = data
         if cut:
             self.tree.Delete(self.item)
+            self.tree_dirty = True
         self.enable_pasteitems(True)
 
     def paste(self, ev=None,before=True,pastebelow=False):
@@ -661,13 +685,7 @@ class MainFrame(wx.Frame):
                     node = self.tree.AppendItem(add_to,item)
                     self.tree.SetItemPyData(node,data)
         else:
-            # I'd like to manipulate a complete treeitem (with subtree) here but I don't know how
             def zetzeronder(node,el,pos=-1):
-                ## print "zetzeronder()"
-                ## print "node: ",node
-                ## print "el:", el
-                ## item = self.tree.GetItemText(el)
-                ## data = self.tree.GetItemPyData(el)
                 if pos == -1:
                     subnode = self.tree.AppendItem(node,el[0])
                     self.tree.SetItemPyData(subnode,el[1])
@@ -690,6 +708,7 @@ class MainFrame(wx.Frame):
                     x,c = self.tree.GetNextChild(node,c)
                 if i == cnt: i = -1
             zetzeronder(node,self.cut_el[0],i)
+        self.tree_dirty = True
 
     def paste_aft(self, ev=None):
         self.paste(before=False)
@@ -705,6 +724,7 @@ class MainFrame(wx.Frame):
             h = (self.data["name"],self.data["value"])
             rt = self.tree.AppendItem(self.item,getshortname(h,attr=True))
             self.tree.SetItemPyData(rt,h)
+            self.tree_dirty = True
         edt.Destroy()
 
     def insert(self, ev=None,before=True,below=False):
@@ -722,6 +742,7 @@ class MainFrame(wx.Frame):
                 item = self.item if not before else self.tree.GetPrevSibling(self.item)
                 node = self.tree.InsertItem(parent,item,text)
                 self.tree.SetPyData(node,data)
+            self.tree_dirty = True
         edt.Destroy()
 
     def ins_aft(self, ev=None):
