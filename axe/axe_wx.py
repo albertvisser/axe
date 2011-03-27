@@ -332,23 +332,25 @@ class MainFrame(wx.Frame):
         if self.tree_dirty:
             h = wx.MessageBox("XML data has been modified - save before continuing?",
                 self.title,
-                style = wx.YES_NO)
+                style = wx.YES_NO | wx.CANCEL)
             if h == wx.YES:
                 self.savexml()
+            return h
 
     def newxml(self,ev=None):
-        self.check_tree()
-        h = wx.GetTextFromUser("Enter a name (tag) for the root element",
-            self.title)
-        if h:
+        if self.check_tree() == wx.CANCEL:
+            h = wx.GetTextFromUser("Enter a name (tag) for the root element",
+                self.title)
+            if not h:
+                h = "root"
             self.rt = Element(h)
             self.xmlfn = ""
             self.init_tree()
 
     def openxml(self,ev=None):
-        self.check_tree()
-        if self.openfile():
-            self.init_tree()
+        if self.check_tree() == wx.CANCEL:
+            if self.openfile():
+                self.init_tree()
 
     def _openfile(self,h):
         try:
@@ -441,8 +443,8 @@ class MainFrame(wx.Frame):
 
     def quit(self,ev=None):
         print "quit aangeroepen, self.dirty is", self.tree_dirty
-        self.check_tree()
-        self.Close()
+        if self.check_tree() == wx.CANCEL:
+            self.Close()
 
     def init_tree(self,name=''):
         def add_to_tree(el,rt):
