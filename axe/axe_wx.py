@@ -218,8 +218,10 @@ class MainFrame(wx.Frame):
         self.cut_att = None
         self.cut_el = None
         self.tree_dirty = False
+        self.rt = Element('New')
+        self.init_tree()
         if self.xmlfn == '':
-            self.rt = Element('New')
+            ## self.rt = Element('New')
             self.openxml()
         else:
             self.rt = ElementTree(file=self.xmlfn).getroot()
@@ -336,9 +338,11 @@ class MainFrame(wx.Frame):
             if h == wx.YES:
                 self.savexml()
             return h
+        return wx.YES
 
     def newxml(self,ev=None):
-        if self.check_tree() == wx.CANCEL:
+        print("self.newxml aangeroepen")
+        if self.check_tree() != wx.CANCEL:
             h = wx.GetTextFromUser("Enter a name (tag) for the root element",
                 self.title)
             if not h:
@@ -348,7 +352,7 @@ class MainFrame(wx.Frame):
             self.init_tree()
 
     def openxml(self,ev=None):
-        if self.check_tree() == wx.CANCEL:
+        if self.check_tree() != wx.CANCEL:
             if self.openfile():
                 self.init_tree()
 
@@ -443,7 +447,7 @@ class MainFrame(wx.Frame):
 
     def quit(self,ev=None):
         print "quit aangeroepen, self.dirty is", self.tree_dirty
-        if self.check_tree() == wx.CANCEL:
+        if self.check_tree() != wx.CANCEL:
             self.Close()
 
     def init_tree(self,name=''):
