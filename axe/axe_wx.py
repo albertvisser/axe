@@ -38,9 +38,10 @@ def getshortname(x,attr=False):
         return strt
 
 class ElementDialog(wx.Dialog):
-    def __init__(self,parent,title='',size=wx.DefaultSize,
-            pos=wx.DefaultPosition, style=wx.DEFAULT_DIALOG_STYLE, item=None):
-        wx.Dialog.__init__(self,parent,-1,title=title) #, pos, size, style)
+    def __init__(self,parent,title='',size=(400, 270),
+            pos=wx.DefaultPosition, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+            item=None):
+        wx.Dialog.__init__(self, parent, -1, title=title, pos=pos, size=size, style=style)
         self._parent = parent
         self.pnl = wx.Panel(self,-1)
         lblName = wx.StaticText(self.pnl, -1,"element name:  ")
@@ -54,7 +55,6 @@ class ElementDialog(wx.Dialog):
         self.bOk = wx.Button(self.pnl,id=wx.ID_SAVE)
         self.bOk.Bind(wx.EVT_BUTTON,self.on_ok)
         self.bCancel = wx.Button(self.pnl,id=wx.ID_CANCEL)
-        ## self.bCancel.Bind(wx.EVET_BUTTON,self.on_cancel)
         self.SetAffirmativeId(wx.ID_SAVE)
 
         tag = ''
@@ -69,23 +69,30 @@ class ElementDialog(wx.Dialog):
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(lblName,0,wx.ALIGN_CENTER_VERTICAL)
-        hsizer.Add(self.txtTag,0,wx.ALIGN_CENTER_VERTICAL)
-        sizer.Add(hsizer,0, wx.EXPAND | wx.ALL,5)
+        hsizer2 = wx.BoxSizer(wx.HORIZONTAL)
+        hsizer2.Add(lblName,0,wx.ALIGN_CENTER_VERTICAL)
+        hsizer2.Add(self.txtTag,0,wx.ALIGN_CENTER_VERTICAL)
+        hsizer.Add(hsizer2,0, wx.EXPAND | wx.ALL,5)
+        sizer.Add(hsizer,0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP,5)
+
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self.cb,0,wx.TOP,3)
-        ## hsizer.add(lblData)
-        hsizer.Add(self.txtData)
-        sizer.Add(hsizer,0, wx.EXPAND | wx.ALL,5)
+        vsizer = wx.BoxSizer(wx.VERTICAL)
+        vsizer.Add(self.cb,0) # ,wx.TOP,3)
+        vsizer.Add(self.txtData)
+        hsizer.Add(vsizer,0, wx.ALL,5)
+        sizer.Add(hsizer,0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL,5)
+
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(self.bOk,0,wx.EXPAND | wx.ALL, 2)
         hsizer.Add(self.bCancel,0,wx.EXPAND | wx.ALL, 2)
         sizer.Add(hsizer,0, wx.ALL | wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL,2)
+
         self.pnl.SetSizer(sizer)
         self.pnl.SetAutoLayout(True)
         sizer.Fit(self.pnl)
         sizer.SetSizeHints(self.pnl)
         self.pnl.Layout()
+        self.txtTag.SetFocus()
 
     def on_cancel(self, ev):
         self.end('cancel')
@@ -114,16 +121,17 @@ class ElementDialog(wx.Dialog):
                 win.SelectAll()
 
 class AttributeDialog(wx.Dialog):
-    def __init__(self,parent,title='',size=wx.DefaultSize,
-            pos=wx.DefaultPosition, style=wx.DEFAULT_DIALOG_STYLE,item=None):
-        wx.Dialog.__init__(self,parent,-1,title=title,size=(320,125)) #,pos.size,style)
+    def __init__(self,parent,title='',size=(320,125),
+            pos=wx.DefaultPosition, style=wx.DEFAULT_DIALOG_STYLE  | wx.RESIZE_BORDER,
+            item=None):
+        wx.Dialog.__init__(self, parent, -1, title=title, pos=pos, size=size, style=style)
         self._parent = parent
         self.pnl = wx.Panel(self,-1)
         lblName = wx.StaticText(self.pnl,-1, "Attribute name:")
-        self.txtName = wx.TextCtrl(self.pnl,-1, size=(200,-1))
+        self.txtName = wx.TextCtrl(self.pnl,-1, size=(180,-1))
         self.txtName.Bind(wx.EVT_KEY_UP,self.OnKeyUp)
         lblValue = wx.StaticText(self.pnl,-1, "Attribute value:")
-        self.txtValue = wx.TextCtrl(self.pnl,-1, size=(200,-1))
+        self.txtValue = wx.TextCtrl(self.pnl,-1, size=(180,-1))
         self.txtValue.Bind(wx.EVT_KEY_UP,self.OnKeyUp)
         self.bOk = wx.Button(self.pnl,id=wx.ID_SAVE)
         self.bOk.Bind(wx.EVT_BUTTON,self.on_ok)
@@ -142,11 +150,11 @@ class AttributeDialog(wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(lblName,0,wx.ALIGN_CENTER_VERTICAL | wx.LEFT|wx.RIGHT,5)
-        hsizer.Add(self.txtName,1,wx.EXPAND | wx.ALIGN_CENTER_VERTICAL)
+        hsizer.Add(self.txtName,1,wx.EXPAND | wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         sizer.Add(hsizer,1, wx.EXPAND | wx.ALL,5)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(lblValue,0,wx.ALIGN_CENTER_VERTICAL | wx.LEFT|wx.RIGHT,5)
-        hsizer.Add(self.txtValue,1,wx.EXPAND | wx.ALIGN_CENTER_VERTICAL)
+        hsizer.Add(self.txtValue,1,wx.EXPAND | wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         sizer.Add(hsizer,1, wx.EXPAND | wx.ALL,5)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(self.bOk,0,wx.EXPAND | wx.ALL, 2)
@@ -158,6 +166,7 @@ class AttributeDialog(wx.Dialog):
         sizer.Fit(self.pnl)
         sizer.SetSizeHints(self.pnl)
         self.pnl.Layout()
+        self.txtName.SetFocus()
 
     def on_ok(self, ev):
         self._parent.data = {}
