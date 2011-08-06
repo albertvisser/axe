@@ -200,11 +200,14 @@ class MainFrame(wx.Frame):
         self.parent = parent
         self.title = "Albert's XML Editor"
         self.xmlfn = fn
+        self.cut_att = None
+        self.cut_el = None
         wx.Frame.__init__(self,parent,id,
             pos=(2,2),
             size=(620,900)
             )
         self.SetIcon(wx.Icon(os.path.join(PPATH,"axe.ico"),wx.BITMAP_TYPE_ICO))
+        self.Bind(wx.EVT_CLOSE, self.afsl)
 
         self.init_menus()
         menuBar = wx.MenuBar()
@@ -233,9 +236,7 @@ class MainFrame(wx.Frame):
         self.Show(True)
         self.tree.SetFocus()
 
-        self.cut_att = None
-        self.cut_el = None
-        self.tree_dirty = False
+        self.mark_dirty(False)
         self.rt = Element('New')
         self.init_tree()
         if self.xmlfn == '':
@@ -294,33 +295,44 @@ class MainFrame(wx.Frame):
         mitem = wx.MenuItem(editmenu, -1, "&Copy")
         self.Bind(wx.EVT_MENU,self.copy,mitem)
         editmenu.AppendItem(mitem)
+        print("creating paste before menu item")
         mitem = wx.MenuItem(editmenu, -1, "Paste Before")
         self.Bind(wx.EVT_MENU,self.paste,mitem)
-        if popup:
-            if not self.cut_el and not self.cut_att:
-                mitem.SetItemLabel("Nothing to Paste")
-                mitem.Enable(False)
-        else:
+        disable_menu = True if not self.cut_el and not self.cut_att else False
+        add_menuitem = True if not popup or not disable_menu else False
+        if disable_menu:
+            print("disabling item")
+            mitem.SetItemLabel("Nothing to Paste")
+            mitem.Enable(False)
+        if not popup:
+            print("no popping up today")
             self.pastebefore_item = mitem
-        editmenu.AppendItem(mitem)
+        if add_menuitem:
+            editmenu.AppendItem(mitem)
+        print("creating paste after menu item")
         mitem = wx.MenuItem(editmenu, -1, "Paste After")
         self.Bind(wx.EVT_MENU,self.paste_aft,mitem)
-        if popup:
-            if not self.cut_el and not self.cut_att:
-                ## mitem.SetItemLabel(" ")
-                mitem.Enable(False)
-        else:
+        if disable_menu:
+            print("disabling item")
+            ## mitem.SetItemLabel(" ")
+            mitem.Enable(False)
+        if not popup:
+            print("no popping up today")
             self.pasteafter_item = mitem
-        editmenu.AppendItem(mitem)
+        if add_menuitem:
+            editmenu.AppendItem(mitem)
+        print("creating paste under menu item")
         mitem = wx.MenuItem(editmenu, -1, "Paste Under")
         self.Bind(wx.EVT_MENU,self.paste_und,mitem)
-        if popup:
-            if not self.cut_el and not self.cut_att:
-                ## mitem.SetItemLabel(" ")
-                mitem.Enable(False)
-        else:
+        if disable_menu:
+            print("disabling item")
+            ## mitem.SetItemLabel(" ")
+            mitem.Enable(False)
+        if not popup:
+            print("no popup today")
             self.pasteunder_item = mitem
-        editmenu.AppendItem(mitem)
+        if add_menuitem:
+            editmenu.AppendItem(mitem)
         editmenu.AppendSeparator()
         mitem = wx.MenuItem(editmenu, -1, "Insert Attribute")
         self.Bind(wx.EVT_MENU,self.add_attr,mitem)
@@ -340,12 +352,22 @@ class MainFrame(wx.Frame):
             return filemenu, viewmenu, editmenu
 
     def enable_pasteitems(self,active=False):
+        print("enable pasteitems called using {}".format(active))
         if active:
             self.pastebefore_item.SetItemLabel("Paste Before")
         else:
             self.pastebefore_item.SetItemLabel("Nothing to Paste")
         self.pastebefore_item.Enable(active)
         self.pasteafter_item.Enable(active)
+        self.pasteunder_item.Enable(active)
+
+    def mark_dirty(self, state):
+        self.tree_dirty = state
+        data = self.GetTitle()
+        if state:
+            self.SetTitle(data + '*')
+        elif data.endswith('*'):
+            self.SetTitle(data[:-1])
 
     def check_tree(self):
         print "check_tree aangeroepen"
@@ -431,7 +453,7 @@ class MainFrame(wx.Frame):
         root = Element(data[0]) # .split(None,1)
         expandnode(rt,root)
         h = ElementTree(root).write(self.xmlfn,encoding="iso-8859-1")
-        self.tree_dirty = False
+        self.mark_dirty(False)
 
     def savexml(self,ev=None):
         ## print "savexml(): ", self.xmlfn
@@ -464,9 +486,13 @@ class MainFrame(wx.Frame):
             )
 
     def quit(self,ev=None):
+        self.Close()
+
+    def afsl(self, ev=None):
         print "quit aangeroepen, self.dirty is", self.tree_dirty
         if self.check_tree() != wx.CANCEL:
-            self.Close()
+            ev.Skip()
+        ev.Veto()
 
     def init_tree(self,name=''):
         def add_to_tree(el,rt):
@@ -499,7 +525,7 @@ class MainFrame(wx.Frame):
             add_to_tree(el,rt)
         #self.tree.selection = self.top
         # set_selection()
-        self.tree_dirty = False
+        self.mark_dirty(False)
 
 
     def on_bdown(self, ev=None):
@@ -599,7 +625,7 @@ class MainFrame(wx.Frame):
                 h = (self.data["tag"],self.data["text"])
                 self.tree.SetItemText(self.item,getshortname(h))
                 self.tree.SetItemPyData(self.item,h)
-                self.tree_dirty = True
+                self.mark_dirty(True)
         else:
             nam,val = self.tree.GetItemPyData(self.item) # self.item.get_data()
             data = {'item': self.item, 'name': nam, 'value': val}
@@ -608,7 +634,7 @@ class MainFrame(wx.Frame):
                 h = (self.data["name"],self.data["value"])
                 self.tree.SetItemText(self.item,getshortname(h,attr=True))
                 self.tree.SetItemPyData(self.item,h)
-                self.tree_dirty = True
+                self.mark_dirty(True)
         edt.Destroy()
 
     def cut(self, ev=None):
@@ -660,10 +686,10 @@ class MainFrame(wx.Frame):
             else:
                 self.cut_el = None
                 self.cut_att = data
+            self.enable_pasteitems(True)
         if cut:
             self.tree.Delete(self.item)
-            self.tree_dirty = True
-        self.enable_pasteitems(True)
+            self.mark_dirty(True)
 
     def paste(self, ev=None,before=True,pastebelow=False):
         if DESKTOP and not self.checkselection():
@@ -732,7 +758,7 @@ class MainFrame(wx.Frame):
                     x,c = self.tree.GetNextChild(node,c)
                 if i == cnt: i = -1
             zetzeronder(node,self.cut_el[0],i)
-        self.tree_dirty = True
+        self.mark_dirty(True)
 
     def paste_aft(self, ev=None):
         self.paste(before=False)
@@ -748,7 +774,7 @@ class MainFrame(wx.Frame):
             h = (self.data["name"],self.data["value"])
             rt = self.tree.AppendItem(self.item,getshortname(h,attr=True))
             self.tree.SetItemPyData(rt,h)
-            self.tree_dirty = True
+            self.mark_dirty(True)
         edt.Destroy()
 
     def insert(self, ev=None,before=True,below=False):
@@ -766,7 +792,7 @@ class MainFrame(wx.Frame):
                 item = self.item if not before else self.tree.GetPrevSibling(self.item)
                 node = self.tree.InsertItem(parent,item,text)
                 self.tree.SetPyData(node,data)
-            self.tree_dirty = True
+            self.mark_dirty(True)
         edt.Destroy()
 
     def ins_aft(self, ev=None):
@@ -779,7 +805,7 @@ class MainFrame(wx.Frame):
        self.close()
 class MainGui(object):
     def __init__(self,args):
-        app = wx.App(redirect=True,filename="axe.log")
+        app = wx.App(redirect=False) # True,filename="axe.log")
         if len(args) > 1:
             frm = MainFrame(None, -1, fn=args[1])
         else:
