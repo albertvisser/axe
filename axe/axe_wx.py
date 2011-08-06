@@ -1,4 +1,10 @@
-import os,sys,shutil,copy
+"wxPython versie van een op een treeview gebaseerde XML-editor"
+
+import os
+import sys
+import shutil
+## import copy
+
 from xml.etree.ElementTree import Element, ElementTree, SubElement
 ELSTART = '<>'
 TITEL = "Albert's (Simple) XML-editor"
@@ -179,6 +185,8 @@ class AttributeDialog(wx.Dialog):
                 win.SelectAll()
 
 class MainFrame(wx.Frame):
+    "Main GUI class"
+
     def __init__(self,parent,id,fn=''):
         self.parent = parent
         self.title = "Albert's XML Editor"
@@ -214,6 +222,7 @@ class MainFrame(wx.Frame):
         sizer0.SetSizeHints(self.pnl)
         self.pnl.Layout()
         self.Show(True)
+        self.tree.SetFocus()
 
         self.cut_att = None
         self.cut_el = None
