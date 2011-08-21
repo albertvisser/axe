@@ -8,3 +8,4 @@ syntax: glob
 *txt
 afrift*.ini
 pylint*
+*zip
