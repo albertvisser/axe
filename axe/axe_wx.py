@@ -199,7 +199,7 @@ class MainFrame(wx.Frame):
     def __init__(self,parent,id,fn=''):
         self.parent = parent
         self.title = "Albert's XML Editor"
-        self.xmlfn = fn
+        self.xmlfn = os.path.abspath(fn)
         self.cut_att = None
         self.cut_el = None
         wx.Frame.__init__(self,parent,id,
@@ -243,7 +243,13 @@ class MainFrame(wx.Frame):
             ## self.rt = Element('New')
             self.openxml()
         else:
-            self.rt = ElementTree(file=self.xmlfn).getroot()
+            try:
+                self.rt = ElementTree(file=self.xmlfn).getroot()
+            except IOError as err:
+                dlg = wx.MessageBox(str(err), self.title, wx.OK | wx.ICON_ERROR)
+                ## dlg.ShowModal()
+                ## dlg.Destroy()
+                self.quit()
             self.init_tree()
 
     def init_menus(self,popup=False):
@@ -805,9 +811,11 @@ class MainFrame(wx.Frame):
        self.close()
 class MainGui(object):
     def __init__(self,args):
+        print args
+        print " ".join(args[1:])
         app = wx.App(redirect=False) # True,filename="axe.log")
         if len(args) > 1:
-            frm = MainFrame(None, -1, fn=args[1])
+            frm = MainFrame(None, -1, fn=" ".join(args[1:]))
         else:
             frm = MainFrame(None, -1)
         app.MainLoop()
