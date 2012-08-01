@@ -371,9 +371,10 @@ class MainFrame(wx.Frame):
         self.tree_dirty = state
         data = self.GetTitle()
         if state:
-            self.SetTitle(data + '*')
-        elif data.endswith('*'):
-            self.SetTitle(data[:-1])
+            if not data.endswith(' *'):
+                self.SetTitle(data + ' *')
+        elif data.endswith(' *'):
+            self.SetTitle(data[:-2])
 
     def check_tree(self):
         print "check_tree aangeroepen"
