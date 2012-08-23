@@ -5,6 +5,10 @@ AXE stands for "Albert's XML editor"
 xmleditor.py
     Starter program for the stuff in package "axe"
     imports axe(_wx)
+readme.rst
+    information and usage notes
+files.rst
+    this file
 
 Files in the package
 --------------------
@@ -30,3 +34,5 @@ parsedtd.py
 
 axe.ico
     homemade application icon
+axe.png
+    png version of the icon
