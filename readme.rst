@@ -16,8 +16,8 @@ The DTD parser/editor bit is also an experiment in working with a kind of elemen
 Requirements
 ------------
 
-Python (with ElementTree)
-wxPython (for the current version)
-Tkinter and Gene Cash's Tree module (for an older version)
-PocketPyGUI (for a PocketPC version)
+- Python (with ElementTree)
+- wxPython (for the current version)
+- Tkinter and Gene Cash's Tree module (for an older version)
+- PocketPyGUI (for a PocketPC version)
 
