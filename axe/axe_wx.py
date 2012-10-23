@@ -45,7 +45,7 @@ class ElementDialog(wx.Dialog):
         self._parent = parent
         self.pnl = wx.Panel(self,-1)
         lblName = wx.StaticText(self.pnl, -1,"element name:  ")
-        self.txtTag = wx.TextCtrl(self.pnl,-1, size=(200,-1))
+        self.txtTag = wx.TextCtrl(self.pnl, -1, size=(200,-1))
         self.txtTag.Bind(wx.EVT_KEY_UP,self.OnKeyUp)
         self.cb = wx.CheckBox(self.pnl,-1,label='Bevat data:')
         ## lblData = wx.StaticText(self.pnl, -1, "text data:")
@@ -68,12 +68,12 @@ class ElementDialog(wx.Dialog):
         self.txtData.SetValue(txt)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        ## hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer2 = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer2.Add(lblName, 0, wx.ALIGN_CENTER_VERTICAL)
-        hsizer2.Add(self.txtTag, 0, wx.ALIGN_CENTER_VERTICAL)
-        hsizer.Add(hsizer2, 1, wx.EXPAND | wx.ALL, 5)
-        sizer.Add(hsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 5)
+        hsizer2.Add(lblName, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 5)
+        hsizer2.Add(self.txtTag, 1, wx.ALIGN_CENTER_VERTICAL  | wx.RIGHT, 5)
+        hsizer.Add(hsizer2, 0, wx.EXPAND | wx.ALL, 5)
+        ## sizer.Add(hsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 5)
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         vsizer = wx.BoxSizer(wx.VERTICAL)
@@ -196,10 +196,13 @@ class AttributeDialog(wx.Dialog):
 class MainFrame(wx.Frame):
     "Main GUI class"
 
-    def __init__(self,parent,id,fn=''):
+    def __init__(self, parent, id, fn=''):
         self.parent = parent
         self.title = "Albert's XML Editor"
-        self.xmlfn = os.path.abspath(fn)
+        if fn:
+            self.xmlfn = os.path.abspath(fn)
+        else:
+            self.xmlfn = ''
         self.cut_att = None
         self.cut_el = None
         wx.Frame.__init__(self,parent,id,
@@ -695,8 +698,14 @@ class MainFrame(wx.Frame):
                 self.cut_att = data
             self.enable_pasteitems(True)
         if cut:
+            prev = self.tree.GetPrevSibling(self.item)
+            if not prev.IsOk():
+                prev = self.tree.GetItemParent(self.item)
+                if prev == self.rt:
+                    prev = self.tree.GetNextSibling(self.item)
             self.tree.Delete(self.item)
             self.mark_dirty(True)
+            self.tree.SelectItem(prev)
 
     def paste(self, ev=None,before=True,pastebelow=False):
         if DESKTOP and not self.checkselection():
@@ -810,11 +819,10 @@ class MainFrame(wx.Frame):
 
     def on_click(self, event):
        self.close()
-class MainGui(object):
-    def __init__(self,args):
+def axe_gui(args):
         print args
         print " ".join(args[1:])
-        app = wx.App(redirect=False) # True,filename="axe.log")
+        app = wx.App(redirect=True, filename="/home/albert/xmledit/axe/axe.log")
         if len(args) > 1:
             frm = MainFrame(None, -1, fn=" ".join(args[1:]))
         else:
@@ -823,4 +831,4 @@ class MainGui(object):
 
 if __name__ == "__main__":
     print sys.argv
-    MainGui(sys.argv)
+    axe_gui(sys.argv)
