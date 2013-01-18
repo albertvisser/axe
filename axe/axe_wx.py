@@ -72,8 +72,9 @@ class ElementDialog(wx.Dialog):
         hsizer2 = wx.BoxSizer(wx.HORIZONTAL)
         hsizer2.Add(lblName, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 5)
         hsizer2.Add(self.txtTag, 1, wx.ALIGN_CENTER_VERTICAL  | wx.RIGHT, 5)
-        hsizer.Add(hsizer2, 0, wx.EXPAND | wx.ALL, 5)
+        ## hsizer.Add(hsizer2, 0, wx.EXPAND | wx.ALL, 5)
         ## sizer.Add(hsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 5)
+        sizer.Add(hsizer2, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 5)
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         vsizer = wx.BoxSizer(wx.VERTICAL)
@@ -823,6 +824,7 @@ def axe_gui(args):
         print args
         print " ".join(args[1:])
         app = wx.App(redirect=True, filename="/home/albert/xmledit/axe/axe.log")
+        print "----"
         if len(args) > 1:
             frm = MainFrame(None, -1, fn=" ".join(args[1:]))
         else:
