@@ -1,5 +1,4 @@
 "PyQT versie van een op een treeview gebaseerde XML-editor"
-
 import logging
 logging.basicConfig(filename='axe_qt.log', level=logging.DEBUG,
     format='%(asctime)s %(message)s')
@@ -372,7 +371,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def newxml(self, ev=None):
         AxeMixin.newxml(self)
-        print("self.newxml aangeroepen")
 
     def _ask_for_text(self, prompt):
         """vraagt om tekst en retourneert het antwoord"""
@@ -384,10 +382,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         AxeMixin.openxml(self)
 
     def _file_to_read(self):
-        ## print "asking for filename"
         fnaam = gui.QFileDialog.getOpenFileName(self, "Choose a file", os.getcwd(),
             HMASK)
-        ## print "got filename"
         ok = bool(fnaam)
         return ok, str(fnaam)
 
@@ -441,7 +437,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         self.close()
 
     def afsl(self, ev=None):
-        print "quit aangeroepen, self.dirty is", self.tree_dirty
         if self.check_tree():
             if ev:
                 ev.accept()
@@ -573,44 +568,32 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def copy(self, ev=None, cut=False, retain=True):
         def push_el(el, result):
-            # print "start: ",result
             text = str(el.text(0))
             data = (str(el.text(1)), str(el.text(2)))
-            print data
             children = []
-            # print "before looping over contents:",text,y
             if str(text).startswith(ELSTART):
                 for ix in range(el.childCount()):
                     subel = el.child(ix)
                     temp = push_el(subel, children)
-            # print "after  looping over contents: ",text,y
             result.append((text, data, children))
-            # print "end:  ",result
             return result
         if not self.checkselection():
             return
         txt = AxeMixin.copy(self, cut, retain)
         text = str(self.item.text(0))
         data = (str(self.item.text(1)), str(self.item.text(2)))
-        print data, self.rt.tag, self.rt.text or ""
         if data == (self.rt.tag, self.rt.text or ""):
             self._meldfout("Can't %s the root" % txt)
             return
-        print "copy(): print text,data"
-        print text, data
         if retain:
-            print "retaining",
             if str(text).startswith(ELSTART):
-                print "element"
                 self.cut_el = []
                 self.cut_el = push_el(self.item, self.cut_el)
                 self.cut_att = None
             else:
-                print "attribute"
                 self.cut_el = None
                 self.cut_att = data
             self.enable_pasteitems(True)
-        print "copy: cut_el/cut_att:", self.cut_el, self.cut_att
         if cut:
             parent = self.item.parent()
             ix = parent.indexOfChild(self.item)
@@ -680,28 +663,22 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                     node.insertChild(pos, subnode)
                 for x in el[2]:
                     zetzeronder(subnode, x)
-            print "paste element:", self.cut_el
             if pastebelow:
                 node = self.item
                 ix = -1
             else:
                 node = self.item.parent()
-                print node.text(0)
                 cnt = node.childCount()
-                print cnt
                 for ix in range(cnt):
                     x = node.child(ix)
-                    print x.text(0)
                     if x == self.item:
                         if not before:
                             ix += 1
-                        print 'found ix', ix
                         break
                 if ix == cnt:
                     ix = -1
             zetzeronder(node, self.cut_el[0], ix)
         self.mark_dirty(True)
-        print self.cut_el, cut_attr
 
     def add_attr(self, ev=None):
         if not self.checkselection():
@@ -730,7 +707,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             return
         edt = ElementDialog(self, title="New element").exec_()
         if edt == gui.QDialog.Accepted:
-            print "toevoegen geblazen, before is", before, "below is", below
             data = (self.data['tag'], self.data['text'])
             if below:
                 add_under = self.item
@@ -743,19 +719,15 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             rt = add_as_child(data, add_under, insert=ix)
             ## rt = gui.QTreeWidgetItem(getshortname(data))
             ## rt.setData(0, data)
-            ## print rt
             ## if below:
                 ## x = self.item.addChild(rt)
-                ## print x
             ## else:
                 ## parent = self.item.parent()
                 ## ix = parent.indexOfChild(self.item)
                 ## if not before:
                     ## ix += 1
                 ## y = parent.insertChild(ix, rt)
-                ## print y
             self.mark_dirty(True)
-        print edt
 
 def axe_gui(args):
     app = gui.QApplication(sys.argv)

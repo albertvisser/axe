@@ -38,7 +38,6 @@ class XMLTree(object):
         self.root = et.Element(data)
 
     def expand(self, root, text, data):
-        ## print text,data[0],data[1]
         if text.startswith(ELSTART):
             node = et.SubElement(root, data[0])
             if data[1]:
@@ -89,7 +88,6 @@ class AxeMixin(object):
 
         de underscore methode moet in de gui module zijn gedefinieerd
         """
-        print "check_tree aangeroepen"
         ok = True
         if self.tree_dirty:
             h = self._ask_yesnocancel("XML data has been modified - "
@@ -127,7 +125,6 @@ class AxeMixin(object):
                 self.init_tree()
 
     def savexml(self):
-        ## print "savexml(): ", self.xmlfn
         if self.xmlfn == '':
             self.savexmlas()
         else:
@@ -142,7 +139,6 @@ class AxeMixin(object):
         return ok
 
     def savexmlfile(self, oldfile=''):
-        ## print "savexmlfile():", self.xmlfn
         if oldfile == '':
             oldfile = self.xmlfn + '.bak'
         if os.path.exists(self.xmlfn):
