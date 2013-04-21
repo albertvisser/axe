@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 "PyQT versie van een op een treeview gebaseerde XML-editor"
 import logging
 logging.basicConfig(filename='axe_qt.log', level=logging.DEBUG,
@@ -7,8 +9,8 @@ import os
 import sys
 import PyQt4.QtGui as gui
 import PyQt4.QtCore as core
-from axe_base import getshortname, XMLTree, AxeMixin
-from axe_base import ELSTART, TITEL, axe_iconame
+from .axe_base import getshortname, XMLTree, AxeMixin
+from .axe_base import ELSTART, TITEL, axe_iconame
 if os.name == "nt":
     HMASK = "XML files (*.xml);;All files (*.*)"
 elif os.name == "posix":

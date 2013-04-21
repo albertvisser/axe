@@ -12,7 +12,7 @@ features that allow me to work fast, like keyboard-shortcuts for common actions
 and to avoid adding things I don't need.
 
 The DTD parser/editor bit is also an experiment in working with a kind of element
-factories I think
+factories I think.
 
 There's also a PyQt version that is meant to smooth the transition in making this
 application work in Python 3.

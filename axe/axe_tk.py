@@ -1,9 +1,10 @@
 import os,sys,shutil
 from tkinter import *
+from tkinter.ttk import *
 import tkinter.messagebox
 import tkinter.filedialog
 import tkinter.simpledialog
-import Tree
+from tkinter.ttk import Treeview as Tree
 from xml.etree.ElementTree import Element, ElementTree, SubElement
 cut_obj=None
 cut_el = None

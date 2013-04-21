@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 "wxPython versie van een op een treeview gebaseerde XML-editor"
 
 ## import logging
