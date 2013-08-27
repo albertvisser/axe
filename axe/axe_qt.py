@@ -262,32 +262,33 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             self.filemenu_actions, self.viewmenu_actions, self.editmenu_actions = [], [], []
             for ix, menudata in enumerate((
                     (
-                        ("&New", self.newxml),
-                        ("&Open", self.openxml),
-                        ('&Save', self.savexml),
-                        ('Save &As', self.savexmlas),
-                        ('E&xit', self.quit),
+                        ("&New", self.newxml, 'Ctrl+N'),
+                        ("&Open", self.openxml, 'Ctrl+O'),
+                        ('&Save', self.savexml, 'Ctrl+S'),
+                        ('Save &As', self.savexmlas, 'Shift+Ctrl+S'),
+                        ('E&xit', self.quit, 'Ctrl+Q'),
                     ),
                     (
-                        ("&Expand All (sub)Levels", self.expand),
-                        ("&Collapse All (sub)Levels", self.collapse),
+                        ("&Expand All (sub)Levels", self.expand, 'Ctrl++'),
+                        ("&Collapse All (sub)Levels", self.collapse, 'Ctrl+-'),
                     ),
                     (
-                        ("&Edit", self.edit),
-                        ("&Delete", self.delete),
-                        ("C&ut", self.cut),
-                        ("&Copy", self.copy),
-                        ("Paste Before", self.paste),
-                        ("Paste After", self.paste_aft),
-                        ("Paste Under", self.paste_und),
-                        ("Insert Attribute", self.add_attr),
-                        ('Insert Element Before', self.insert),
-                        ('Insert Element After', self.ins_aft),
-                        ('Insert Element Under', self.ins_chld),
+                        ("&Edit", self.edit, 'Ctrl-E,F2'),
+                        ("&Delete", self.delete, 'Ctrl-D,Delete'),
+                        ("C&ut", self.cut, 'Ctrl+X'),
+                        ("&Copy", self.copy, 'Ctrl+C'),
+                        ("Paste Before", self.paste, 'Shift+Ctrl+V'),
+                        ("Paste After", self.paste_aft, 'Ctrl+V'),
+                        ("Paste Under", self.paste_und, 'Alt+Ctrl+V'),
+                        ("Insert Attribute", self.add_attr, 'Shift+Insert'),
+                        ('Insert Element Before', self.insert, 'Ctrl+Insert'),
+                        ('Insert Element After', self.ins_aft, 'Alt+Insert'),
+                        ('Insert Element Under', self.ins_chld, 'Insert'),
                     ))):
-                for text, callback in menudata:
+                for text, callback, shortcuts in menudata:
                     act = gui.QAction(text, self)
                     self.connect(act, core.SIGNAL('triggered()'), callback)
+                    act.setShortcuts([x for x in shortcuts.split(',')])
                     if ix == 0:
                         self.filemenu_actions.append(act)
                     elif ix == 1:
@@ -488,13 +489,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         item = self.tree.currentItem()
         skip = False
         if item and item != self.top:
-            if ky == core.Qt.Key_Delete:
-                self.delete()
-                skip = True
-            elif ky == core.Qt.Key_F2:
-                self.edit()
-                skip = True
-            elif ky == core.Qt.Key_Return:
+            if ky == core.Qt.Key_Return:
                 if item.childCount > 0:
                     if self.tree.isItemExpanded(item):
                         self.tree.collapseItem(item)
