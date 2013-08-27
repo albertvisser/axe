@@ -7,6 +7,7 @@ logging.basicConfig(filename='axe_qt.log', level=logging.DEBUG,
 
 import os
 import sys
+import functools
 import PyQt4.QtGui as gui
 import PyQt4.QtCore as core
 from .axe_base import getshortname, XMLTree, AxeMixin
@@ -245,20 +246,24 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         ## self.connect(self.tree, QtCore.SIGNAL("self.tree.keyReleaseEvent()"), self.on_keyup)
         ## self.tree.mouseReleaseEvent.connect(self.on_rightdown)
         ## self.tree.keyReleaseEvent.connect(self.on_keyup)        self.setCentralWidget(self.tree)
-
+        ## action = gui.QAction('Contextmenu', self)
+        ## self.connect(action, core.SIGNAL('triggered()'), self.popupmenu)
+        ## action.setShortcut(core.Qt.Key_Menu)
         self.mark_dirty(False)
 
     def keyReleaseEvent(self, event):
         skip = self.on_keyup(event)
         if not skip:
-            gui.QMainWindow.keyPressEvent(self, event)
+            gui.QMainWindow.keyReleaseEvent(self, event)
 
     def closeEvent(self, event):
         """applicatie afsluiten"""
         self.afsl()
 
     def init_menus(self, popup=False):
-        if not popup:
+        if popup:
+            viewmenu = gui.QMenu("&View")
+        else:
             self.filemenu_actions, self.viewmenu_actions, self.editmenu_actions = [], [], []
             for ix, menudata in enumerate((
                     (
@@ -304,9 +309,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 filemenu.addAction(act)
             filemenu.addSeparator()
             filemenu.addAction(self.filemenu_actions[-1])
-        if popup:
-            viewmenu = gui.QMenu("&View")
-        else:
             viewmenu = menubar.addMenu("&View")
         for act in self.viewmenu_actions:
             viewmenu.addAction(act)
@@ -343,6 +345,11 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             return editmenu
         ## else:
             ## return filemenu, viewmenu, editmenu
+
+    def popupmenu(self, item):
+        print('self.popupmenu called')
+        menu = self.init_menus(popup=True)
+        menu.exec_(self.tree.mapToGlobal(self.tree.visualItemRect(item).bottomRight()))
 
     def enable_pasteitems(self, active=False):
         """activeert of deactiveert de paste-entries in het menu
@@ -505,12 +512,20 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                     self.tree.collapseItem(item)
                     self.tree.setCurrentItem(item.parent())
                 skip = True
+            elif ky == core.Qt.Key_Menu:
+                self.popupmenu(item)
+                skip = True
         return skip
 
-    def checkselection(self):
+    def checkselection(self, message=True):
+        """get the currently seleted item
+
+        if there is no selection or the file title is selected, display a message
+        (if requested). I think originally it returned False in that case
+        """
         sel = True
         self.item = self.tree.currentItem()
-        if self.item is None or self.item == self.top:
+        if message and (self.item is None or self.item == self.top):
             gui.QMessageBox.information(self, self.title,
                 'You need to select an element or attribute first')
         return sel
