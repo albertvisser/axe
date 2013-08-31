@@ -22,6 +22,6 @@ Requirements
 
 - Python (with ElementTree)
 - wxPython or PyQT4 (for the current versions)
-- Tkinter and Gene Cash's Tree module (for an older version)
+- Tkinter and Gene Cash's Tree module (for the original PC version)
 - PocketPyGUI (for a PocketPC version)
 
