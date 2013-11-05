@@ -1,6 +1,6 @@
 import os,sys,shutil,copy
 from xml.etree.ElementTree import Element, ElementTree, SubElement
-import parseDTD as pd
+import parsedtd as pd
 ELTYPES = ('pcdata','one','opt','mul','mulopt')
 ATTTYPES = ('cdata','enum','id')
 VALTYPES = ('opt','req','fix','dflt')
@@ -34,6 +34,16 @@ SYMBOLS = {
 TITEL = "Albert's (Simple) DTD-editor"
 HMASK = "DTD files (*.dtd)|*.dtd|All files (*.*)|*.*"
 IMASK = "All files|*.*"
+testdtd = """\
+<!ELEMENT note (to,from,heading,body)>
+<!ELEMENT to (#PCDATA)>
+<!ELEMENT from (#PCDATA)>
+<!ELEMENT heading (#PCDATA)>
+<!ELEMENT body (#PCDATA)>
+<!ATTLIST body NAME CDATA #IMPLIED CATEGORY (HandTool|Table|Shop-Professional) "HandTool" PARTNUM CDATA #IMPLIED PLANT (Pittsburgh|Milwaukee|Chicago) "Chicago" INVENTORY (InStock|Backordered|Discontinued) "InStock">
+<!ENTITY writer "Donald Duck.">
+<!ENTITY copyright SYSTEM "http://www.w3schools.com/entities.dtd">
+"""
 
 import wx
 if os.name == 'ce':
@@ -604,20 +614,11 @@ class MainFrame(wx.Frame):
 
     def openxml(self,ev=None):
         ## self.openfile()
-        try:
-            email = pd.DTDParser(fromstring="""\
-<!ELEMENT note (to,from,heading,body)>
-<!ELEMENT to (#PCDATA)>
-<!ELEMENT from (#PCDATA)>
-<!ELEMENT heading (#PCDATA)>
-<!ELEMENT body (#PCDATA)>
-<!ATTLIST body NAME CDATA #IMPLIED CATEGORY (HandTool|Table|Shop-Professional) "HandTool" PARTNUM CDATA #IMPLIED PLANT (Pittsburgh|Milwaukee|Chicago) "Chicago" INVENTORY (InStock|Backordered|Discontinued) "InStock">
-<!ENTITY writer "Donald Duck.">
-<!ENTITY copyright SYSTEM "http://www.w3schools.com/entities.dtd">
-    """)
-        except pd.DTDParsingError,msg:
-            print msg
-            return
+        ## try:
+        email = pd.DTDParser(fromstring=testdtd)
+        ## except pd.DTDParsingError,msg:
+            ## print msg
+            ## return
         self.rt = email
         self.init_tree()
 
@@ -731,6 +732,34 @@ class MainFrame(wx.Frame):
             titel = '[untitled]'
         self.top = self.tree.AddRoot(titel)
         self.SetTitle(" - ".join((os.path.split(titel)[-1],TITEL)))
+
+    ## de in self.openxml ingelezen structuur self.rt bevat (in dit geval):
+    ## [<parsedtd._Element object at 0x2527c50>,
+     ## <parsedtd._Entity object at 0x2527f90>,
+     ## <parsedtd._Entity object at 0x2527f50>]
+
+    ## het _Element object bevat de attributen:
+        ## type: 'ANY',
+        ## name: 'note',
+        ## occurrence: '',
+        ## entity_list: [],
+        ## attribute_list: [],
+        ## is_alternative: False,
+        ## subelement_list: [
+        ## <parsedtd._Element object at 0x176dcd0>,
+        ## <parsedtd._Element object at 0x176dd50>,
+        ## <parsedtd._Element object at 0x176dd90>,
+        ## <parsedtd._Element object at 0x176ddd0>],
+    ## en de _entity objecten:
+        ## type: 'ent',
+        ## name: 'writer',
+        ## value: 'Donald Duck.'
+    ## en
+        ## type: 'ext',
+        ## name: 'copyright',
+        ## value: 'http://www.w3schools.com/entities.dtd'
+
+
 
         h = (self.rt.tag,'one',False)
         rt = self.tree.AppendItem(self.top,getshortname(h))

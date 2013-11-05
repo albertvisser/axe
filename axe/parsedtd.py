@@ -10,6 +10,7 @@ END = '>'
 
 def DTDParser(**argv):
     return _DTDParser(**argv)._dtd
+
 def valid_name(name):
     """
     nakijken welke tekens er niet in een naam mogen voorkomen
