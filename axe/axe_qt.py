@@ -32,6 +32,64 @@ def add_as_child(element, root, attr=False, insert=-1):
         root.insertChild(insert, item)
     return item
 
+def check_tree_item(item, search_args):
+    """check if this is an element that has the right attributes and stuff
+    we already know its GUI text starts with ELSTART
+    """
+    wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
+
+    ele_ok = attr_name_ok = attr_value_ok = attr_ok = text_ok = False
+    attr_item = None
+    if not wanted_ele or wanted_ele in str(item.text(1)):
+        ele_ok = True
+    if not wanted_text or wanted_text in str(item.text(2)):
+        text_ok = True
+
+    subel_list = []
+    attr_list = []
+    for seq in range(item.childCount()):
+        subitem = item.child(seq)
+        if str(subitem.text(0)).startswith(ELSTART):
+            subel_list.append(subitem)
+        else:
+            attr_list.append(subitem)
+
+    if wanted_attr or wanted_value:
+        for subitem in attr_list:
+            if not wanted_attr or wanted_attr in str(subitem.text(1)):
+                attr_name_ok = True
+            if not wanted_value or wanted_value in str(subitem.text(2)):
+                attr_value_ok = True
+            if attr_name_ok and attr_value_ok:
+                attr_ok = True
+                attr_item = subitem
+                break
+    else:
+        attr_ok = True
+
+    ok = ele_ok and text_ok and attr_ok
+    return ok, attr_item, subel_list
+
+def find_first(ele, search_args, reverse=False):
+    "find the first item that fulfills the search criteria"
+    wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
+    itemfound = None
+    # check the current element and get a list of  subelements
+    ok, attr_item, subel_list = check_tree_item(ele, search_args)
+    if ok:
+        if wanted_ele or wanted_text:
+            itemfound = ele
+        else:
+            itemfound = attr_item
+    else:
+        if reverse:
+            subel_list.reverse()
+        for subel in subel_list:
+            itemfound = find_first(subel, search_args, reverse)
+            if itemfound:
+                break
+    return itemfound
+
 class ElementDialog(gui.QDialog):
     def __init__(self, parent, title="", item=None):
         gui.QDialog.__init__(self, parent)
@@ -44,7 +102,6 @@ class ElementDialog(gui.QDialog):
         ## lbl_data = gui.QLabel("text data:", self)
         self.txt_data = gui.QTextEdit(self)
         self.txt_data.setTabChangesFocus(True)
-        ## self.txt_data.Bind(wx.EVT_KEY_UP,self.on_keyup)
         self.btn_ok = gui.QPushButton('&Save', self)
         self.connect(self.btn_ok, core.SIGNAL('clicked()'), self.on_ok)
         self.btn_ok.setDefault(True)
@@ -176,6 +233,129 @@ class AttributeDialog(gui.QDialog):
         if event.key() == core.Qt.Key_Escape:
             gui.QDialog.done(self, gui.QDialog.Rejected)
 
+class SearchDialog(gui.QDialog):
+    def __init__(self, parent, title="", item=None):
+        gui.QDialog.__init__(self, parent)
+        self.setWindowTitle(title)
+        self._parent = parent
+
+        self.cb_element = gui.QLabel('Element', self)
+        lbl_element = gui.QLabel("name:", self)
+        self.txt_element = gui.QLineEdit(self)
+        self.txt_element.textChanged.connect(self.set_search)
+
+        self.cb_attr = gui.QLabel('Attribute', self)
+        lbl_attr_name = gui.QLabel("name:", self)
+        self.txt_attr_name = gui.QLineEdit(self)
+        self.txt_attr_name.textChanged.connect(self.set_search)
+        lbl_attr_val = gui.QLabel("value:", self)
+        self.txt_attr_val = gui.QLineEdit(self)
+        self.txt_attr_val.textChanged.connect(self.set_search)
+
+        self.cb_text = gui.QLabel('Text', self)
+        lbl_text = gui.QLabel("value:", self)
+        self.txt_text = gui.QLineEdit(self)
+        self.txt_text.textChanged.connect(self.set_search)
+
+        self.lbl_search = gui.QLabel('', self)
+
+        self.btn_ok = gui.QPushButton('&Ok', self)
+        self.btn_ok.clicked.connect(self.on_ok)
+        self.btn_ok.setDefault(True)
+        self.btn_cancel = gui.QPushButton('&Cancel', self)
+        self.btn_cancel.clicked.connect(self.on_cancel)
+
+        sizer = gui.QVBoxLayout()
+
+        gsizer = gui.QGridLayout()
+
+        gsizer.addWidget(self.cb_element, 0, 0)
+        vsizer = gui.QVBoxLayout()
+        hsizer = gui.QHBoxLayout()
+        hsizer.addWidget(lbl_element)
+        hsizer.addWidget(self.txt_element)
+        vsizer.addLayout(hsizer)
+        gsizer.addLayout(vsizer, 0, 1)
+
+        vsizer = gui.QVBoxLayout()
+        vsizer.addSpacing(5)
+        vsizer.addWidget(self.cb_attr)
+        vsizer.addStretch()
+        gsizer.addLayout(vsizer, 1, 0)
+        vsizer = gui.QVBoxLayout()
+        hsizer = gui.QHBoxLayout()
+        hsizer.addWidget(lbl_attr_name)
+        hsizer.addWidget(self.txt_attr_name)
+        vsizer.addLayout(hsizer)
+        hsizer = gui.QHBoxLayout()
+        hsizer.addWidget(lbl_attr_val)
+        hsizer.addWidget(self.txt_attr_val)
+        vsizer.addLayout(hsizer)
+        gsizer.addLayout(vsizer, 1, 1)
+
+        gsizer.addWidget(self.cb_text, 2, 0)
+        hsizer = gui.QHBoxLayout()
+        hsizer.addWidget(lbl_text)
+        hsizer.addWidget(self.txt_text)
+        gsizer.addLayout(hsizer, 2, 1)
+        sizer.addLayout(gsizer)
+
+        hsizer = gui.QHBoxLayout()
+        hsizer.addWidget(self.lbl_search)
+        sizer.addLayout(hsizer)
+
+        hsizer = gui.QHBoxLayout()
+        hsizer.addStretch()
+        hsizer.addWidget(self.btn_ok)
+        hsizer.addWidget(self.btn_cancel)
+        hsizer.addStretch()
+        sizer.addLayout(hsizer)
+
+        self.setLayout(sizer)
+
+    def set_search(self):
+        ele = self.txt_element.text()
+        attr_name = self.txt_attr_name.text()
+        attr_val = self.txt_attr_val.text()
+        text = self.txt_text.text()
+        attr = ''
+        if ele:
+            ele = ' an element named `{}`'.format(ele)
+        if attr_name or attr_val:
+            attr = ' an attribute'
+            if attr_name:
+                attr += ' named `{}`'.format(attr_name)
+            if attr_val:
+                attr += ' that has value `{}`'.format(attr_val)
+            if ele:
+                attr = ' with' + attr
+        if text:
+            out = 'search for text'
+            if ele:
+                out += ' under' + ele
+            elif attr:
+                out += ' under an element with'
+            if attr:
+                out += attr
+        elif ele:
+            out = 'search for' + ele
+            if attr:
+                out += attr
+        elif attr:
+            out = 'search for' + attr
+        self.lbl_search.setText(out)
+
+    def on_ok(self):
+        ele = str(self.txt_element.text())
+        attr_name = str(self.txt_attr_name.text())
+        attr_val = str(self.txt_attr_val.text())
+        text = str(self.txt_text.text())
+        self._parent.data = (ele, attr_name, attr_val, text)
+        gui.QDialog.done(self, gui.QDialog.Accepted)
+
+    def on_cancel(self):
+        gui.QDialog.done(self, gui.QDialog.Rejected)
+
 class VisualTree(gui.QTreeWidget):
     def __init__(self, parent):
         self.parent = parent
@@ -264,7 +444,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         if popup:
             viewmenu = gui.QMenu("&View")
         else:
-            self.filemenu_actions, self.viewmenu_actions, self.editmenu_actions = [], [], []
+            self.filemenu_actions, self.viewmenu_actions = [], []
+            self.editmenu_actions, self.searchmenu_actions = [], []
             for ix, menudata in enumerate((
                     (
                         ("&New", self.newxml, 'Ctrl+N'),
@@ -278,8 +459,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                         ("&Collapse All (sub)Levels", self.collapse, 'Ctrl+-'),
                     ),
                     (
-                        ("&Edit", self.edit, 'Ctrl-E,F2'),
-                        ("&Delete", self.delete, 'Ctrl-D,Delete'),
+                        ("&Edit", self.edit, 'Ctrl+E,F2'),
+                        ("&Delete", self.delete, 'Ctrl+D,Delete'),
                         ("C&ut", self.cut, 'Ctrl+X'),
                         ("&Copy", self.copy, 'Ctrl+C'),
                         ("Paste Before", self.paste, 'Shift+Ctrl+V'),
@@ -289,6 +470,12 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                         ('Insert Element Before', self.insert, 'Ctrl+Insert'),
                         ('Insert Element After', self.ins_aft, 'Alt+Insert'),
                         ('Insert Element Under', self.ins_chld, 'Insert'),
+                    ),
+                    (
+                        ("&Find", self.search, 'Ctrl+F'),
+                        ("Find &Next", self.search_next, 'F3'),
+                        ("Find &Previous", self.search_prev, 'Shift+F3'),
+                        ("&Replace", self.replace, 'Ctrl+H'),
                     ))):
                 for text, callback, shortcuts in menudata:
                     act = gui.QAction(text, self)
@@ -300,6 +487,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                         self.viewmenu_actions.append(act)
                     elif ix == 2:
                         self.editmenu_actions.append(act)
+                    elif ix == 3:
+                        self.searchmenu_actions.append(act)
             self.pastebefore_item, self.pasteafter_item, \
                 self.pasteunder_item = self.editmenu_actions[4:7]
 
@@ -342,7 +531,16 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             editmenu.addAction(act)
 
         if popup:
-            return editmenu
+            searchmenu = editmenu
+            searchmenu.addSeparator()
+        else:
+            searchmenu = menubar.addMenu("&Search")
+
+        for act in self.searchmenu_actions:
+            searchmenu.addAction(act)
+
+        if popup:
+            return searchmenu
         ## else:
             ## return filemenu, viewmenu, editmenu
 
@@ -631,15 +829,17 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             return
         data = (str(self.item.text(1)), str(self.item.text(2)))
         if pastebelow and not str(self.item.text(0)).startswith(ELSTART):
-            gui.QMessageBox.critical("Can't paste below an attribute", self.title)
+            gui.QMessageBox.critical(self, self.title,
+                "Can't paste below an attribute")
             return
-        if data == (self.rt.tag, self.rt.text or ""):
+        if data == ((self.rt.tag, self.rt.text) or ""):
             if before:
-                gui.QMessageBox.critical("Can't paste before the root", self.title)
+                gui.QMessageBox.critical(self, self.title,
+                    "Can't paste before the root")
                 return
             else:
-                gui.QMessageBox.information("Pasting as first element below root",
-                    self.title)
+                gui.QMessageBox.information(self, self.title,
+                    "Pasting as first element below root")
                 pastebelow = True
         ## if self.cut:
             ## self.enable_pasteitems(False)
@@ -740,6 +940,23 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                     ## ix += 1
                 ## y = parent.insertChild(ix, rt)
             self.mark_dirty(True)
+
+    def search(self, event=None):
+        edt = SearchDialog(self, title='Search options').exec_()
+        if edt == gui.QDialog.Accepted:
+            found = find_first(self.top, self.data) # self.tree.top.child(0)
+            if found:
+                self.tree.setCurrentItem(found)
+
+    def search_next(self, event=None):
+        self._meldinfo('Find next: not implemented yet')
+
+    def search_prev(self, event=None):
+        self._meldinfo('Find prev: not implemented yet')
+
+    def replace(self, event=None):
+        self._meldinfo('Replace: not sure if I wanna implement this')
+
 
 def axe_gui(args):
     app = gui.QApplication(sys.argv)
