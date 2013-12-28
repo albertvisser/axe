@@ -118,12 +118,9 @@ class ElementDialog(gui.QDialog):
         self.txt_data.setText(txt)
 
         sizer = gui.QVBoxLayout()
-        ## hsizer = gui.QHBoxLayout()
         hsizer2 = gui.QHBoxLayout()
         hsizer2.addWidget(lbl_name)
         hsizer2.addWidget(self.txt_tag)
-        ## hsizer.Add(hsizer2, 0, wx.EXPAND | wx.ALL, 5)
-        ## sizer.Add(hsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP,  5)
         sizer.addLayout(hsizer2)
 
         hsizer = gui.QHBoxLayout()
@@ -139,7 +136,6 @@ class ElementDialog(gui.QDialog):
         sizer.addLayout(hsizer)
 
         self.setLayout(sizer)
-        ## self.resize(400, 270)
 
     def on_cancel(self):
         gui.QDialog.done(self, gui.QDialog.Rejected)
@@ -148,21 +144,14 @@ class ElementDialog(gui.QDialog):
         self._parent.data = {}
         tag = str(self.txt_tag.text())
         if tag == '' or len(tag.split()) > 1:
-            gui.QMessageBox.critical(self, self._parent.title,
-            'Element name cannot be empty or contain spaces')
+            self._parent._meldfout('Element name must not be empty or contain spaces')
+            self.txt_tag.setFocus()
             return
         self._parent.data["tag"] = tag
         self._parent.data["data"] = self.cb.isChecked()
         self._parent.data["text"] = self.txt_data.toPlainText()
         gui.QDialog.done(self, gui.QDialog.Accepted)
 
-    ## def on_keyup(self,ev):
-        ## ky = ev.GetKeyCode()
-        ## mod = ev.GetModifiers()
-        ## if ky == 65 and mod == wx.MOD_CONTROL:
-            ## win = ev.GetEventObject()
-            ## if win in (self.txt_tag, self.txt_data):
-                ## win.SelectAll()
     def keyPressEvent(self, event):
         """event handler voor toetsaanslagen"""
         if event.key() == core.Qt.Key_Escape:
@@ -211,8 +200,8 @@ class AttributeDialog(gui.QDialog):
         self._parent.data = {}
         nam = self.txt_name.text()
         if nam == '':
-            gui.QMessageBox.critical(self, self._parent.title,
-                'Attribute name cannot be empty or spaces')
+            self._parent._meldfout('Attribute name must not be empty or contain spaces')
+            self.txt_name.setFocus()
             return
         self._parent.data["name"] = nam
         self._parent.data["value"] = self.txt_value.text()
@@ -221,13 +210,6 @@ class AttributeDialog(gui.QDialog):
     def on_cancel(self):
         gui.QDialog.done(self, gui.QDialog.Rejected)
 
-    ## def on_keyup(self,ev):
-        ## ky = ev.GetKeyCode()
-        ## mod = ev.GetModifiers()
-        ## if ky == 65 and mod == wx.MOD_CONTROL:
-            ## win = ev.GetEventObject()
-            ## if win in (self.txt_name, self.txt_value):
-                ## win.SelectAll()
     def keyPressEvent(self, event):
         """event handler voor toetsaanslagen"""
         if event.key() == core.Qt.Key_Escape:
@@ -724,8 +706,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         sel = True
         self.item = self.tree.currentItem()
         if message and (self.item is None or self.item == self.top):
-            gui.QMessageBox.information(self, self.title,
-                'You need to select an element or attribute first')
+            self._meldinfo('You need to select an element or attribute first')
         return sel
 
     def expand(self, ev=None):
@@ -829,17 +810,14 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             return
         data = (str(self.item.text(1)), str(self.item.text(2)))
         if pastebelow and not str(self.item.text(0)).startswith(ELSTART):
-            gui.QMessageBox.critical(self, self.title,
-                "Can't paste below an attribute")
+            self._meldfout("Can't paste below an attribute")
             return
         if data == ((self.rt.tag, self.rt.text) or ""):
             if before:
-                gui.QMessageBox.critical(self, self.title,
-                    "Can't paste before the root")
+                self._meldfout("Can't paste before the root")
                 return
             else:
-                gui.QMessageBox.information(self, self.title,
-                    "Pasting as first element below root")
+                self._meldinfo("Pasting as first element below root")
                 pastebelow = True
         ## if self.cut:
             ## self.enable_pasteitems(False)
