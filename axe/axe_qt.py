@@ -10,7 +10,7 @@ import sys
 import functools
 import PyQt4.QtGui as gui
 import PyQt4.QtCore as core
-from .axe_base import getshortname, XMLTree, AxeMixin
+from .axe_base import getshortname, find_next, XMLTree, AxeMixin
 from .axe_base import ELSTART, TITEL, axe_iconame
 if os.name == "nt":
     HMASK = "XML files (*.xml);;All files (*.*)"
@@ -32,63 +32,22 @@ def add_as_child(element, root, attr=False, insert=-1):
         root.insertChild(insert, item)
     return item
 
-def check_tree_item(item, search_args):
-    """check if this is an element that has the right attributes and stuff
-    we already know its GUI text starts with ELSTART
+def flatten_tree(element):
+    """return the tree's structure as a flat list
+    probably nicer as a generator function
     """
-    wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
-
-    ele_ok = attr_name_ok = attr_value_ok = attr_ok = text_ok = False
-    attr_item = None
-    if not wanted_ele or wanted_ele in str(item.text(1)):
-        ele_ok = True
-    if not wanted_text or wanted_text in str(item.text(2)):
-        text_ok = True
+    attr_list = []
+    elem_list = [(element, str(element.text(1)), str(element.text(2)), attr_list)]
 
     subel_list = []
-    attr_list = []
-    for seq in range(item.childCount()):
-        subitem = item.child(seq)
+    for seq in range(element.childCount()):
+        subitem = element.child(seq)
         if str(subitem.text(0)).startswith(ELSTART):
-            subel_list.append(subitem)
+            subel_list = flatten_tree(subitem)
+            elem_list.extend(subel_list)
         else:
-            attr_list.append(subitem)
-
-    if wanted_attr or wanted_value:
-        for subitem in attr_list:
-            if not wanted_attr or wanted_attr in str(subitem.text(1)):
-                attr_name_ok = True
-            if not wanted_value or wanted_value in str(subitem.text(2)):
-                attr_value_ok = True
-            if attr_name_ok and attr_value_ok:
-                attr_ok = True
-                attr_item = subitem
-                break
-    else:
-        attr_ok = True
-
-    ok = ele_ok and text_ok and attr_ok
-    return ok, attr_item, subel_list
-
-def find_first(ele, search_args, reverse=False):
-    "find the first item that fulfills the search criteria"
-    wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
-    itemfound = None
-    # check the current element and get a list of  subelements
-    ok, attr_item, subel_list = check_tree_item(ele, search_args)
-    if ok:
-        if wanted_ele or wanted_text:
-            itemfound = ele
-        else:
-            itemfound = attr_item
-    else:
-        if reverse:
-            subel_list.reverse()
-        for subel in subel_list:
-            itemfound = find_first(subel, search_args, reverse)
-            if itemfound:
-                break
-    return itemfound
+            attr_list.append((subitem, str(subitem.text(1)), str(subitem.text(2))))
+    return elem_list
 
 class ElementDialog(gui.QDialog):
     def __init__(self, parent, title="", item=None):
@@ -296,6 +255,7 @@ class SearchDialog(gui.QDialog):
         self.setLayout(sizer)
 
     def set_search(self):
+        out = ''
         ele = self.txt_element.text()
         attr_name = self.txt_attr_name.text()
         attr_val = self.txt_attr_val.text()
@@ -332,7 +292,12 @@ class SearchDialog(gui.QDialog):
         attr_name = str(self.txt_attr_name.text())
         attr_val = str(self.txt_attr_val.text())
         text = str(self.txt_text.text())
-        self._parent.data = (ele, attr_name, attr_val, text)
+        if not any((ele, attr_name, attr_val, text)):
+            self._parent._meldfout('Please enter search criteria or press cancel')
+            self.txt_element.setFocus()
+            return
+
+        self._parent.search_args = (ele, attr_name, attr_val, text)
         gui.QDialog.done(self, gui.QDialog.Accepted)
 
     def on_cancel(self):
@@ -455,6 +420,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                     ),
                     (
                         ("&Find", self.search, 'Ctrl+F'),
+                        ("Find &Last", self.search_last, 'Shift+Ctrl+F'),
                         ("Find &Next", self.search_next, 'F3'),
                         ("Find &Previous", self.search_prev, 'Shift+F3'),
                         ("&Replace", self.replace, 'Ctrl+H'),
@@ -677,7 +643,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         skip = False
         if item and item != self.top:
             if ky == core.Qt.Key_Return:
-                if item.childCount > 0:
+                if item.childCount() > 0:
                     if self.tree.isItemExpanded(item):
                         self.tree.collapseItem(item)
                         self.tree.setCurrentItem(item.parent())
@@ -919,18 +885,32 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 ## y = parent.insertChild(ix, rt)
             self.mark_dirty(True)
 
-    def search(self, event=None):
+    def search(self, event=None, reversed=False):
+        self._search_pos = None
         edt = SearchDialog(self, title='Search options').exec_()
         if edt == gui.QDialog.Accepted:
-            found = find_first(self.top, self.data) # self.tree.top.child(0)
-            if found:
-                self.tree.setCurrentItem(found)
+            self.search_next(event, reversed)
+            ## found, is_attr = find_next(flatten_tree(self.top), self.search_args,
+                ## reversed) # self.tree.top.child(0)
+            ## if found:
+                ## self.tree.setCurrentItem(found)
+                ## self._search_pos = (found, is_attr)
 
-    def search_next(self, event=None):
-        self._meldinfo('Find next: not implemented yet')
+    def search_last(self, event=None):
+        self.search(event, reversed=True)
+
+    def search_next(self, event=None, reversed=False):
+        ## self._meldinfo('Find next: not implemented yet')
+        found, is_attr = find_next(flatten_tree(self.top), self.search_args,
+            reversed, self._search_pos) # self.tree.top.child(0)
+        if found:
+            self.tree.setCurrentItem(found)
+            self._search_pos = (found, is_attr)
+        else:
+            self._meldinfo('Niks (meer) gevonden')
 
     def search_prev(self, event=None):
-        self._meldinfo('Find prev: not implemented yet')
+        self.search_next(event, reversed=True)
 
     def replace(self, event=None):
         self._meldinfo('Replace: not sure if I wanna implement this')
