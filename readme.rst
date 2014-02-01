@@ -17,6 +17,15 @@ factories I think.
 There's also a PyQt version that is meant to smooth the transition in making this
 application work in Python 3.
 
+
+Usage
+-----
+
+Call ``xmleditor.py`` from the top directory, if needed with a filename.
+
+I have configured my file manager to call this program on the file selected.
+
+
 Requirements
 ------------
 
