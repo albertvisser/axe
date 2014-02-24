@@ -682,12 +682,14 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 expand_with_children(item.child(ix))
         item = self.tree.currentItem()
         if item:
-            expand_with_children(item)      # TODO: moet recursief
+            expand_with_children(item)
+            self.tree.resizeColumnToContents(0)
 
     def collapse(self,ev=None):
         item = self.tree.currentItem()
         if item:
             self.tree.collapseItem(item)    # mag eventueel recursief in overeenstemming met vorige
+            self.tree.resizeColumnToContents(0)
 
     def edit(self, ev=None):
         if not self.checkselection():
