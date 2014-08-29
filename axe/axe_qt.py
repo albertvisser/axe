@@ -24,10 +24,10 @@ elif os.name == "posix":
     HMASK = "XML files (*.xml *.XML);;All files (*.*)"
 IMASK = "All files (*.*)"
 
-def add_as_child(element, root, attr=False, insert=-1):
+def add_as_child(element, root, ns_prefixes, ns_uris, attr=False, insert=-1):
     if element[1] is None:
         element = (element[0], "")
-    h = (str(element[0]), str(element[1]))
+    h = ((str(element[0]), str(element[1])), ns_prefixes, ns_uris)
     item = gui.QTreeWidgetItem()
     item.setText(0, getshortname(h, attr))
     item.setText(1, element[0])
@@ -63,8 +63,14 @@ class ElementDialog(gui.QDialog):
         self._parent = parent
         lbl_name = gui.QLabel("element name:  ", self)
         self.txt_tag = gui.QLineEdit(self)
+
+        self.cb_ns = gui.QCheckBox('Namespace:', self)
+        self.cmb_ns = gui.QComboBox(self)
+        self.cmb_ns.setEditable(False)
+        self.cmb_ns.addItem('-- none --')
+        self.cmb_ns.addItems(self._parent.ns_uris)
+
         self.cb = gui.QCheckBox('Bevat data:', self)
-        ## lbl_data = gui.QLabel("text data:", self)
         self.txt_data = gui.QTextEdit(self)
         self.txt_data.setTabChangesFocus(True)
         self.btn_ok = gui.QPushButton('&Save', self)
@@ -73,20 +79,50 @@ class ElementDialog(gui.QDialog):
         self.btn_cancel = gui.QPushButton('&Cancel', self)
         self.connect(self.btn_cancel, core.SIGNAL('clicked()'), self.on_cancel)
 
-        tag = txt = ''
+        ns_tag = tag = ns_uri = txt = ''
         if item:
-            tag = item["tag"]
+            ns_tag = item["tag"]
+            if ns_tag.startswith('{'):
+                ns_uri, tag = ns_tag[1:].split('}')
+            else:
+                tag = ns_tag
             if "text" in item:
                 self.cb.toggle()
                 txt = item["text"]
+            if ns_uri:
+                self.cb_ns.toggle()
+                for ix, uri in enumerate(self._parent.ns_uris):
+                    if uri == ns_uri:
+                        self.cmb_ns.setCurrentIndex(ix + 1)
         self.txt_tag.setText(tag)
         self.txt_data.setText(txt)
 
         sizer = gui.QVBoxLayout()
+
+        hsizer = gui.QHBoxLayout()
+        gsizer = gui.QGridLayout()
+        gsizer.addWidget(lbl_name, 0, 0)
         hsizer2 = gui.QHBoxLayout()
-        hsizer2.addWidget(lbl_name)
         hsizer2.addWidget(self.txt_tag)
-        sizer.addLayout(hsizer2)
+        hsizer2.addStretch()
+        gsizer.addLayout(hsizer2, 0, 1)
+        gsizer.addWidget(self.cb_ns)
+        gsizer.addWidget(self.cmb_ns)
+        hsizer.addLayout(gsizer)
+        hsizer.addStretch()
+        sizer.addLayout(hsizer)
+
+        ## hsizer = gui.QHBoxLayout()
+        ## hsizer.addWidget(lbl_name)
+        ## hsizer.addWidget(self.txt_tag)
+        ## hsizer.addStretch()
+        ## sizer.addLayout(hsizer2)
+
+        ## hsizer = gui.QHBoxLayout()
+        ## hsizer.addWidget(self.cb_ns)
+        ## hsizer.addWidget(self.cmb_ns)
+        ## hsizer.addStretch()
+        ## sizer.addLayout(hsizer)
 
         hsizer = gui.QHBoxLayout()
         vsizer = gui.QVBoxLayout()
@@ -96,8 +132,10 @@ class ElementDialog(gui.QDialog):
         sizer.addLayout(hsizer)
 
         hsizer = gui.QHBoxLayout()
+        hsizer.addStretch()
         hsizer.addWidget(self.btn_ok)
         hsizer.addWidget(self.btn_cancel)
+        hsizer.addStretch()
         sizer.addLayout(hsizer)
 
         self.setLayout(sizer)
@@ -130,6 +168,13 @@ class AttributeDialog(gui.QDialog):
         self._parent = parent
         lbl_name = gui.QLabel("Attribute name:", self)
         self.txt_name = gui.QLineEdit(self)
+
+        self.cb_ns = gui.QCheckBox('Namespace:', self)
+        self.cmb_ns = gui.QComboBox(self)
+        self.cmb_ns.setEditable(False)
+        self.cmb_ns.addItem('-- none --')
+        self.cmb_ns.addItems(self._parent.ns_uris)
+
         lbl_value = gui.QLabel("Attribute value:", self)
         self.txt_value = gui.QLineEdit(self)
         self.btn_ok = gui.QPushButton('&Save', self)
@@ -138,24 +183,65 @@ class AttributeDialog(gui.QDialog):
         self.btn_cancel = gui.QPushButton('&Cancel', self)
         self.connect(self.btn_cancel, core.SIGNAL('clicked()'), self.on_cancel)
 
-        nam = val = ''
+        ns_nam = nam = ns_uri = val = ''
         if item:
-            nam, val = item["name"], item["value"]
+            ns_nam = item["name"]
+            if ns_nam.startswith('{'):
+                ns_uri, nam = ns_nam[1:].split('}')
+            else:
+                nam = ns_nam
+            if ns_uri:
+                self.cb_ns.toggle()
+                for ix, uri in enumerate(self._parent.ns_uris):
+                    if uri == ns_uri:
+                        self.cmb_ns.setCurrentIndex(ix + 1)
+            val = item["value"]
         self.txt_name.setText(nam)
         self.txt_value.setText(val)
 
         sizer = gui.QVBoxLayout()
+
         hsizer = gui.QHBoxLayout()
-        hsizer.addWidget(lbl_name)
-        hsizer.addWidget(self.txt_name)
+        gsizer = gui.QGridLayout()
+        gsizer.addWidget(lbl_name, 0, 0)
+        hsizer2 = gui.QHBoxLayout()
+        hsizer2.addWidget(self.txt_name)
+        hsizer2.addStretch()
+        gsizer.addLayout(hsizer2, 0, 1)
+        gsizer.addWidget(self.cb_ns, 1, 0)
+        gsizer.addWidget(self.cmb_ns, 1, 1)
+        gsizer.addWidget(lbl_value, 2, 0)
+        hsizer2 = gui.QHBoxLayout()
+        hsizer2.addWidget(self.txt_value)
+        hsizer2.addStretch()
+        gsizer.addLayout(hsizer2, 2, 1)
+        hsizer.addLayout(gsizer)
+        hsizer.addStretch()
         sizer.addLayout(hsizer)
+
+        ## hsizer = gui.QHBoxLayout()
+        ## hsizer.addWidget(lbl_name)
+        ## hsizer.addWidget(self.txt_name)
+        ## hsizer.addStretch()
+        ## sizer.addLayout(hsizer)
+
+        ## hsizer = gui.QHBoxLayout()
+        ## hsizer.addWidget(self.cb_ns)
+        ## hsizer.addWidget(self.cmb_ns)
+        ## hsizer.addStretch()
+        ## sizer.addLayout(hsizer)
+
+        ## hsizer = gui.QHBoxLayout()
+        ## hsizer.addWidget(lbl_value)
+        ## hsizer.addWidget(self.txt_value)
+        ## hsizer.addStretch()
+        ## sizer.addLayout(hsizer)
+
         hsizer = gui.QHBoxLayout()
-        hsizer.addWidget(lbl_value)
-        hsizer.addWidget(self.txt_value)
-        sizer.addLayout(hsizer)
-        hsizer = gui.QHBoxLayout()
+        hsizer.addStretch()
         hsizer.addWidget(self.btn_ok)
         hsizer.addWidget(self.btn_cancel)
+        hsizer.addStretch()
         sizer.addLayout(hsizer)
 
         self.setLayout(sizer)
@@ -608,22 +694,14 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def init_tree(self, name=''):
         def add_to_tree(el, rt):
-            rr = add_as_child((el.tag, el.text), rt)
-            ## h = (el.tag, el.text)
-            ## rr = gui.QTreeWidgetItem()
-            ## rr.setText(0, getshortname(h))
-            ## rr.setData(0, core.Qt.UserRole, h)
-            ## rt.addChild(rr)
+            print(self.ns_prefixes, self.ns_uris)
+            rr = add_as_child((el.tag, el.text), rt, self.ns_prefixes, self.ns_uris)
             for attr in el.keys():
                 h = el.get(attr)
                 if not h:
                     h = '""'
-                rrr = add_as_child((attr, h), rr, attr=True)
-                ## h = (attr, h)
-                ## rrr = gui.QTreeWidgetItem()
-                ## rrr.setText(0, getshortname(h, attr=True))
-                ## rrr.setData(0, core.Qt.UserRole, h)
-                ## rr.addChild(rrr)
+                rrr = add_as_child((attr, h), rr, self.ns_prefixes, self.ns_uris,
+                    attr=True)
             for subel in list(el):
                 add_to_tree(subel, rr)
 
@@ -633,10 +711,18 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         self.top.setText(0, titel)
         self.tree.addTopLevelItem(self.top) # AddRoot(titel)
         self.setWindowTitle(" - ".join((os.path.split(titel)[-1],TITEL)))
-        rt = add_as_child((self.rt.tag, self.rt.text), self.top)
-        ## h = (self.rt.tag,self.rt.text)
-        ## rt = self.tree.AppendItem(self.top,getshortname(h))
-        ## self.tree.SetItemPyData(rt,h)
+        # eventuele namespaces toevoegen
+        namespaces = False
+        for ix, prf in enumerate(self.ns_prefixes):
+            if not namespaces:
+                ns_root = gui.QTreeWidgetItem(['namespaces'])
+                self.top.addChild(ns_root)
+                namespaces = True
+            ns_item = gui.QTreeWidgetItem()
+            ns_item.setText(0, '{}: {}'.format(prf, self.ns_uris[ix]))
+            ns_root.addChild(ns_item)
+        rt = add_as_child((self.rt.tag, self.rt.text), self.top, self.ns_prefixes,
+            self.ns_uris)
         for el in list(self.rt):
             add_to_tree(el, rt)
         #self.tree.selection = self.top
@@ -709,7 +795,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 data['text'] = text
             edt = ElementDialog(self, title='Edit an element', item=data).exec_()
             if edt == gui.QDialog.Accepted:
-                h = (self.data["tag"], self.data["text"])
+                h = ((self.data["tag"], self.data["text"]), self.ns_prefixes,
+                    self.ns_uris)
                 self.item.setText(0, getshortname(h))
                 self.item.setText(1, self.data["tag"])
                 self.item.setText(2, self.data["text"])
@@ -719,7 +806,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             data = {'item': self.item, 'name': nam, 'value': val}
             edt = AttributeDialog(self,title='Edit an attribute',item=data).exec_()
             if edt == gui.QDialog.Accepted:
-                h = (self.data["name"], self.data["value"])
+                h = ((self.data["name"], self.data["value"]), self.ns_prefixes,
+                    self.ns_uris)
                 self.item.setText(0, getshortname(h, attr=True))
                 self.item.setText(1, self.data["name"])
                 self.item.setText(2, self.data["value"])
@@ -796,7 +884,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         ## if self.cut:
             ## self.enable_pasteitems(False)
         if self.cut_att:
-            item = getshortname(self.cut_att, attr=True)
+            item = getshortname(self.cut_att, self.ns_prefixes, self.ns_uris,
+                attr=True)
             node = gui.QTreeWidgetItem()
             node.setText(0, item)
             node.setText(1, self.cut_att[0])
@@ -851,11 +940,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         if edt == gui.QDialog.Accepted:
             if str(self.item.text(0)).startswith(ELSTART):
                 h = (self.data["name"], self.data["value"])
-                rt = add_as_child(h, self.item, attr=True)
-                ## rt = gui.QTreeWidgetItem()
-                ## rt.setText(0, getshortname(h, attr=True))
-                ## rt.setData(0, core.Qt.UserRole, h)
-                ## self.item.addChild(rt)
+                rt = add_as_child(h, self.item, self.ns_prefixes, self.ns_uris,
+                    attr=True)
                 self.mark_dirty(True)
             else:
                 self._meldfout("Can't add attribute to attribute")
@@ -880,17 +966,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 ix = add_under.indexOfChild(self.item)
                 if not before:
                     ix += 1
-            rt = add_as_child(data, add_under, insert=ix)
-            ## rt = gui.QTreeWidgetItem(getshortname(data))
-            ## rt.setData(0, data)
-            ## if below:
-                ## x = self.item.addChild(rt)
-            ## else:
-                ## parent = self.item.parent()
-                ## ix = parent.indexOfChild(self.item)
-                ## if not before:
-                    ## ix += 1
-                ## y = parent.insertChild(ix, rt)
+            rt = add_as_child(data, add_under, self.ns_prefixes, self.ns_uris,
+                insert=ix)
             self.mark_dirty(True)
 
     def search(self, event=None, reversed=False):

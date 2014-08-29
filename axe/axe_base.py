@@ -15,6 +15,7 @@ PPATH = os.path.split(__file__)[0]
 axe_iconame = os.path.join(PPATH, "axe.ico")
 
 def getshortname(x, attr=False):
+    x, ns_prefixes, ns_uris = x
     t = ''
     if attr:
         t = x[1]
@@ -25,9 +26,18 @@ def getshortname(x, attr=False):
     w = 60
     if len(t) > w:
         t = t[:w].lstrip() + '...'
-    strt = ' '.join((ELSTART, x[0]))
+    fullname = x[0]
+    if ns_prefixes: # temp fix for initialisation when prefixes and uris are empty
+        if fullname.startswith('{'):
+            uri, localname = fullname[1:].split('}')
+            for i, x in enumerate(ns_uris):
+                if x == uri:
+                    prefix = ns_prefixes[i]
+                    break
+            fullname = ':'.join((prefix, localname))
+    strt = ' '.join((ELSTART, fullname))
     if attr:
-        return " = ".join((x[0], t))
+        return " = ".join((fullname, t))
     elif t:
         return ": ".join((strt, t))
     else:
@@ -102,6 +112,22 @@ def find_next(data, search_args, reverse=False, pos=None):
     else:
         return None, False
 
+def parse_nsmap(file):
+
+    root = None
+    ns_prefixes = []
+    ns_uris = []
+
+    for event, elem in et.iterparse(file, ("start-ns", "start")):
+        if event == "start-ns":
+            ns_prefixes.append(elem[0])
+            ns_uris.append(elem[1])
+        elif event == "start":
+            if root is None:
+                root = elem
+
+    return et.ElementTree(root), ns_prefixes, ns_uris
+
 class XMLTree(object):
     def __init__(self, data):
         self.root = et.Element(data)
@@ -131,6 +157,7 @@ class AxeMixin(object):
         self.cut_el = None
         self._init_gui(parent, id)
         self.rt = et.Element('New')
+        self.ns_prefixes, self.ns_uris  = [], []
         self.init_tree()
         if self.xmlfn == '':
             self.openxml()
@@ -177,6 +204,8 @@ class AxeMixin(object):
             if not h:
                 h = "root"
             self.rt = et.Element(h)
+            self.ns_prefixes = []
+            self.ns_uris = []
             self.xmlfn = ""
             self.init_tree()
 
@@ -185,11 +214,14 @@ class AxeMixin(object):
             ok, fname = self._file_to_read()
             if ok:
                 try:
-                    rt = et.ElementTree(file=fname).getroot()
+                    tree, prefixes, uris = parse_nsmap(fname)
+                    rt = tree.getroot()
                 except et.ParseError as e:
                     self._meldfout(str(e))
                     return False
                 self.rt = rt
+                self.ns_prefixes = prefixes
+                self.ns_uris = uris
                 self.xmlfn = fname
                 self.init_tree()
 
