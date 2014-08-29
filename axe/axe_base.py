@@ -27,14 +27,13 @@ def getshortname(x, attr=False):
     if len(t) > w:
         t = t[:w].lstrip() + '...'
     fullname = x[0]
-    if ns_prefixes: # temp fix for initialisation when prefixes and uris are empty
-        if fullname.startswith('{'):
-            uri, localname = fullname[1:].split('}')
-            for i, x in enumerate(ns_uris):
-                if x == uri:
-                    prefix = ns_prefixes[i]
-                    break
-            fullname = ':'.join((prefix, localname))
+    if fullname.startswith('{'):
+        uri, localname = fullname[1:].split('}')
+        for i, x in enumerate(ns_uris):
+            if x == uri:
+                prefix = ns_prefixes[i]
+                break
+        fullname = ':'.join((prefix, localname))
     strt = ' '.join((ELSTART, fullname))
     if attr:
         return " = ".join((fullname, t))
@@ -142,8 +141,13 @@ class XMLTree(object):
             root.set(data[0], data[1])
             return None
 
-    def write(self, fn):
-        et.ElementTree(self.root).write(fn, encoding="utf-8")
+    def write(self, fn, ns_data=None):
+        tree = et.ElementTree(self.root)
+        if ns_data:
+            prefixes, uris = ns_data
+            for idx, prefix in enumerate(prefixes):
+                et.register_namespace(prefix, uris[idx])
+        tree.write(fn, encoding="utf-8", xml_declaration=True)
 
 
 class AxeMixin(object):
@@ -156,17 +160,15 @@ class AxeMixin(object):
         self.cut_att = None
         self.cut_el = None
         self._init_gui(parent, id)
-        self.rt = et.Element('New')
-        self.ns_prefixes, self.ns_uris  = [], []
-        self.init_tree()
+        self.init_tree(et.Element('New'))
         if self.xmlfn == '':
             self.openxml()
         else:
             try:
-                self.rt = et.ElementTree(file=self.xmlfn).getroot()
-            except IOError as err:
+                tree, prefixes, uris = parse_nsmap(self.xmlfn)
+            except (IOError, et.ParseError) as err:
                 self._meldfout(str(err), abort=True)
-            self.init_tree()
+            self.init_tree(tree.getroot(), prefixes, uris)
 
     def mark_dirty(self, state, data):
         """past gewijzigd-status aan
@@ -203,11 +205,8 @@ class AxeMixin(object):
             h = self._ask_for_text("Enter a name (tag) for the root element")
             if not h:
                 h = "root"
-            self.rt = et.Element(h)
-            self.ns_prefixes = []
-            self.ns_uris = []
             self.xmlfn = ""
-            self.init_tree()
+            self.init_tree(et.Element(h))
 
     def openxml(self):
         if self.check_tree():
@@ -215,15 +214,11 @@ class AxeMixin(object):
             if ok:
                 try:
                     tree, prefixes, uris = parse_nsmap(fname)
-                    rt = tree.getroot()
                 except et.ParseError as e:
                     self._meldfout(str(e))
                     return False
-                self.rt = rt
-                self.ns_prefixes = prefixes
-                self.ns_uris = uris
                 self.xmlfn = fname
-                self.init_tree()
+                self.init_tree(tree.getroot(), prefixes, uris)
 
     def savexml(self):
         if self.xmlfn == '':
@@ -244,13 +239,20 @@ class AxeMixin(object):
             oldfile = self.xmlfn + '.bak'
         if os.path.exists(self.xmlfn):
             shutil.copyfile(self.xmlfn, oldfile)
+        self._savexml()
+
+    def _savexml(self):
+        namespace_data = None
         XMLTree('root').write(self.xmlfn)
 
     def about(self):
         self.meldinfo("Made in 2008 by Albert Visser\nWritten in (wx)Python")
 
-    def init_tree(self, name=''):
-        "stelt titel voor in de visuele tree in en geeft deze terug"
+    def init_tree(self, root, prefixes=None, uris=None, name=''):
+        "stelt een en ander in en geeft titel voor in de visuele tree terug"
+        self.rt = root
+        self.ns_prefixes = prefixes or []
+        self.ns_uris = uris or []
         if name:
             titel = name
         elif self.xmlfn:

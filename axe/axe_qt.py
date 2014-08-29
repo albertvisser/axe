@@ -112,18 +112,6 @@ class ElementDialog(gui.QDialog):
         hsizer.addStretch()
         sizer.addLayout(hsizer)
 
-        ## hsizer = gui.QHBoxLayout()
-        ## hsizer.addWidget(lbl_name)
-        ## hsizer.addWidget(self.txt_tag)
-        ## hsizer.addStretch()
-        ## sizer.addLayout(hsizer2)
-
-        ## hsizer = gui.QHBoxLayout()
-        ## hsizer.addWidget(self.cb_ns)
-        ## hsizer.addWidget(self.cmb_ns)
-        ## hsizer.addStretch()
-        ## sizer.addLayout(hsizer)
-
         hsizer = gui.QHBoxLayout()
         vsizer = gui.QVBoxLayout()
         vsizer.addWidget(self.cb)
@@ -150,6 +138,13 @@ class ElementDialog(gui.QDialog):
             self._parent._meldfout('Element name must not be empty or contain spaces')
             self.txt_tag.setFocus()
             return
+        if self.cb_ns.isChecked():
+            seq = self.cmb_ns.currentIndex()
+            if seq == 0:
+                self._parent._meldfout('Namespace must be selected if checked')
+                self.cb_ns.setFocus()
+                return
+            tag = '{{{}}}{}'.format(self.cmb_ns.itemText(seq), tag)
         self._parent.data["tag"] = tag
         self._parent.data["data"] = self.cb.isChecked()
         self._parent.data["text"] = self.txt_data.toPlainText()
@@ -219,24 +214,6 @@ class AttributeDialog(gui.QDialog):
         hsizer.addStretch()
         sizer.addLayout(hsizer)
 
-        ## hsizer = gui.QHBoxLayout()
-        ## hsizer.addWidget(lbl_name)
-        ## hsizer.addWidget(self.txt_name)
-        ## hsizer.addStretch()
-        ## sizer.addLayout(hsizer)
-
-        ## hsizer = gui.QHBoxLayout()
-        ## hsizer.addWidget(self.cb_ns)
-        ## hsizer.addWidget(self.cmb_ns)
-        ## hsizer.addStretch()
-        ## sizer.addLayout(hsizer)
-
-        ## hsizer = gui.QHBoxLayout()
-        ## hsizer.addWidget(lbl_value)
-        ## hsizer.addWidget(self.txt_value)
-        ## hsizer.addStretch()
-        ## sizer.addLayout(hsizer)
-
         hsizer = gui.QHBoxLayout()
         hsizer.addStretch()
         hsizer.addWidget(self.btn_ok)
@@ -254,6 +231,13 @@ class AttributeDialog(gui.QDialog):
             self._parent._meldfout('Attribute name must not be empty or contain spaces')
             self.txt_name.setFocus()
             return
+        if self.cb_ns.isChecked():
+            seq = self.cmb_ns.currentIndex()
+            if seq == 0:
+                self._parent._meldfout('Namespace must be selected if checked')
+                self.cb_ns.setFocus()
+                return
+            nam = '{{{}}}{}'.format(self.cmb_ns.itemText(seq), nam)
         self._parent.data["name"] = nam
         self._parent.data["value"] = self.txt_value.text()
         gui.QDialog.done(self, gui.QDialog.Accepted)
@@ -646,7 +630,10 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def savexml(self, ev=None):
         AxeMixin.savexml(self)
 
-    def savexmlfile(self, oldfile=''):      # TODO
+    ## def savexmlfile(self, oldfile=''):
+        ## AxeMixin.savexmlfile(self, oldfile)
+
+    def _savexml(self):
         def expandnode(rt, root, tree):
             for ix in range(rt.childCount()):
                 tag = rt.child(ix)
@@ -655,21 +642,25 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 node = tree.expand(root, text, data)
                 if node is not None:
                     expandnode(tag, node, tree)
-        AxeMixin.savexmlfile(self, oldfile)
         top = self.tree.topLevelItem(0)
         rt = top.child(0)
         text = str(rt.text(0))
+        if text == 'namespaces':
+            rt = top.child(1)
+            text = str(rt.text(0))
         data = (str(rt.text(1)), str(rt.text(2)))
         tree = XMLTree(data[0]) # .split(None,1)
         root = tree.root
         expandnode(rt, root, tree)
-        h = tree.write(self.xmlfn)
+        if self.ns_prefixes:
+            namespace_data = (self.ns_prefixes, self.ns_uris)
+        h = tree.write(self.xmlfn, namespace_data)
         self.mark_dirty(False)
 
     def savexmlas(self, ev=None):
         ok = AxeMixin.savexmlas(self)
         if ok:
-            self.top.SetText(0, self.xmlfn)
+            self.top.setText(0, self.xmlfn)
             self.setWindowTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
 
     def _file_to_save(self, dirname, filename):
@@ -692,9 +683,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             if ev:
                 ev.ignore()
 
-    def init_tree(self, name=''):
+    def init_tree(self, root, prefixes=None, uris=None, name=''):
         def add_to_tree(el, rt):
-            print(self.ns_prefixes, self.ns_uris)
             rr = add_as_child((el.tag, el.text), rt, self.ns_prefixes, self.ns_uris)
             for attr in el.keys():
                 h = el.get(attr)
@@ -706,7 +696,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 add_to_tree(subel, rr)
 
         self.tree.clear() # DeleteAllItems()
-        titel = AxeMixin.init_tree(self, name)
+        titel = AxeMixin.init_tree(self, root, prefixes, uris, name)
         self.top = gui.QTreeWidgetItem()
         self.top.setText(0, titel)
         self.tree.addTopLevelItem(self.top) # AddRoot(titel)
