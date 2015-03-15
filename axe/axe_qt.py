@@ -420,6 +420,250 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         AxeMixin.__init__(self, parent, id, fn)
         self.show()
 
+    def keyReleaseEvent(self, event):
+        skip = self.on_keyup(event)
+        if not skip:
+            gui.QMainWindow.keyReleaseEvent(self, event)
+
+    def closeEvent(self, event):
+        """applicatie afsluiten"""
+        test = self.check_tree()
+        print(test, event)
+        if test:
+            event.accept()
+        else:
+            event.ignore()
+
+    def mark_dirty(self, state):
+        data = AxeMixin.mark_dirty(self, state, str(self.windowTitle()))
+        if data:
+            self.setWindowTitle(data)
+
+    def newxml(self, ev=None):
+        AxeMixin.newxml(self)
+
+    def openxml(self, ev=None):
+        AxeMixin.openxml(self)
+
+    def savexml(self, ev=None):
+        AxeMixin.savexml(self)
+
+    def savexmlas(self, ev=None):
+        ok = AxeMixin.savexmlas(self)
+        if ok:
+            self.top.setText(0, self.xmlfn)
+            self.setWindowTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
+
+    ## def savexmlfile(self, oldfile=''):
+        ## AxeMixin.savexmlfile(self, oldfile)
+
+    def _savexml(self):
+        def expandnode(rt, root, tree):
+            for ix in range(rt.childCount()):
+                tag = rt.child(ix)
+                text = str(tag.text(0))
+                data = (str(tag.text(1)), str(tag.text(2)))
+                node = tree.expand(root, text, data)
+                if node is not None:
+                    expandnode(tag, node, tree)
+        top = self.tree.topLevelItem(0)
+        rt = top.child(0)
+        text = str(rt.text(0))
+        if text == 'namespaces':
+            rt = top.child(1)
+            text = str(rt.text(0))
+        data = (str(rt.text(1)), str(rt.text(2)))
+        tree = XMLTree(data[0]) # .split(None,1)
+        root = tree.root
+        expandnode(rt, root, tree)
+        if self.ns_prefixes:
+            namespace_data = (self.ns_prefixes, self.ns_uris)
+        h = tree.write(self.xmlfn, namespace_data)
+        self.mark_dirty(False)
+
+    def about(self, ev=None):
+        AxeMixin.about(self)
+
+    def init_tree(self, root, prefixes=None, uris=None, name=''):
+        def add_to_tree(el, rt):
+            rr = add_as_child((el.tag, el.text), rt, self.ns_prefixes, self.ns_uris)
+            for attr in el.keys():
+                h = el.get(attr)
+                if not h:
+                    h = '""'
+                rrr = add_as_child((attr, h), rr, self.ns_prefixes, self.ns_uris,
+                    attr=True)
+            for subel in list(el):
+                add_to_tree(subel, rr)
+
+        self.tree.clear() # DeleteAllItems()
+        titel = AxeMixin.init_tree(self, root, prefixes, uris, name)
+        self.top = gui.QTreeWidgetItem()
+        self.top.setText(0, titel)
+        self.tree.addTopLevelItem(self.top) # AddRoot(titel)
+        self.setWindowTitle(" - ".join((os.path.split(titel)[-1],TITEL)))
+        # eventuele namespaces toevoegen
+        namespaces = False
+        for ix, prf in enumerate(self.ns_prefixes):
+            if not namespaces:
+                ns_root = gui.QTreeWidgetItem(['namespaces'])
+                self.top.addChild(ns_root)
+                namespaces = True
+            ns_item = gui.QTreeWidgetItem()
+            ns_item.setText(0, '{}: {}'.format(prf, self.ns_uris[ix]))
+            ns_root.addChild(ns_item)
+        rt = add_as_child((self.rt.tag, self.rt.text), self.top, self.ns_prefixes,
+            self.ns_uris)
+        for el in list(self.rt):
+            add_to_tree(el, rt)
+        #self.tree.selection = self.top
+        # set_selection()
+        self.mark_dirty(False)
+
+    def cut(self, ev=None):
+        AxeMixin.cut(self)
+
+    def delete(self, ev=None):
+        AxeMixin.delete(self)
+
+    def copy(self, ev=None, cut=False, retain=True):
+        def push_el(el, result):
+            text = str(el.text(0))
+            data = (str(el.text(1)), str(el.text(2)))
+            children = []
+            if str(text).startswith(ELSTART):
+                for ix in range(el.childCount()):
+                    subel = el.child(ix)
+                    temp = push_el(subel, children)
+            result.append((text, data, children))
+            return result
+        if not self.checkselection():
+            return
+        txt = AxeMixin.copy(self, cut, retain)
+        text = str(self.item.text(0))
+        data = (str(self.item.text(1)), str(self.item.text(2)))
+        if data == (self.rt.tag, self.rt.text or ""):
+            self._meldfout("Can't %s the root" % txt)
+            return
+        if retain:
+            if str(text).startswith(ELSTART):
+                self.cut_el = []
+                self.cut_el = push_el(self.item, self.cut_el)
+                self.cut_att = None
+            else:
+                self.cut_el = None
+                self.cut_att = data
+            self.enable_pasteitems(True)
+        if cut:
+            parent = self.item.parent()
+            ix = parent.indexOfChild(self.item)
+            if ix > 0:
+                ix -= 1
+                prev = parent.child(ix)
+            else:
+                prev = parent
+                if prev == self.rt:
+                    prev = parent.child(ix+1)
+            parent.removeChild(self.item)
+            self.mark_dirty(True)
+            self.tree.setCurrentItem(prev)
+
+    def paste_aft(self, ev=None):
+        AxeMixin.paste_aft(self)
+
+    def paste_und(self, ev=None):
+        AxeMixin.paste_und(self)
+
+    def paste(self, ev=None, before=True, pastebelow=False):
+        if not self.checkselection():
+            return
+        data = (str(self.item.text(1)), str(self.item.text(2)))
+        if pastebelow and not str(self.item.text(0)).startswith(ELSTART):
+            self._meldfout("Can't paste below an attribute")
+            return
+        if data == ((self.rt.tag, self.rt.text) or ""):
+            if before:
+                self._meldfout("Can't paste before the root")
+                return
+            else:
+                self._meldinfo("Pasting as first element below root")
+                pastebelow = True
+        ## if self.cut:
+            ## self.enable_pasteitems(False)
+        if self.cut_att:
+            item = getshortname(self.cut_att, self.ns_prefixes, self.ns_uris,
+                attr=True)
+            node = gui.QTreeWidgetItem()
+            node.setText(0, item)
+            node.setText(1, self.cut_att[0])
+            node.setText(2, self.cut_att[1])
+            if pastebelow:
+                self.item.addChild(node)
+            else:
+                add_to = self.item.parent() # self.item.get_parent()
+                added = False
+                for ix in range(add_to.childCount()):
+                    if add_to.child(ix) == self.item:
+                        if not before:
+                            ix += 1
+                        add_to.insertChild(ix, node)
+                        added = True
+                        break
+                if not added:
+                    add_to.addChild(item)
+        elif self.cut_el:
+            def zetzeronder(node, el, pos=-1):
+                subnode = gui.QTreeWidgetItem()
+                subnode.setText(0, el[0])
+                subnode.setText(1, el[1][0])
+                subnode.setText(2, el[1][1])
+                if pos == -1:
+                    node.addChild(subnode)
+                else:
+                    node.insertChild(pos, subnode)
+                for x in el[2]:
+                    zetzeronder(subnode, x)
+            if pastebelow:
+                node = self.item
+                ix = -1
+            else:
+                node = self.item.parent()
+                cnt = node.childCount()
+                for ix in range(cnt):
+                    x = node.child(ix)
+                    if x == self.item:
+                        if not before:
+                            ix += 1
+                        break
+                if ix == cnt:
+                    ix = -1
+            zetzeronder(node, self.cut_el[0], ix)
+        self.mark_dirty(True)
+
+    def ins_aft(self, ev=None):
+        AxeMixin.ins_aft(self)
+
+    def ins_chld(self, ev=None):
+        AxeMixin.ins_chld(self)
+
+    def insert(self, ev=None, before=True, below=False):
+        if not self.checkselection():
+            return
+        edt = ElementDialog(self, title="New element").exec_()
+        if edt == gui.QDialog.Accepted:
+            data = (self.data['tag'], self.data['text'])
+            if below:
+                add_under = self.item
+                ix = -1
+            else:
+                add_under = self.item.parent()
+                ix = add_under.indexOfChild(self.item)
+                if not before:
+                    ix += 1
+            rt = add_as_child(data, add_under, self.ns_prefixes, self.ns_uris,
+                insert=ix)
+            self.mark_dirty(True)
+
     def _init_gui(self, parent, id):
         self.parent = parent
         gui.QMainWindow.__init__(self) # , parent, id, pos=(2, 2), size=(620, 900))
@@ -453,15 +697,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         ## self.connect(action, core.SIGNAL('triggered()'), self.popupmenu)
         ## action.setShortcut(core.Qt.Key_Menu)
         self.mark_dirty(False)
-
-    def keyReleaseEvent(self, event):
-        skip = self.on_keyup(event)
-        if not skip:
-            gui.QMainWindow.keyReleaseEvent(self, event)
-
-    def closeEvent(self, event):
-        """applicatie afsluiten"""
-        self.afsl()
 
     def init_menus(self, popup=False):
         if popup:
@@ -585,11 +820,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         self.pasteafter_item.setEnabled(active)
         self.pasteunder_item.setEnabled(active)
 
-    def mark_dirty(self, state):
-        data = AxeMixin.mark_dirty(self, state, str(self.windowTitle()))
-        if data:
-            self.setWindowTitle(data)
-
     def _ask_yesnocancel(self, prompt):
         """stelt een vraag en retourneert het antwoord
         1 = Yes, 0 = No, -1 = Cancel
@@ -599,19 +829,13 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         h = gui.QMessageBox.question(self, self.title, prompt,
             gui.QMessageBox.Yes | gui.QMessageBox.No | gui.QMessageBox.Cancel,
             defaultButton = gui.QMessageBox.Yes)
-        return h
-
-    def newxml(self, ev=None):
-        AxeMixin.newxml(self)
+        return retval[h]
 
     def _ask_for_text(self, prompt):
         """vraagt om tekst en retourneert het antwoord"""
         data, ok = gui.QInputDialog.getText(self, self.title, prompt,
             gui.QLineEdit.Normal, "")
         return data
-
-    def openxml(self, ev=None):
-        AxeMixin.openxml(self)
 
     def _file_to_read(self):
         fnaam = gui.QFileDialog.getOpenFileName(self, "Choose a file", os.getcwd(),
@@ -627,97 +851,14 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         if abort:
             self.quit()
 
-    def savexml(self, ev=None):
-        AxeMixin.savexml(self)
-
-    ## def savexmlfile(self, oldfile=''):
-        ## AxeMixin.savexmlfile(self, oldfile)
-
-    def _savexml(self):
-        def expandnode(rt, root, tree):
-            for ix in range(rt.childCount()):
-                tag = rt.child(ix)
-                text = str(tag.text(0))
-                data = (str(tag.text(1)), str(tag.text(2)))
-                node = tree.expand(root, text, data)
-                if node is not None:
-                    expandnode(tag, node, tree)
-        top = self.tree.topLevelItem(0)
-        rt = top.child(0)
-        text = str(rt.text(0))
-        if text == 'namespaces':
-            rt = top.child(1)
-            text = str(rt.text(0))
-        data = (str(rt.text(1)), str(rt.text(2)))
-        tree = XMLTree(data[0]) # .split(None,1)
-        root = tree.root
-        expandnode(rt, root, tree)
-        if self.ns_prefixes:
-            namespace_data = (self.ns_prefixes, self.ns_uris)
-        h = tree.write(self.xmlfn, namespace_data)
-        self.mark_dirty(False)
-
-    def savexmlas(self, ev=None):
-        ok = AxeMixin.savexmlas(self)
-        if ok:
-            self.top.setText(0, self.xmlfn)
-            self.setWindowTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
-
     def _file_to_save(self, dirname, filename):
         name = gui.QFileDialog.getSaveFileName(self, "Save file as ...", dirname,
             HMASK)
         ok = bool(name)
         return ok, str(name)
 
-    def about(self, ev=None):
-        AxeMixin.about(self)
-
     def quit(self, ev=None):
         self.close()
-
-    def afsl(self, ev=None):
-        if self.check_tree():
-            if ev:
-                ev.accept()
-        else:
-            if ev:
-                ev.ignore()
-
-    def init_tree(self, root, prefixes=None, uris=None, name=''):
-        def add_to_tree(el, rt):
-            rr = add_as_child((el.tag, el.text), rt, self.ns_prefixes, self.ns_uris)
-            for attr in el.keys():
-                h = el.get(attr)
-                if not h:
-                    h = '""'
-                rrr = add_as_child((attr, h), rr, self.ns_prefixes, self.ns_uris,
-                    attr=True)
-            for subel in list(el):
-                add_to_tree(subel, rr)
-
-        self.tree.clear() # DeleteAllItems()
-        titel = AxeMixin.init_tree(self, root, prefixes, uris, name)
-        self.top = gui.QTreeWidgetItem()
-        self.top.setText(0, titel)
-        self.tree.addTopLevelItem(self.top) # AddRoot(titel)
-        self.setWindowTitle(" - ".join((os.path.split(titel)[-1],TITEL)))
-        # eventuele namespaces toevoegen
-        namespaces = False
-        for ix, prf in enumerate(self.ns_prefixes):
-            if not namespaces:
-                ns_root = gui.QTreeWidgetItem(['namespaces'])
-                self.top.addChild(ns_root)
-                namespaces = True
-            ns_item = gui.QTreeWidgetItem()
-            ns_item.setText(0, '{}: {}'.format(prf, self.ns_uris[ix]))
-            ns_root.addChild(ns_item)
-        rt = add_as_child((self.rt.tag, self.rt.text), self.top, self.ns_prefixes,
-            self.ns_uris)
-        for el in list(self.rt):
-            add_to_tree(el, rt)
-        #self.tree.selection = self.top
-        # set_selection()
-        self.mark_dirty(False)
 
     def on_keyup(self, ev=None):
         ky = ev.key()
@@ -803,126 +944,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 self.item.setText(2, self.data["value"])
                 self.mark_dirty(True)
 
-    def cut(self, ev=None):
-        AxeMixin.cut(self)
-
-    def delete(self, ev=None):
-        AxeMixin.delete(self)
-
-    def copy(self, ev=None, cut=False, retain=True):
-        def push_el(el, result):
-            text = str(el.text(0))
-            data = (str(el.text(1)), str(el.text(2)))
-            children = []
-            if str(text).startswith(ELSTART):
-                for ix in range(el.childCount()):
-                    subel = el.child(ix)
-                    temp = push_el(subel, children)
-            result.append((text, data, children))
-            return result
-        if not self.checkselection():
-            return
-        txt = AxeMixin.copy(self, cut, retain)
-        text = str(self.item.text(0))
-        data = (str(self.item.text(1)), str(self.item.text(2)))
-        if data == (self.rt.tag, self.rt.text or ""):
-            self._meldfout("Can't %s the root" % txt)
-            return
-        if retain:
-            if str(text).startswith(ELSTART):
-                self.cut_el = []
-                self.cut_el = push_el(self.item, self.cut_el)
-                self.cut_att = None
-            else:
-                self.cut_el = None
-                self.cut_att = data
-            self.enable_pasteitems(True)
-        if cut:
-            parent = self.item.parent()
-            ix = parent.indexOfChild(self.item)
-            if ix > 0:
-                ix -= 1
-                prev = parent.child(ix)
-            else:
-                prev = parent
-                if prev == self.rt:
-                    prev = parent.child(ix+1)
-            parent.removeChild(self.item)
-            self.mark_dirty(True)
-            self.tree.setCurrentItem(prev)
-
-    def paste_aft(self, ev=None):
-        AxeMixin.paste_aft(self)
-
-    def paste_und(self, ev=None):
-        AxeMixin.paste_und(self)
-
-    def paste(self, ev=None, before=True, pastebelow=False):
-        if not self.checkselection():
-            return
-        data = (str(self.item.text(1)), str(self.item.text(2)))
-        if pastebelow and not str(self.item.text(0)).startswith(ELSTART):
-            self._meldfout("Can't paste below an attribute")
-            return
-        if data == ((self.rt.tag, self.rt.text) or ""):
-            if before:
-                self._meldfout("Can't paste before the root")
-                return
-            else:
-                self._meldinfo("Pasting as first element below root")
-                pastebelow = True
-        ## if self.cut:
-            ## self.enable_pasteitems(False)
-        if self.cut_att:
-            item = getshortname(self.cut_att, self.ns_prefixes, self.ns_uris,
-                attr=True)
-            node = gui.QTreeWidgetItem()
-            node.setText(0, item)
-            node.setText(1, self.cut_att[0])
-            node.setText(2, self.cut_att[1])
-            if pastebelow:
-                self.item.addChild(node)
-            else:
-                add_to = self.item.parent() # self.item.get_parent()
-                added = False
-                for ix in range(add_to.childCount()):
-                    if add_to.child(ix) == self.item:
-                        if not before:
-                            ix += 1
-                        add_to.insertChild(ix, node)
-                        added = True
-                        break
-                if not added:
-                    add_to.addChild(item)
-        elif self.cut_el:
-            def zetzeronder(node, el, pos=-1):
-                subnode = gui.QTreeWidgetItem()
-                subnode.setText(0, el[0])
-                subnode.setText(1, el[1][0])
-                subnode.setText(2, el[1][1])
-                if pos == -1:
-                    node.addChild(subnode)
-                else:
-                    node.insertChild(pos, subnode)
-                for x in el[2]:
-                    zetzeronder(subnode, x)
-            if pastebelow:
-                node = self.item
-                ix = -1
-            else:
-                node = self.item.parent()
-                cnt = node.childCount()
-                for ix in range(cnt):
-                    x = node.child(ix)
-                    if x == self.item:
-                        if not before:
-                            ix += 1
-                        break
-                if ix == cnt:
-                    ix = -1
-            zetzeronder(node, self.cut_el[0], ix)
-        self.mark_dirty(True)
-
     def add_attr(self, ev=None):
         if not self.checkselection():
             return
@@ -935,30 +956,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 self.mark_dirty(True)
             else:
                 self._meldfout("Can't add attribute to attribute")
-
-    def ins_aft(self, ev=None):
-        AxeMixin.ins_aft(self)
-
-    def ins_chld(self, ev=None):
-        AxeMixin.ins_chld(self)
-
-    def insert(self, ev=None, before=True, below=False):
-        if not self.checkselection():
-            return
-        edt = ElementDialog(self, title="New element").exec_()
-        if edt == gui.QDialog.Accepted:
-            data = (self.data['tag'], self.data['text'])
-            if below:
-                add_under = self.item
-                ix = -1
-            else:
-                add_under = self.item.parent()
-                ix = add_under.indexOfChild(self.item)
-                if not before:
-                    ix += 1
-            rt = add_as_child(data, add_under, self.ns_prefixes, self.ns_uris,
-                insert=ix)
-            self.mark_dirty(True)
 
     def search(self, event=None, reversed=False):
         self._search_pos = None
