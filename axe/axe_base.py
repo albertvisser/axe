@@ -239,9 +239,9 @@ class AxeMixin(object):
             oldfile = self.xmlfn + '.bak'
         if os.path.exists(self.xmlfn):
             shutil.copyfile(self.xmlfn, oldfile)
-        self._savexml()
+        self.writexml()
 
-    def _savexml(self):
+    def writexml(self):
         namespace_data = None
         XMLTree('root').write(self.xmlfn)
 
