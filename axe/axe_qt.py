@@ -10,8 +10,6 @@ except PermissionError:
     logging.basicConfig(filename=os.path.join(os.path.dirname(__file__),
         'axe_qt.log'), level=logging.DEBUG, format='%(asctime)s %(message)s')
 
-
-import os
 import sys
 import functools
 import PyQt4.QtGui as gui
@@ -417,9 +415,12 @@ class VisualTree(gui.QTreeWidget):
 class MainFrame(gui.QMainWindow, AxeMixin):
     "Main GUI class"
     def __init__(self, parent, id, fn=''):
-        AxeMixin.__init__(self, parent, id, fn)
+        AxeMixin.__init__(self, parent, id, fn) # super() werkt niet - teveel argumenten
         self.show()
 
+    #
+    # reimplemented methods from QMainWindow
+    #
     def keyReleaseEvent(self, event):
         skip = self.on_keyup(event)
         if not skip:
@@ -427,13 +428,11 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def closeEvent(self, event):
         """applicatie afsluiten"""
-        test = self.check_tree()
-        print(test, event)
-        if test:
-            event.accept()
-        else:
-            event.ignore()
-
+        self.afsl()
+    #
+    # reimplemented methods from Mixin
+    # mostly because of including the gui event in the signature
+    #
     def mark_dirty(self, state):
         data = AxeMixin.mark_dirty(self, state, str(self.windowTitle()))
         if data:
@@ -454,10 +453,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             self.top.setText(0, self.xmlfn)
             self.setWindowTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
 
-    ## def savexmlfile(self, oldfile=''):
-        ## AxeMixin.savexmlfile(self, oldfile)
-
-    def _savexml(self):
+    def writexml(self):
         def expandnode(rt, root, tree):
             for ix in range(rt.childCount()):
                 tag = rt.child(ix)
@@ -476,6 +472,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         tree = XMLTree(data[0]) # .split(None,1)
         root = tree.root
         expandnode(rt, root, tree)
+        namespace_data = None
         if self.ns_prefixes:
             namespace_data = (self.ns_prefixes, self.ns_uris)
         h = tree.write(self.xmlfn, namespace_data)
@@ -537,7 +534,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                     temp = push_el(subel, children)
             result.append((text, data, children))
             return result
-        if not self.checkselection():
+        if not self._checkselection():
             return
         txt = AxeMixin.copy(self, cut, retain)
         text = str(self.item.text(0))
@@ -553,7 +550,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             else:
                 self.cut_el = None
                 self.cut_att = data
-            self.enable_pasteitems(True)
+            self._enable_pasteitems(True)
         if cut:
             parent = self.item.parent()
             ix = parent.indexOfChild(self.item)
@@ -575,7 +572,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         AxeMixin.paste_und(self)
 
     def paste(self, ev=None, before=True, pastebelow=False):
-        if not self.checkselection():
+        if not self._checkselection():
             return
         data = (str(self.item.text(1)), str(self.item.text(2)))
         if pastebelow and not str(self.item.text(0)).startswith(ELSTART):
@@ -589,7 +586,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 self._meldinfo("Pasting as first element below root")
                 pastebelow = True
         ## if self.cut:
-            ## self.enable_pasteitems(False)
+            ## self._enable_pasteitems(False)
         if self.cut_att:
             item = getshortname(self.cut_att, self.ns_prefixes, self.ns_uris,
                 attr=True)
@@ -647,7 +644,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         AxeMixin.ins_chld(self)
 
     def insert(self, ev=None, before=True, below=False):
-        if not self.checkselection():
+        if not self._checkselection():
             return
         edt = ElementDialog(self, title="New element").exec_()
         if edt == gui.QDialog.Accepted:
@@ -664,9 +661,14 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 insert=ix)
             self.mark_dirty(True)
 
+    #
+    # internals
+    #
     def _init_gui(self, parent, id):
+        """Deze methode wordt aangeroepen door de __init__ van de mixin class
+        """
         self.parent = parent
-        gui.QMainWindow.__init__(self) # , parent, id, pos=(2, 2), size=(620, 900))
+        gui.QMainWindow.__init__(self) # aparte initialisatie net als voor mixin
         self._icon = gui.QIcon(axe_iconame)
         self.resize(620, 900)
         self.setWindowIcon(self._icon)
@@ -674,31 +676,14 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         self.statusbar = self.statusBar()
         self.statusbar.showMessage('Ready')
 
-        ## menubar = self.menuBar()
-        ## menu = menubar.addMenu('&File')
-        ## act = gui.QAction('E&xit', self)
-        ## self.connect(act, core.SIGNAL('triggered()'), self.quit)
-        ## menu.addAction(act)
-
-        ## filemenu, viewmenu, editmenu =
-        self.init_menus()
-        ## x = menubar.addMenu(filemenu)
-        ## y = menubar.addMenu(viewmenu)
-        ## z = menubar.addMenu(editmenu)
-        self.enable_pasteitems(False)
-        ## menubar.setVisible(True)
+        self._init_menus()
 
         self.tree = VisualTree(self)
         self.tree.setItemHidden(self.tree.headerItem(), True)
-        ## self.connect(self.tree, QtCore.SIGNAL("self.tree.keyReleaseEvent()"), self.on_keyup)
-        ## self.tree.mouseReleaseEvent.connect(self.on_rightdown)
-        ## self.tree.keyReleaseEvent.connect(self.on_keyup)        self.setCentralWidget(self.tree)
-        ## action = gui.QAction('Contextmenu', self)
-        ## self.connect(action, core.SIGNAL('triggered()'), self.popupmenu)
-        ## action.setShortcut(core.Qt.Key_Menu)
+        self.setCentralWidget(self.tree)
+        self._enable_pasteitems(False)
         self.mark_dirty(False)
-
-    def init_menus(self, popup=False):
+    def _init_menus(self, popup=False):
         if popup:
             viewmenu = gui.QMenu("&View")
         else:
@@ -803,23 +788,13 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         ## else:
             ## return filemenu, viewmenu, editmenu
 
-    def popupmenu(self, item):
-        print('self.popupmenu called')
-        menu = self.init_menus(popup=True)
-        menu.exec_(self.tree.mapToGlobal(self.tree.visualItemRect(item).bottomRight()))
+    def _meldinfo(self, text):
+        gui.QMessageBox.information(self, self.title, text)
 
-    def enable_pasteitems(self, active=False):
-        """activeert of deactiveert de paste-entries in het menu
-        afhankelijk van of er iets te pASTEN VALT
-        """
-        if active:
-            self.pastebefore_item.setText("Paste Before")
-        else:
-            self.pastebefore_item.setText("Nothing to Paste")
-        self.pastebefore_item.setEnabled(active)
-        self.pasteafter_item.setEnabled(active)
-        self.pasteunder_item.setEnabled(active)
-
+    def _meldfout(self, text, abort=False):
+        gui.QMessageBox.critical(self, self.title, text)
+        if abort:
+            self.quit()
     def _ask_yesnocancel(self, prompt):
         """stelt een vraag en retourneert het antwoord
         1 = Yes, 0 = No, -1 = Cancel
@@ -843,20 +818,42 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         ok = bool(fnaam)
         return ok, str(fnaam)
 
-    def _meldinfo(self, text):
-        gui.QMessageBox.information(self, self.title, text)
-
-    def _meldfout(self, text, abort=False):
-        gui.QMessageBox.critical(self, self.title, text)
-        if abort:
-            self.quit()
-
     def _file_to_save(self, dirname, filename):
         name = gui.QFileDialog.getSaveFileName(self, "Save file as ...", dirname,
             HMASK)
         ok = bool(name)
         return ok, str(name)
 
+    def _enable_pasteitems(self, active=False):
+        """activeert of deactiveert de paste-entries in het menu
+        afhankelijk van of er iets te pASTEN VALT
+        """
+        if active:
+            self.pastebefore_item.setText("Paste Before")
+        else:
+            self.pastebefore_item.setText("Nothing to Paste")
+        self.pastebefore_item.setEnabled(active)
+        self.pasteafter_item.setEnabled(active)
+        self.pasteunder_item.setEnabled(active)
+
+    def _checkselection(self, message=True):
+        """get the currently selected item
+
+        if there is no selection or the file title is selected, display a message
+        (if requested). I think originally it returned False in that case
+        """
+        sel = True
+        self.item = self.tree.currentItem()
+        if message and (self.item is None or self.item == self.top):
+            self._meldinfo('You need to select an element or attribute first')
+        return sel
+    #
+    # exposed
+    #
+    def popupmenu(self, item):
+        print('self.popupmenu called')
+        menu = self._init_menus(popup=True)
+        menu.exec_(self.tree.mapToGlobal(self.tree.visualItemRect(item).bottomRight()))
     def quit(self, ev=None):
         self.close()
 
@@ -886,18 +883,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 skip = True
         return skip
 
-    def checkselection(self, message=True):
-        """get the currently seleted item
-
-        if there is no selection or the file title is selected, display a message
-        (if requested). I think originally it returned False in that case
-        """
-        sel = True
-        self.item = self.tree.currentItem()
-        if message and (self.item is None or self.item == self.top):
-            self._meldinfo('You need to select an element or attribute first')
-        return sel
-
     def expand(self, ev=None):
         def expand_with_children(item):
             self.tree.expandItem(item)
@@ -915,7 +900,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             self.tree.resizeColumnToContents(0)
 
     def edit(self, ev=None):
-        if not self.checkselection():
+        if not self._checkselection():
             return
         data = str(self.item.text(0)) # self.item.get_text()
         if data.startswith(ELSTART):
@@ -945,7 +930,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 self.mark_dirty(True)
 
     def add_attr(self, ev=None):
-        if not self.checkselection():
+        if not self._checkselection():
             return
         edt = AttributeDialog(self, title="New attribute").exec_()
         if edt == gui.QDialog.Accepted:
