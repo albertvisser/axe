@@ -161,9 +161,7 @@ class AxeMixin(object):
         self.cut_el = None
         self._init_gui(parent, id)
         self.init_tree(et.Element('New'))
-        if self.xmlfn == '':
-            self.openxml()
-        else:
+        if self.xmlfn != '':
             try:
                 tree, prefixes, uris = parse_nsmap(self.xmlfn)
             except (IOError, et.ParseError) as err:
