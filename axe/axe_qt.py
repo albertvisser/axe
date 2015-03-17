@@ -52,7 +52,9 @@ def flatten_tree(element):
         else:
             attr_list.append((subitem, str(subitem.text(1)), str(subitem.text(2))))
     return elem_list
-
+#
+# Dialog windows
+#
 class ElementDialog(gui.QDialog):
     def __init__(self, parent, title="", item=None):
         gui.QDialog.__init__(self, parent)
@@ -377,6 +379,9 @@ class SearchDialog(gui.QDialog):
     def on_cancel(self):
         gui.QDialog.done(self, gui.QDialog.Rejected)
 
+#
+# Tree widget (subclass overriding some event handlers)
+#
 class VisualTree(gui.QTreeWidget):
     def __init__(self, parent):
         self.parent = parent
@@ -410,14 +415,222 @@ class VisualTree(gui.QTreeWidget):
                 event.ignore()
         else:
             event.ignore()
+#
+# Undo stack (subclass overriding some event handlers)
+#
+class UndoRedoStack(gui.QUndoStack):
 
+    def __init__(self, parent):
+        ## print('init undostack')
+        ## super().__init__(parent)
+        gui.QUndoStack.__init__(self, parent)
+        self.cleanChanged.connect(self.clean_changed)
+        self.indexChanged.connect(self.index_changed)
+        win = self.parent()
+        win.undo_item.setText('Nothing to undo')
+        win.redo_item.setText('Nothing to redo')
+        win.undo_item.setDisabled(True)
+        win.redo_item.setDisabled(True)
 
+    def clean_changed(self, state):
+        ## print('undo stack status changed:', state)
+        win = self.parent()
+        if state:
+            win.undo_item.setText('Nothing to undo')
+        win.undo_item.setDisabled(state)
+
+    def index_changed(self, num):
+        ## """change text of undo/redo menuitems according to stack change"""
+        ## print('undo stack index changed:', num)
+        win = self.parent()
+        win.undo_item.setText('Undo ' + self.undoText())
+        test = self.redoText()
+        if test:
+            win.redo_item.setText('Redo ' + test)
+            win.redo_item.setEnabled(True)
+        else:
+            win.redo_item.setText('Nothing to redo')
+            win.redo_item.setDisabled(True)
+#
+# UndoCommand subclasses
+#
+class AddElementCommand(gui.QUndoCommand):
+    def __init__(self, win, data, item, before, below, description):
+        self.win = win          # treewidget
+        self.item = item        # where we are now
+        self.data = data        # element name and text
+        self.before = before    # switch
+        self.below = below      # switch
+        if below:
+            description += ' Under'
+        elif before:
+            description += ' Before'
+        else:
+            description += ' After'
+        print("init {}".format(description), self.data, self.item)
+        super().__init__(description)
+
+    def redo(self):
+        if self.below:
+            add_under = self.item
+            ix = -1
+            print('Adding under', end=",")
+        else:
+            add_under = self.item.parent()
+            ix = add_under.indexOfChild(self.item)
+            print('Adding', end=",")
+            if not self.before:
+                ix += 1
+                print('after', end=",")
+        print(add_under, self.data)
+        self.added = add_as_child(self.data, add_under, self.win.ns_prefixes,
+            self.win.ns_uris, insert=ix)
+        print('Added', self.added)
+
+    def undo(self):
+        "essentially 'cut' Command"
+        print('Undo add for', self.added)
+        item = CopyElementCommand(self.win, self.added, cut=True, retain=False,
+            description="Undo add element")
+        item.redo()
+
+class AddAttributeCommand(gui.QUndoCommand):
+    def __init__(self, win, description):
+        super().__init__(description)
+        self.win = win
+
+    def redo(self):
+        self.win.do()
+
+    def undo(self):
+        "essentially 'cut' Command"
+        self.cut()
+
+class EditElementCommand(gui.QUndoCommand):
+    def __init__(self, win, old_state, new_state, description):
+        super().__init__(description)
+        self.win = win
+        self.node = self.win.item
+        self.old_state = old_state
+        self.new_state = new_state
+
+    def redo(self):
+        "change node's state to new"
+        self.win.do()
+
+    def undo(self):
+        "change node's state back to old"
+        self.win.opposite_Command()
+
+class EditAttributeCommand(gui.QUndoCommand):
+    def __init__(self, win, old_state, new_state, description):
+        super().__init__(description)
+        self.win = win
+        self.node = self.win.item
+        self.old_state = old_state
+        self.new_state = new_state
+
+    def redo(self):
+        "change node's state to new"
+        self.win.do()
+
+    def undo(self):
+        "change node's state back to old"
+        self.win.opposite_Command()
+
+class CopyElementCommand(gui.QUndoCommand):
+    def __init__(self, win, item, cut, retain, description):
+        super().__init__(description)
+        self.win = win      # treewidget
+        self.item = item    # where we are now
+        self.text = str(self.item.text(0))  # visual item text
+        self.data = (str(self.item.text(1)), str(self.item.text(2))) # name and text
+        print("init {}".format(description), self.data, self.item)
+        self.cut = cut
+        self.retain = retain
+
+    def redo(self):
+        def push_el(el, result):
+            text = str(el.text(0))
+            data = (str(el.text(1)), str(el.text(2)))
+            children = []
+            if str(text).startswith(ELSTART):
+                for ix in range(el.childCount()):
+                    subel = el.child(ix)
+                    temp = push_el(subel, children)
+            result.append((text, data, children))
+            return result
+        if self.retain:
+            print('Retaining item', self.item, 'with text', self.text)
+            if str(self.text).startswith(ELSTART):
+                self.win.cut_el = []
+                self.win.cut_el = push_el(self.item, self.win.cut_el)
+                self.win.cut_att = None
+            else:
+                self.win.cut_el = None
+                self.win.cut_att = self.data
+            self.win._enable_pasteitems(True)
+        if self.cut:
+            print('cutting item', self.item)
+            parent = self.item.parent()
+            ix = parent.indexOfChild(self.item)
+            if ix > 0:
+                ix -= 1
+                prev = parent.child(ix)
+            else:
+                prev = parent
+                if prev == self.win.rt:
+                    prev = parent.child(ix+1)
+            parent.removeChild(self.item) # ook nog `del self.item` ?
+            self.win.tree.setCurrentItem(prev)
+
+    def undo(self):
+        # hopenlijk gaat "achter" werken?
+        print('Undo copy for', self.data, self.item)
+        item = AddElementCommand(self.win, self.data, self.item, before=False,
+            below=False, description="")
+        item.redo()
+
+class CopyAttributeCommand(gui.QUndoCommand):
+    def __init__(self, win, description):
+        super().__init__(description)
+        self.win = win
+
+    def redo(self):
+        self.win.do()
+
+    def undo(self):
+        self.win.opposite_Command()
+
+class PasteElementCommand(gui.QUndoCommand):
+    def __init__(self, win, description):
+        super().__init__(description)
+        self.win = win
+
+    def redo(self):
+        self.win.do()
+
+    def undo(self):
+        self.win.opposite_Command()
+
+class PasteAttributeCommand(gui.QUndoCommand):
+    def __init__(self, win, description):
+        super().__init__(description)
+        self.win = win
+
+    def redo(self):
+        self.win.do()
+
+    def undo(self):
+        self.win.opposite_Command()
+#
+# Main Window
+#
 class MainFrame(gui.QMainWindow, AxeMixin):
     "Main GUI class"
     def __init__(self, parent, id, fn=''):
         AxeMixin.__init__(self, parent, id, fn) # super() werkt niet - teveel argumenten
         self.show()
-
     #
     # reimplemented methods from QMainWindow
     #
@@ -428,7 +641,10 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def closeEvent(self, event):
         """applicatie afsluiten"""
-        self.afsl()
+        if self.check_tree():
+            event.accept()
+        else:
+            event.ignore()
     #
     # reimplemented methods from Mixin
     # mostly because of including the gui event in the signature
@@ -524,16 +740,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         AxeMixin.delete(self)
 
     def copy(self, ev=None, cut=False, retain=True):
-        def push_el(el, result):
-            text = str(el.text(0))
-            data = (str(el.text(1)), str(el.text(2)))
-            children = []
-            if str(text).startswith(ELSTART):
-                for ix in range(el.childCount()):
-                    subel = el.child(ix)
-                    temp = push_el(subel, children)
-            result.append((text, data, children))
-            return result
         if not self._checkselection():
             return
         txt = AxeMixin.copy(self, cut, retain)
@@ -542,28 +748,12 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         if data == (self.rt.tag, self.rt.text or ""):
             self._meldfout("Can't %s the root" % txt)
             return
-        if retain:
-            if str(text).startswith(ELSTART):
-                self.cut_el = []
-                self.cut_el = push_el(self.item, self.cut_el)
-                self.cut_att = None
-            else:
-                self.cut_el = None
-                self.cut_att = data
-            self._enable_pasteitems(True)
+        command = CopyElementCommand(self, self.item, cut, retain,
+            "{} Element".format(txt))
+        self.undo_stack.push(command)
         if cut:
-            parent = self.item.parent()
-            ix = parent.indexOfChild(self.item)
-            if ix > 0:
-                ix -= 1
-                prev = parent.child(ix)
-            else:
-                prev = parent
-                if prev == self.rt:
-                    prev = parent.child(ix+1)
-            parent.removeChild(self.item)
             self.mark_dirty(True)
-            self.tree.setCurrentItem(prev)
+
 
     def paste_aft(self, ev=None):
         AxeMixin.paste_aft(self)
@@ -649,18 +839,10 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         edt = ElementDialog(self, title="New element").exec_()
         if edt == gui.QDialog.Accepted:
             data = (self.data['tag'], self.data['text'])
-            if below:
-                add_under = self.item
-                ix = -1
-            else:
-                add_under = self.item.parent()
-                ix = add_under.indexOfChild(self.item)
-                if not before:
-                    ix += 1
-            rt = add_as_child(data, add_under, self.ns_prefixes, self.ns_uris,
-                insert=ix)
+            command = AddElementCommand(self, data, self.item, before, below,
+                "Insert Element")
+            self.undo_stack.push(command)
             self.mark_dirty(True)
-
     #
     # internals
     #
@@ -683,6 +865,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         self.setCentralWidget(self.tree)
 
         self._enable_pasteitems(False)
+        self.undo_stack = UndoRedoStack(self)
         self.mark_dirty(False)
 
     def _init_menus(self, popup=False):
@@ -704,6 +887,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                         ("&Collapse All (sub)Levels", self.collapse, 'Ctrl+-'),
                     ),
                     (
+                        ("&Undo", self.undo, 'Ctrl+Z'),
+                        ("&Redo", self.redo, 'Ctrl+Y'),
                         ("&Edit", self.edit, 'Ctrl+E,F2'),
                         ("&Delete", self.delete, 'Ctrl+D,Delete'),
                         ("C&ut", self.cut, 'Ctrl+X'),
@@ -735,8 +920,9 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                         self.editmenu_actions.append(act)
                     elif ix == 3:
                         self.searchmenu_actions.append(act)
+            self.undo_item, self.redo_item = self.editmenu_actions[0:2]
             self.pastebefore_item, self.pasteafter_item, \
-                self.pasteunder_item = self.editmenu_actions[4:7]
+                self.pasteunder_item = self.editmenu_actions[6:9]
 
             menubar = self.menuBar()
             filemenu = menubar.addMenu("&File")
@@ -755,10 +941,10 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         else:
             editmenu = menubar.addMenu("&Edit")
 
-        editmenu.addAction(self.editmenu_actions[0])
-        editmenu.addSeparator()
-        for act in self.editmenu_actions[1:4]:
+        for ix, act in enumerate(self.editmenu_actions[:6]):
             editmenu.addAction(act)
+            if ix == 2:
+                editmenu.addSeparator()
 
         disable_menu = True if not self.cut_el and not self.cut_att else False
         add_menuitem = True if not popup or not disable_menu else False
@@ -773,7 +959,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             editmenu.addAction(self.pasteunder_item)
 
         editmenu.addSeparator()
-        for act in self.editmenu_actions[7:]:
+        for act in self.editmenu_actions[9:]:
             editmenu.addAction(act)
 
         if popup:
@@ -807,7 +993,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         h = gui.QMessageBox.question(self, self.title, prompt,
             gui.QMessageBox.Yes | gui.QMessageBox.No | gui.QMessageBox.Cancel,
             defaultButton = gui.QMessageBox.Yes)
-        return h
+        return retval[h]
 
     def _ask_for_text(self, prompt):
         """vraagt om tekst en retourneert het antwoord"""
@@ -983,6 +1169,12 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def replace(self, event=None):
         self._meldinfo('Replace: not sure if I wanna implement this')
+
+    def undo(self, event=None):
+        self.undo_stack.undo()
+
+    def redo(self, event=None):
+        self.undo_stack.redo()
 
 
 def axe_gui(args):
