@@ -428,7 +428,11 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def closeEvent(self, event):
         """applicatie afsluiten"""
-        self.afsl()
+        test = self.check_tree()
+        if test:
+            event.accept()
+        else:
+            event.ignore()
     # reimplemented methods from Mixin
     # mostly because of including the gui event in the signature
     #
@@ -836,12 +840,14 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         """get the currently selected item
 
         if there is no selection or the file title is selected, display a message
-        (if requested). I think originally it returned False in that case
+        (if requested). Also return False in that case.
+        Should't it return False also if no message is requested?
         """
         sel = True
         self.item = self.tree.currentItem()
         if message and (self.item is None or self.item == self.top):
             self._meldinfo('You need to select an element or attribute first')
+            sel = False
         return sel
     #
     # exposed
@@ -879,17 +885,11 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 skip = True
         return skip
 
-        """get the currently selected item
-        if there is no selection or the file title is selected, display a message
-        (if requested). Also return False in that case.
-        Should't it return False also if no message is requested?
-            sel = False
     def expand(self, ev=None):
         def expand_with_children(item):
             self.tree.expandItem(item)
             for ix in range(item.childCount()):
                 expand_with_children(item.child(ix))
-                sel = False
         item = self.tree.currentItem()
         if item:
             expand_with_children(item)
