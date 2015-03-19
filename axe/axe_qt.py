@@ -429,7 +429,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def closeEvent(self, event):
         """applicatie afsluiten"""
         self.afsl()
-    #
     # reimplemented methods from Mixin
     # mostly because of including the gui event in the signature
     #
@@ -574,21 +573,15 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def paste(self, ev=None, before=True, pastebelow=False):
         if not self._checkselection():
             return
+        if self.item.parent() == self.top and not pastebelow:
+            self._meldinfo("Can't paste before or after the root")
+            return
         data = (str(self.item.text(1)), str(self.item.text(2)))
         if pastebelow and not str(self.item.text(0)).startswith(ELSTART):
             self._meldfout("Can't paste below an attribute")
             return
-        if data == ((self.rt.tag, self.rt.text) or ""):
-            if before:
-                self._meldfout("Can't paste before the root")
-                return
-            else:
-                self._meldinfo("Pasting as first element below root")
-                pastebelow = True
-        ## if self.cut:
-            ## self._enable_pasteitems(False)
         if self.cut_att:
-            item = getshortname(self.cut_att, self.ns_prefixes, self.ns_uris,
+            item = getshortname((self.cut_att, self.ns_prefixes, self.ns_uris),
                 attr=True)
             node = gui.QTreeWidgetItem()
             node.setText(0, item)
@@ -645,6 +638,9 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def insert(self, ev=None, before=True, below=False):
         if not self._checkselection():
+            return
+        if self.item.parent() == self.top and not below:
+            self._meldinfo("Can't insert before or after the root")
             return
         edt = ElementDialog(self, title="New element").exec_()
         if edt == gui.QDialog.Accepted:
@@ -883,11 +879,17 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 skip = True
         return skip
 
+        """get the currently selected item
+        if there is no selection or the file title is selected, display a message
+        (if requested). Also return False in that case.
+        Should't it return False also if no message is requested?
+            sel = False
     def expand(self, ev=None):
         def expand_with_children(item):
             self.tree.expandItem(item)
             for ix in range(item.childCount()):
                 expand_with_children(item.child(ix))
+                sel = False
         item = self.tree.currentItem()
         if item:
             expand_with_children(item)
