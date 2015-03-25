@@ -462,6 +462,7 @@ class AddElementCommand(gui.QUndoCommand):
         self.data = data        # element name and text
         self.before = before    # switch
         self.below = below      # switch
+        self.replaced = None    # in case item is replaced while redoing
         if below:
             description += ' Under'
         elif before:
@@ -489,11 +490,14 @@ class AddElementCommand(gui.QUndoCommand):
         print(add_under, self.data)
         self.added = add_as_child(self.data, add_under, self.win.ns_prefixes,
             self.win.ns_uris, insert=loc)
+        if self.replaced:
+            self.win.replaced[add_under.id()] = self.added
         print('Added', self.added)
 
     def undo(self):
         "essentially 'cut' Command"
         print('Undo add for', self.added)
+        self.replaced = self.added   # remember original item in case redo replaces it
         item = CopyElementCommand(self.win, self.added, cut=True, retain=False,
             description="Undo add element")
         item.redo()
@@ -599,14 +603,17 @@ class CopyElementCommand(gui.QUndoCommand):
                 if prev == self.win.rt:
                     prev = parent.child(ix+1)
             parent.removeChild(self.item)
-            del self.item
+            ## del self.item
             self.win.tree.setCurrentItem(prev)
 
     def undo(self):
         print('Undo copy for', self.data, self.item)
         item = AddElementCommand(self.win, self.data, self.item, before=False,
             below=True, description="")
-        item.redo(add_under=self.parent, loc=self.loc)
+        add_under = self.parent
+        if self.win.replaced[self.parent.id()]:
+            add_under = self.win.replaced[self.parent.id()]
+        item.redo(add_under=add_under, loc=self.loc)
         self.item = item.added
 
 class CopyAttributeCommand(gui.QUndoCommand):
@@ -797,6 +804,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             add_to_tree(el, rt)
         #self.tree.selection = self.top
         # set_selection()
+        self.replaced = {}  # dict of nodes that have been replaced while editing
         self.mark_dirty(False)
 
     def cut(self, ev=None):
