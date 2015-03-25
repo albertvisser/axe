@@ -524,37 +524,26 @@ class AddAttributeCommand(gui.QUndoCommand):
             description="Undo add attribute")
         item.redo()
 
-class EditElementCommand(gui.QUndoCommand):
+class EditCommand(gui.QUndoCommand):
     def __init__(self, win, old_state, new_state, description):
+        print("building editcommand for", description)
         super().__init__(description)
         self.win = win
-        self.node = self.win.item
+        self.item = self.win.item
         self.old_state = old_state
         self.new_state = new_state
 
     def redo(self):
         "change node's state to new"
-        self.win.do()
+        self.item.setText(0, self.new_state[0])
+        self.item.setText(1, self.new_state[1])
+        self.item.setText(2, self.new_state[2])
 
     def undo(self):
         "change node's state back to old"
-        self.win.opposite_Command()
-
-class EditAttributeCommand(gui.QUndoCommand):
-    def __init__(self, win, old_state, new_state, description):
-        super().__init__(description)
-        self.win = win
-        self.node = self.win.item
-        self.old_state = old_state
-        self.new_state = new_state
-
-    def redo(self):
-        "change node's state to new"
-        self.win.do()
-
-    def undo(self):
-        "change node's state back to old"
-        self.win.opposite_Command()
+        self.item.setText(0, self.old_state[0])
+        self.item.setText(1, self.old_state[1])
+        self.item.setText(2, self.old_state[2])
 
 class CopyElementCommand(gui.QUndoCommand):
     def __init__(self, win, item, cut, retain, description):
@@ -1178,6 +1167,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         data = str(self.item.text(0)) # self.item.get_text()
         if data.startswith(ELSTART):
             tag, text = str(self.item.text(1)), str(self.item.text(2))
+            state = data, tag, text   # current values to be passed to UndoAction
             data = {'item': self.item, 'tag': tag}
             if text:
                 data['data'] = True
@@ -1186,20 +1176,23 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             if edt == gui.QDialog.Accepted:
                 h = ((self.data["tag"], self.data["text"]), self.ns_prefixes,
                     self.ns_uris)
-                self.item.setText(0, getshortname(h))
-                self.item.setText(1, self.data["tag"])
-                self.item.setText(2, self.data["text"])
+                new_state = getshortname(h), self.data["tag"], self.data["text"]
+                print('calling editcommand for element')
+                command = EditCommand(self, state, new_state, "Edit Element")
+                self.undo_stack.push(command)
                 self.mark_dirty(True)
         else:
             nam, val = str(self.item.text(1)), str(self.item.text(2))
+            state = data, nam, val   # current values to be passed to UndoAction
             data = {'item': self.item, 'name': nam, 'value': val}
             edt = AttributeDialog(self,title='Edit an attribute',item=data).exec_()
             if edt == gui.QDialog.Accepted:
                 h = ((self.data["name"], self.data["value"]), self.ns_prefixes,
                     self.ns_uris)
-                self.item.setText(0, getshortname(h, attr=True))
-                self.item.setText(1, self.data["name"])
-                self.item.setText(2, self.data["value"])
+                new_state = getshortname(h, attr=True), self.data["name"], self.data["value"]
+                print('calling editcommand for attribute')
+                command = EditCommand(self, state, new_state, "Edit Attribute")
+                self.undo_stack.push(command)
                 self.mark_dirty(True)
 
     def add_attr(self, ev=None):
