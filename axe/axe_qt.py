@@ -475,6 +475,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         tree = XMLTree(data[0]) # .split(None,1)
         root = tree.root
         expandnode(rt, root, tree)
+        namespace_data = None
         if self.ns_prefixes:
             namespace_data = (self.ns_prefixes, self.ns_uris)
         h = tree.write(self.xmlfn, namespace_data)
@@ -945,15 +946,15 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def add_attr(self, ev=None):
         if not self.checkselection():
             return
+        if not str(self.item.text(0)).startswith(ELSTART):
+            self._meldfout("Can't add attribute to attribute")
+            return
         edt = AttributeDialog(self, title="New attribute").exec_()
         if edt == gui.QDialog.Accepted:
-            if str(self.item.text(0)).startswith(ELSTART):
-                h = (self.data["name"], self.data["value"])
-                rt = add_as_child(h, self.item, self.ns_prefixes, self.ns_uris,
-                    attr=True)
-                self.mark_dirty(True)
-            else:
-                self._meldfout("Can't add attribute to attribute")
+            h = (self.data["name"], self.data["value"])
+            rt = add_as_child(h, self.item, self.ns_prefixes, self.ns_uris,
+                attr=True)
+            self.mark_dirty(True)
 
     def search(self, event=None, reversed=False):
         self._search_pos = None
