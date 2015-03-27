@@ -22,19 +22,19 @@ elif os.name == "posix":
     HMASK = "XML files (*.xml *.XML);;All files (*.*)"
 IMASK = "All files (*.*)"
 
-def add_as_child(element, root, ns_prefixes, ns_uris, attr=False, insert=-1):
-    if element[1] is None:
-        element = (element[0], "")
-    h = ((str(element[0]), str(element[1])), ns_prefixes, ns_uris)
-    item = gui.QTreeWidgetItem()
-    item.setText(0, getshortname(h, attr))
-    item.setText(1, element[0])
-    item.setText(2, element[1])
-    if insert == -1:
-        root.addChild(item)
-    else:
-        root.insertChild(insert, item)
-    return item
+## def add_as_child(element, root, ns_prefixes, ns_uris, attr=False, insert=-1):
+    ## if element[1] is None:
+        ## element = (element[0], "")
+    ## h = ((str(element[0]), str(element[1])), ns_prefixes, ns_uris)
+    ## item = gui.QTreeWidgetItem()
+    ## item.setText(0, getshortname(h, attr))
+    ## item.setText(1, element[0])
+    ## item.setText(2, element[1])
+    ## if insert == -1:
+        ## root.addChild(item)
+    ## else:
+        ## root.insertChild(insert, item)
+    ## return item
 
 def flatten_tree(element):
     """return the tree's structure as a flat list
@@ -486,13 +486,17 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def init_tree(self, root, prefixes=None, uris=None, name=''):
         def add_to_tree(el, rt):
-            rr = add_as_child((el.tag, el.text), rt, self.ns_prefixes, self.ns_uris)
+            ## rr = add_as_child((el.tag, el.text), rt, self.ns_prefixes, self.ns_uris)
+            self.item = rt
+            rr = self._add_item(el.tag, el.text)
             for attr in el.keys():
                 h = el.get(attr)
                 if not h:
                     h = '""'
-                rrr = add_as_child((attr, h), rr, self.ns_prefixes, self.ns_uris,
-                    attr=True)
+                ## rrr = add_as_child((attr, h), rr, self.ns_prefixes, self.ns_uris,
+                    ## attr=True)
+                self.item = rr
+                _ = self._add_item(attr, h, attr=True)
             for subel in list(el):
                 add_to_tree(subel, rr)
 
@@ -512,8 +516,10 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             ns_item = gui.QTreeWidgetItem()
             ns_item.setText(0, '{}: {}'.format(prf, self.ns_uris[ix]))
             ns_root.addChild(ns_item)
-        rt = add_as_child((self.rt.tag, self.rt.text), self.top, self.ns_prefixes,
-            self.ns_uris)
+        ## rt = add_as_child((self.rt.tag, self.rt.text), self.top, self.ns_prefixes,
+            ## self.ns_uris)
+        self.item = self.top
+        rt = self._add_item(self.rt.tag, self.rt.text)
         for el in list(self.rt):
             add_to_tree(el, rt)
         #self.tree.selection = self.top
@@ -585,53 +591,69 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             self._meldfout("Can't paste below an attribute")
             return
         if self.cut_att:
-            item = getshortname((self.cut_att, self.ns_prefixes, self.ns_uris),
-                attr=True)
-            node = gui.QTreeWidgetItem()
-            node.setText(0, item)
-            node.setText(1, self.cut_att[0])
-            node.setText(2, self.cut_att[1])
-            if pastebelow:
-                self.item.addChild(node)
-            else:
-                add_to = self.item.parent() # self.item.get_parent()
-                added = False
-                for ix in range(add_to.childCount()):
-                    if add_to.child(ix) == self.item:
-                        if not before:
-                            ix += 1
-                        add_to.insertChild(ix, node)
-                        added = True
-                        break
-                if not added:
-                    add_to.addChild(item)
+            ## item = getshortname((self.cut_att, self.ns_prefixes, self.ns_uris),
+                ## attr=True)
+            ## node = gui.QTreeWidgetItem()
+            ## node.setText(0, item)
+            ## node.setText(1, self.cut_att[0])
+            ## node.setText(2, self.cut_att[1])
+            ## if pastebelow:
+                ## self.item.addChild(node)
+            ## else:
+                ## add_to = self.item.parent() # self.item.get_parent()
+                ## added = False
+                ## for ix in range(add_to.childCount()):
+                    ## if add_to.child(ix) == self.item:
+                        ## if not before:
+                            ## ix += 1
+                        ## add_to.insertChild(ix, node)
+                        ## added = True
+                        ## break
+                ## if not added:
+                    ## add_to.addChild(item)
+            name, value = self.cut_att
+            self._add_item(name, value, before=before, below=pastebelow, attr=True)
         elif self.cut_el:
-            def zetzeronder(node, el, pos=-1):
-                subnode = gui.QTreeWidgetItem()
-                subnode.setText(0, el[0])
-                subnode.setText(1, el[1][0])
-                subnode.setText(2, el[1][1])
-                if pos == -1:
-                    node.addChild(subnode)
-                else:
-                    node.insertChild(pos, subnode)
-                for x in el[2]:
-                    zetzeronder(subnode, x)
-            if pastebelow:
-                node = self.item
-                ix = -1
-            else:
-                node = self.item.parent()
-                cnt = node.childCount()
-                for ix in range(cnt):
-                    x = node.child(ix)
-                    if x == self.item:
-                        if not before:
-                            ix += 1
-                        break
-                if ix == cnt:
-                    ix = -1
-            zetzeronder(node, self.cut_el[0], ix)
+            print(self.cut_el[0])
+            ## def zetzeronder(node, el, pos=-1):
+                ## subnode = gui.QTreeWidgetItem()
+                ## subnode.setText(0, el[0])
+                ## subnode.setText(1, el[1][0])
+                ## subnode.setText(2, el[1][1])
+                ## if pos == -1:
+                    ## node.addChild(subnode)
+                ## else:
+                    ## node.insertChild(pos, subnode)
+                ## for x in el[2]:
+                    ## zetzeronder(subnode, x)
+            ## if pastebelow:
+                ## node = self.item
+                ## ix = -1
+            ## else:
+                ## node = self.item.parent()
+                ## cnt = node.childCount()
+                ## for ix in range(cnt):
+                    ## x = node.child(ix)
+                    ## if x == self.item:
+                        ## if not before:
+                            ## ix += 1
+                        ## break
+                ## if ix == cnt:
+                    ## ix = -1
+            ## zetzeronder(node, self.cut_el[0], ix)
+            def zetzeronder(node, data, before=False, below=True):
+                text, data, children = data
+                tag, value = data
+                self.item = node
+                is_attr = False if text.startswith(ELSTART) else True
+                add_under = self._add_item(tag, value, before=before,
+                    below=below, attr=is_attr)
+                below = True
+                for item in children:
+                    zetzeronder(add_under, item)
+            node = self.item
+            zetzeronder(node, self.cut_el[0], before=before, below=pastebelow)
+            self.item = node
         self.mark_dirty(True)
 
     def ins_aft(self, ev=None):
@@ -643,22 +665,29 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def insert(self, ev=None, before=True, below=False):
         if not self._checkselection():
             return
+        if str(self.item.text(0)).startswith(ELSTART) or (not before and not below):
+            pass
+        else:
+            self._meldfout("Can't add element to attribute")
+            return
         if self.item.parent() == self.top and not below:
             self._meldinfo("Can't insert before or after the root")
             return
         edt = ElementDialog(self, title="New element").exec_()
         if edt == gui.QDialog.Accepted:
-            data = (self.data['tag'], self.data['text'])
-            if below:
-                add_under = self.item
-                ix = -1
-            else:
-                add_under = self.item.parent()
-                ix = add_under.indexOfChild(self.item)
-                if not before:
-                    ix += 1
-            rt = add_as_child(data, add_under, self.ns_prefixes, self.ns_uris,
-                insert=ix)
+            ## data = (self.data['tag'], self.data['text'])
+            ## if below:
+                ## add_under = self.item
+                ## ix = -1
+            ## else:
+                ## add_under = self.item.parent()
+                ## ix = add_under.indexOfChild(self.item)
+                ## if not before:
+                    ## ix += 1
+            ## rt = add_as_child(data, add_under, self.ns_prefixes, self.ns_uris,
+                ## insert=ix)
+            self._add_item(self.data['tag'], self.data['text'], before=before,
+                below=below)
             self.mark_dirty(True)
 
     #
@@ -840,15 +869,40 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         """get the currently selected item
 
         if there is no selection or the file title is selected, display a message
-        (if requested). Also return False in that case.
-        Should't it return False also if no message is requested?
+        (if requested). Also return False in that case
         """
         sel = True
         self.item = self.tree.currentItem()
+        print("self.item", self.item)
         if message and (self.item is None or self.item == self.top):
             self._meldinfo('You need to select an element or attribute first')
             sel = False
         return sel
+
+    def _add_item(self, name, value, before=False, below=True, attr=False):
+        if below:
+            add_under = self.item
+            insert = -1
+        else:
+            add_under = self.item.parent()
+            insert = add_under.indexOfChild(self.item)
+            if not before:
+                insert += 1
+        ## rt = add_as_child((name, value), add_under, self.ns_prefixes, self.ns_uris,
+            ## attr, insert=ix)
+        ## return rt
+        if value is None:
+            value = ""
+        h = ((str(name), str(value)), self.ns_prefixes, self.ns_uris)
+        item = gui.QTreeWidgetItem()
+        item.setText(0, getshortname(h, attr))
+        item.setText(1, name)
+        item.setText(2, value)
+        if insert == -1:
+            add_under.addChild(item)
+        else:
+            add_under.insertChild(insert, item)
+        return item
     #
     # exposed
     #
@@ -934,15 +988,16 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def add_attr(self, ev=None):
         if not self._checkselection():
             return
+        if not str(self.item.text(0)).startswith(ELSTART):
+            self._meldfout("Can't add attribute to attribute")
+            return
         edt = AttributeDialog(self, title="New attribute").exec_()
         if edt == gui.QDialog.Accepted:
-            if str(self.item.text(0)).startswith(ELSTART):
-                h = (self.data["name"], self.data["value"])
-                rt = add_as_child(h, self.item, self.ns_prefixes, self.ns_uris,
-                    attr=True)
-                self.mark_dirty(True)
-            else:
-                self._meldfout("Can't add attribute to attribute")
+            ## h = (self.data["name"], self.data["value"])
+            ## rt = add_as_child(h, self.item, self.ns_prefixes, self.ns_uris,
+                ## attr=True)
+            self._add_item(self.data["name"], self.data["value"], attr=True)
+            self.mark_dirty(True)
 
     def search(self, event=None, reversed=False):
         self._search_pos = None
