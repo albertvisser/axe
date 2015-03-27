@@ -585,53 +585,69 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             self._meldfout("Can't paste below an attribute")
             return
         if self.cut_att:
-            item = getshortname((self.cut_att, self.ns_prefixes, self.ns_uris),
-                attr=True)
-            node = gui.QTreeWidgetItem()
-            node.setText(0, item)
-            node.setText(1, self.cut_att[0])
-            node.setText(2, self.cut_att[1])
-            if pastebelow:
-                self.item.addChild(node)
-            else:
-                add_to = self.item.parent() # self.item.get_parent()
-                added = False
-                for ix in range(add_to.childCount()):
-                    if add_to.child(ix) == self.item:
-                        if not before:
-                            ix += 1
-                        add_to.insertChild(ix, node)
-                        added = True
-                        break
-                if not added:
-                    add_to.addChild(item)
+            ## item = getshortname((self.cut_att, self.ns_prefixes, self.ns_uris),
+                ## attr=True)
+            ## node = gui.QTreeWidgetItem()
+            ## node.setText(0, item)
+            ## node.setText(1, self.cut_att[0])
+            ## node.setText(2, self.cut_att[1])
+            ## if pastebelow:
+                ## self.item.addChild(node)
+            ## else:
+                ## add_to = self.item.parent() # self.item.get_parent()
+                ## added = False
+                ## for ix in range(add_to.childCount()):
+                    ## if add_to.child(ix) == self.item:
+                        ## if not before:
+                            ## ix += 1
+                        ## add_to.insertChild(ix, node)
+                        ## added = True
+                        ## break
+                ## if not added:
+                    ## add_to.addChild(item)
+            name, value = self.cut_att
+            self._add_item(name, value, before=before, below=pastebelow, attr=True)
         elif self.cut_el:
-            def zetzeronder(node, el, pos=-1):
-                subnode = gui.QTreeWidgetItem()
-                subnode.setText(0, el[0])
-                subnode.setText(1, el[1][0])
-                subnode.setText(2, el[1][1])
-                if pos == -1:
-                    node.addChild(subnode)
-                else:
-                    node.insertChild(pos, subnode)
-                for x in el[2]:
-                    zetzeronder(subnode, x)
-            if pastebelow:
-                node = self.item
-                ix = -1
-            else:
-                node = self.item.parent()
-                cnt = node.childCount()
-                for ix in range(cnt):
-                    x = node.child(ix)
-                    if x == self.item:
-                        if not before:
-                            ix += 1
-                        break
-                if ix == cnt:
-                    ix = -1
-            zetzeronder(node, self.cut_el[0], ix)
+            print(self.cut_el[0])
+            ## def zetzeronder(node, el, pos=-1):
+                ## subnode = gui.QTreeWidgetItem()
+                ## subnode.setText(0, el[0])
+                ## subnode.setText(1, el[1][0])
+                ## subnode.setText(2, el[1][1])
+                ## if pos == -1:
+                    ## node.addChild(subnode)
+                ## else:
+                    ## node.insertChild(pos, subnode)
+                ## for x in el[2]:
+                    ## zetzeronder(subnode, x)
+            ## if pastebelow:
+                ## node = self.item
+                ## ix = -1
+            ## else:
+                ## node = self.item.parent()
+                ## cnt = node.childCount()
+                ## for ix in range(cnt):
+                    ## x = node.child(ix)
+                    ## if x == self.item:
+                        ## if not before:
+                            ## ix += 1
+                        ## break
+                ## if ix == cnt:
+                    ## ix = -1
+            ## zetzeronder(node, self.cut_el[0], ix)
+            def zetzeronder(node, data, before=False, below=True):
+                text, data, children = data
+                tag, value = data
+                self.item = node
+                is_attr = False if text.startswith(ELSTART) else True
+                add_under = self._add_item(tag, value, before=before,
+                    below=below, attr=is_attr)
+                below = True
+                for item in children:
+                    zetzeronder(add_under, item)
+            node = self.item
+            zetzeronder(node, self.cut_el[0], before=before, below=pastebelow)
+            self.item = node
         self.mark_dirty(True)
 
     def ins_aft(self, ev=None):
@@ -643,8 +659,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def insert(self, ev=None, before=True, below=False):
         if not self.checkselection():
             return
-        print(str(self.item.text(0)).startswith(ELSTART), before, below)
-        print(before or below, before and below)
         if str(self.item.text(0)).startswith(ELSTART) or (not before and not below):
             pass
         else:
@@ -874,6 +888,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 ix += 1
         rt = add_as_child((name, value), add_under, self.ns_prefixes, self.ns_uris,
             attr, insert=ix)
+        return rt
 
     def quit(self, ev=None):
         self.close()
