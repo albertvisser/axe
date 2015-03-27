@@ -24,19 +24,19 @@ elif os.name == "posix":
     HMASK = "XML files (*.xml *.XML);;All files (*.*)"
 IMASK = "All files (*.*)"
 
-def add_as_child(element, root, ns_prefixes, ns_uris, attr=False, insert=-1):
-    if element[1] is None:
-        element = (element[0], "")
-    h = ((str(element[0]), str(element[1])), ns_prefixes, ns_uris)
-    item = gui.QTreeWidgetItem()
-    item.setText(0, getshortname(h, attr))
-    item.setText(1, element[0])
-    item.setText(2, element[1])
-    if insert == -1:
-        root.addChild(item)
-    else:
-        root.insertChild(insert, item)
-    return item
+## def add_as_child(element, root, ns_prefixes, ns_uris, attr=False, insert=-1):
+    ## if element[1] is None:
+        ## element = (element[0], "")
+    ## h = ((str(element[0]), str(element[1])), ns_prefixes, ns_uris)
+    ## item = gui.QTreeWidgetItem()
+    ## item.setText(0, getshortname(h, attr))
+    ## item.setText(1, element[0])
+    ## item.setText(2, element[1])
+    ## if insert == -1:
+        ## root.addChild(item)
+    ## else:
+        ## root.insertChild(insert, item)
+    ## return item
 
 def flatten_tree(element):
     """return the tree's structure as a flat list
@@ -486,13 +486,17 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def init_tree(self, root, prefixes=None, uris=None, name=''):
         def add_to_tree(el, rt):
-            rr = add_as_child((el.tag, el.text), rt, self.ns_prefixes, self.ns_uris)
+            ## rr = add_as_child((el.tag, el.text), rt, self.ns_prefixes, self.ns_uris)
+            self.item = rt
+            rr = self._add_item(el.tag, el.text)
             for attr in el.keys():
                 h = el.get(attr)
                 if not h:
                     h = '""'
-                rrr = add_as_child((attr, h), rr, self.ns_prefixes, self.ns_uris,
-                    attr=True)
+                ## rrr = add_as_child((attr, h), rr, self.ns_prefixes, self.ns_uris,
+                    ## attr=True)
+                self.item = rr
+                _ = self._add_item(attr, h, attr=True)
             for subel in list(el):
                 add_to_tree(subel, rr)
 
@@ -512,8 +516,10 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             ns_item = gui.QTreeWidgetItem()
             ns_item.setText(0, '{}: {}'.format(prf, self.ns_uris[ix]))
             ns_root.addChild(ns_item)
-        rt = add_as_child((self.rt.tag, self.rt.text), self.top, self.ns_prefixes,
-            self.ns_uris)
+        ## rt = add_as_child((self.rt.tag, self.rt.text), self.top, self.ns_prefixes,
+            ## self.ns_uris)
+        self.item = self.top
+        rt = self._add_item(self.rt.tag, self.rt.text)
         for el in list(self.rt):
             add_to_tree(el, rt)
         #self.tree.selection = self.top
@@ -880,15 +886,27 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def _add_item(self, name, value, before=False, below=True, attr=False):
         if below:
             add_under = self.item
-            ix = -1
+            insert = -1
         else:
             add_under = self.item.parent()
-            ix = add_under.indexOfChild(self.item)
+            insert = add_under.indexOfChild(self.item)
             if not before:
-                ix += 1
-        rt = add_as_child((name, value), add_under, self.ns_prefixes, self.ns_uris,
-            attr, insert=ix)
-        return rt
+                insert += 1
+        ## rt = add_as_child((name, value), add_under, self.ns_prefixes, self.ns_uris,
+            ## attr, insert=ix)
+        ## return rt
+        if value is None:
+            value = ""
+        h = ((str(name), str(value)), self.ns_prefixes, self.ns_uris)
+        item = gui.QTreeWidgetItem()
+        item.setText(0, getshortname(h, attr))
+        item.setText(1, name)
+        item.setText(2, value)
+        if insert == -1:
+            add_under.addChild(item)
+        else:
+            add_under.insertChild(insert, item)
+        return item
 
     def quit(self, ev=None):
         self.close()
