@@ -643,22 +643,31 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def insert(self, ev=None, before=True, below=False):
         if not self.checkselection():
             return
+        print(str(self.item.text(0)).startswith(ELSTART), before, below)
+        print(before or below, before and below)
+        if str(self.item.text(0)).startswith(ELSTART) or (not before and not below):
+            pass
+        else:
+            self._meldfout("Can't add element to attribute")
+            return
         if self.item.parent() == self.top and not below:
             self._meldinfo("Can't insert before or after the root")
             return
         edt = ElementDialog(self, title="New element").exec_()
         if edt == gui.QDialog.Accepted:
-            data = (self.data['tag'], self.data['text'])
-            if below:
-                add_under = self.item
-                ix = -1
-            else:
-                add_under = self.item.parent()
-                ix = add_under.indexOfChild(self.item)
-                if not before:
-                    ix += 1
-            rt = add_as_child(data, add_under, self.ns_prefixes, self.ns_uris,
-                insert=ix)
+            ## data = (self.data['tag'], self.data['text'])
+            ## if below:
+                ## add_under = self.item
+                ## ix = -1
+            ## else:
+                ## add_under = self.item.parent()
+                ## ix = add_under.indexOfChild(self.item)
+                ## if not before:
+                    ## ix += 1
+            ## rt = add_as_child(data, add_under, self.ns_prefixes, self.ns_uris,
+                ## insert=ix)
+            self._add_item(self.data['tag'], self.data['text'], before=before,
+                below=below)
             self.mark_dirty(True)
 
     def _init_gui(self, parent, id):
@@ -854,6 +863,18 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         ok = bool(name)
         return ok, str(name)
 
+    def _add_item(self, name, value, before=False, below=True, attr=False):
+        if below:
+            add_under = self.item
+            ix = -1
+        else:
+            add_under = self.item.parent()
+            ix = add_under.indexOfChild(self.item)
+            if not before:
+                ix += 1
+        rt = add_as_child((name, value), add_under, self.ns_prefixes, self.ns_uris,
+            attr, insert=ix)
+
     def quit(self, ev=None):
         self.close()
 
@@ -951,9 +972,10 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             return
         edt = AttributeDialog(self, title="New attribute").exec_()
         if edt == gui.QDialog.Accepted:
-            h = (self.data["name"], self.data["value"])
-            rt = add_as_child(h, self.item, self.ns_prefixes, self.ns_uris,
-                attr=True)
+            ## h = (self.data["name"], self.data["value"])
+            ## rt = add_as_child(h, self.item, self.ns_prefixes, self.ns_uris,
+                ## attr=True)
+            self._add_item(self.data["name"], self.data["value"], attr=True)
             self.mark_dirty(True)
 
     def search(self, event=None, reversed=False):
