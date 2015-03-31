@@ -22,19 +22,19 @@ elif os.name == "posix":
     HMASK = "XML files (*.xml *.XML);;All files (*.*)"
 IMASK = "All files (*.*)"
 
-def add_as_child(element, root, ns_prefixes, ns_uris, attr=False, insert=-1):
-    if element[1] is None:
-        element = (element[0], "")
-    h = ((str(element[0]), str(element[1])), ns_prefixes, ns_uris)
-    item = gui.QTreeWidgetItem()
-    item.setText(0, getshortname(h, attr))
-    item.setText(1, element[0])
-    item.setText(2, element[1])
-    if insert == -1:
-        root.addChild(item)
-    else:
-        root.insertChild(insert, item)
-    return item
+def calculate_location(win, node):
+    """attempt to calculate some kind of identification for a tree node
+
+    this function returns a tuple of subsequent indices of a child under its
+    parent.
+    possibly this can be used in the replacements dictionary
+    """
+    id_ = []
+    while node != win.top:
+        idx = node.parent().indexOfChild(node)
+        id_.insert(0, idx)
+        node = node.parent()
+    return tuple(id_)
 
 def flatten_tree(element):
     """return the tree's structure as a flat list
@@ -65,12 +65,14 @@ class ElementDialog(gui.QDialog):
         self.txt_tag = gui.QLineEdit(self)
 
         self.cb_ns = gui.QCheckBox('Namespace:', self)
+        ## self.cb_ns.setCheckable(False)
         self.cmb_ns = gui.QComboBox(self)
         self.cmb_ns.setEditable(False)
         self.cmb_ns.addItem('-- none --')
         self.cmb_ns.addItems(self._parent.ns_uris)
 
         self.cb = gui.QCheckBox('Bevat data:', self)
+        self.cb.setCheckable(False)
         self.txt_data = gui.QTextEdit(self)
         self.txt_data.setTabChangesFocus(True)
         self.btn_ok = gui.QPushButton('&Save', self)
@@ -165,6 +167,7 @@ class AttributeDialog(gui.QDialog):
         self.txt_name = gui.QLineEdit(self)
 
         self.cb_ns = gui.QCheckBox('Namespace:', self)
+        ## self.cb_ns.setCheckable(False)
         self.cmb_ns = gui.QComboBox(self)
         self.cmb_ns.setEditable(False)
         self.cmb_ns.addItem('-- none --')
@@ -378,7 +381,6 @@ class SearchDialog(gui.QDialog):
 
     def on_cancel(self):
         gui.QDialog.done(self, gui.QDialog.Rejected)
-
 #
 # Tree widget (subclass overriding some event handlers)
 #
@@ -415,6 +417,8 @@ class VisualTree(gui.QTreeWidget):
                 event.ignore()
         else:
             event.ignore()
+
+
 #
 # Undo stack (subclass overriding some event handlers)
 #
@@ -454,14 +458,18 @@ class UndoRedoStack(gui.QUndoStack):
 #
 # UndoCommand subclasses
 #
-class AddElementCommand(gui.QUndoCommand):
+class PasteElementCommand(gui.QUndoCommand):
 
-    def __init__(self, win, data, item, before, below, description):
+    def __init__(self, win, tag, text, item, before, below,
+            description="", data=None):
         self.win = win          # treewidget
         self.item = item        # where we are now
-        self.data = data        # element name and text
+        self.parent = item.parent()
+        self.tag = tag          # element name
+        self.data = text        # element text
         self.before = before    # switch
         self.below = below      # switch
+        self.children = data
         self.replaced = None    # in case item is replaced while redoing
         if below:
             description += ' Under'
@@ -469,63 +477,88 @@ class AddElementCommand(gui.QUndoCommand):
             description += ' Before'
         else:
             description += ' After'
-        print("init {}".format(description), self.data, self.item)
+        print("init {}".format(description), self.tag, self.data, self.item)
         super().__init__(description)
 
-    def redo(self, add_under=None, loc=None):
-        if add_under is None:
-            if self.below:
-                add_under = self.item
-                loc = -1
-                print('Adding under', end=" ")
-            else:
-                add_under = self.item.parent()
-                loc = add_under.indexOfChild(self.item)
-                print('Adding', end=" ")
-                if not self.before:
-                    loc += 1
-                    print('after', end=" ")
-        else:
-            print('Adding under given', end=" ")
-        print(add_under, self.data)
-        self.added = add_as_child(self.data, add_under, self.win.ns_prefixes,
-            self.win.ns_uris, insert=loc)
-        if self.replaced:
-            self.win.replaced[add_under.id()] = self.added
-        print('Added', self.added)
+    def redo(self):
+        def zetzeronder(node, data, before=False, below=True):
+            text, data, children = data
+            tag, value = data
+            self.win.item = node
+            is_attr = False if text.startswith(ELSTART) else True
+            add_under = self.win._add_item(tag, value, before=before,
+                below=below, attr=is_attr)
+            below = True
+            for item in children:
+                zetzeronder(add_under, item)
+            return add_under
+        ## if add_under is None:
+            ## if self.below:
+                ## add_under = self.item
+                ## loc = -1
+                ## print('Adding under', end=" ")
+            ## else:
+                ## add_under = self.item.parent()
+                ## loc = add_under.indexOfChild(self.item)
+                ## print('Adding', end=" ")
+                ## if not self.before:
+                    ## loc += 1
+                    ## print('after', end=" ")
+        ## else:
+            ## print('Adding under given', end=" ")
+        ## print(add_under, self.data)
+        ## self.added = add_as_child(self.data, add_under, self.win.ns_prefixes,
+            ## self.win.ns_uris, insert=loc)
+        add_under = self.item
+        print(add_under, self.tag, self.data)
+        self.win.item = add_under
+        self.added = self.win._add_item(self.tag, self.data, before=self.before,
+            below=self.below)
+        if self.children is not None:
+            for item in self.children[0][2]:
+                zetzeronder(self.added, item)
+        ## if self.replaced:
+            ## self.win.replaced[calculate_location(add_under)] = self.added
+        self.win.tree.expandItem(self.added)
 
     def undo(self):
         "essentially 'cut' Command"
-        print('Undo add for', self.added)
         self.replaced = self.added   # remember original item in case redo replaces it
         item = CopyElementCommand(self.win, self.added, cut=True, retain=False,
             description="Undo add element")
         item.redo()
+        self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
-class AddAttributeCommand(gui.QUndoCommand):
-    def __init__(self, win, data, item, description):
+
+class PasteAttributeCommand(gui.QUndoCommand):
+    def __init__(self, win, name, value, item, description=""):
         super().__init__(description)
         self.win = win          # treewidget
         self.item = item        # where we are now
-        self.data = data        # attribute name and value
-        print("init {}".format(description), self.data, self.item)
+        self.name = name        # attribute name
+        self.value = value      # attribute value
+        print("init {}".format(description), self.name, self.value, self.item)
         super().__init__(description)
 
     def redo(self):
-        print('(redo) add attr', self.data, self.item)
-        self.added = add_as_child(self.data, self.item, self.win.ns_prefixes,
-            self.win.ns_uris, attr=True)
+        print('(redo) add attr', self.name, self.value, self.item)
+        ## self.added = add_as_child(self.data, self.item, self.win.ns_prefixes,
+            ## self.win.ns_uris, attr=True)
+        self.win.item = self.item
+        self.added = self.win._add_item(self.name, self.value, attr=True)
+        self.win.tree.expandItem(self.added.parent())
         print('Added', self.added)
 
     def undo(self):
         "essentially 'cut' Command"
-        print('Undo add attr for', self.added)
         item = CopyElementCommand(self.win, self.added, cut=True, retain=False,
             description="Undo add attribute")
         item.redo()
+        self.win.statusbar.showMessage('{} undone'.format(self.text()))
+
 
 class EditCommand(gui.QUndoCommand):
-    def __init__(self, win, old_state, new_state, description):
+    def __init__(self, win, old_state, new_state, description=""):
         print("building editcommand for", description)
         super().__init__(description)
         self.win = win
@@ -544,15 +577,18 @@ class EditCommand(gui.QUndoCommand):
         self.item.setText(0, self.old_state[0])
         self.item.setText(1, self.old_state[1])
         self.item.setText(2, self.old_state[2])
+        self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
 class CopyElementCommand(gui.QUndoCommand):
-    def __init__(self, win, item, cut, retain, description):
+    def __init__(self, win, item, cut, retain, description=""):
         super().__init__(description)
+        self.undodata = None
         self.win = win      # treewidget
         self.item = item    # where we are now
-        self.text = str(self.item.text(0))  # visual item text
-        self.data = (str(self.item.text(1)), str(self.item.text(2))) # name and text
-        print("init {}".format(description), self.data, self.item)
+        ## self.vtext = str(self.item.text(0))  # visual item text
+        self.tag = str(self.item.text(1))
+        self.data = str(self.item.text(2)) # name and text
+        print("init {}".format(description), self.tag, self.data, self.item)
         self.cut = cut
         self.retain = retain
 
@@ -561,128 +597,88 @@ class CopyElementCommand(gui.QUndoCommand):
             text = str(el.text(0))
             data = (str(el.text(1)), str(el.text(2)))
             children = []
-            ## if str(text).startswith(ELSTART):
             for ix in range(el.childCount()):
                 subel = el.child(ix)
                 temp = push_el(subel, children)
             result.append((text, data, children))
             return result
-        print('copying item', self.item, 'with text', self.text)
-        self.parent = self.item.parent()
-        self.loc = self.parent.indexOfChild(self.item)
+        print('copying item', self.item, 'with data', self.data)
+        if self.undodata is None:
+            self.parent = self.item.parent()
+            self.loc = self.parent.indexOfChild(self.item)
+            self.undodata = push_el(self.item, [])
+            if self.loc > 0:
+                self.prev = self.parent.child(self.loc - 1)
+            else:
+                self.prev = self.parent
+                if self.prev == self.win.rt:
+                    self.prev = self.parent.child(self.loc + 1)
         if self.retain:
             print('Retaining item')
-            ## if str(self.text).startswith(ELSTART):
-            self.win.cut_el = []
-            self.win.cut_el = push_el(self.item, self.win.cut_el)
+            self.win.cut_el = self.undodata
             self.win.cut_att = None
-            ## else:
-                ## self.win.cut_el = None
-                ## self.win.cut_att = self.data
             self.win._enable_pasteitems(True)
         if self.cut:
-            print('cutting item')
-            parent = self.item.parent()
-            ix = parent.indexOfChild(self.item)
-            if ix > 0:
-                ix -= 1
-                prev = parent.child(ix)
-            else:
-                prev = parent
-                if prev == self.win.rt:
-                    prev = parent.child(ix+1)
-            parent.removeChild(self.item)
-            ## del self.item
-            self.win.tree.setCurrentItem(prev)
+            print('cutting item from parent', self.parent)
+            self.parent.removeChild(self.item)
+            self.item = None
+            self.win.tree.setCurrentItem(self.prev)
 
     def undo(self):
-        print('Undo copy for', self.data, self.item)
-        item = AddElementCommand(self.win, self.data, self.item, before=False,
-            below=True, description="")
-        add_under = self.parent
-        if self.win.replaced[self.parent.id()]:
-            add_under = self.win.replaced[self.parent.id()]
-        item.redo(add_under=add_under, loc=self.loc)
-        self.item = item.added
+        print('Undo copy for', self.tag, self.data, self.item)
+        # self.cut_el = None
+        if self.cut:
+            item = PasteElementCommand(self.win, self.tag, self.data, self.parent,
+                before=False, below=True, data = self.undodata,
+                description="Undo Copy Element")
+            item.redo() # add_under=add_under, loc=self.loc)
+            self.item = item.added
+        self.win.statusbar.showMessage('{} undone'.format(self.text()))
+            ## self.win.tree.setCurrentItem(self.item)
 
 class CopyAttributeCommand(gui.QUndoCommand):
-    def __init__(self, win, item, description):
+    def __init__(self, win, item, cut, retain, description):
         super().__init__(description)
         self.win = win      # treewidget
         self.item = item    # where we are now
-        self.text = str(self.item.text(0))  # visual item text
-        self.data = (str(self.item.text(1)), str(self.item.text(2))) # name and text
-        print("init {}".format(description), self.data, self.item)
+        ## self.vtext = str(self.item.text(0))  # visual item text
+        self.name = str(self.item.text(1))
+        self.value = str(self.item.text(2)) # name and text
+        print("init {}".format(description), self.name, self.value, self.item)
         self.cut = cut
         self.retain = retain
 
     def redo(self):
-        def push_el(el, result):
-            text = str(el.text(0))
-            data = (str(el.text(1)), str(el.text(2)))
-            children = []
-            ## if str(text).startswith(ELSTART):
-                ## for ix in range(el.childCount()):
-                    ## subel = el.child(ix)
-                    ## temp = push_el(subel, children)
-            result.append((text, data, children))
-            return result
-        print('copying item', self.item, 'with text', self.text)
+        print('copying item', self.item, 'with text', self.value)
         self.parent = self.item.parent()
         self.loc = self.parent.indexOfChild(self.item)
         if self.retain:
-            print('Retaining item')
-            ## if str(self.text).startswith(ELSTART):
-                ## self.win.cut_el = []
-                ## self.win.cut_el = push_el(self.item, self.win.cut_el)
-                ## self.win.cut_att = None
-            ## else:
+            print('Retaining attribute')
             self.win.cut_el = None
-            self.win.cut_att = self.data
+            self.win.cut_att = (self.name, self.value)
             self.win._enable_pasteitems(True)
         if self.cut:
-            print('cutting item')
-            parent = self.item.parent()
-            ix = parent.indexOfChild(self.item)
+            print('cutting attribute')
+            ix = self.loc
             if ix > 0:
-                ix -= 1
-                prev = parent.child(ix)
+                prev = self.parent.child(ix - 1)
             else:
-                prev = parent
+                prev = self.parent
                 if prev == self.win.rt:
-                    prev = parent.child(ix+1)
-            parent.removeChild(self.item)
-            del self.item
+                    prev = self.parent.child(ix + 1)
+            self.parent.removeChild(self.item)
+            self.item = None
             self.win.tree.setCurrentItem(prev)
 
     def undo(self):
-        print('Undo copy for', self.data, self.item)
-        item = AddAttributeCommand(self.win, self.data, self.item, # before=False, below=True,
-            description="")
-        item.redo()
-        self.item = item.added
-
-class PasteElementCommand(gui.QUndoCommand):
-    def __init__(self, win, description):
-        super().__init__(description)
-        self.win = win
-
-    def redo(self):
-        self.win.do()
-
-    def undo(self):
-        self.win.opposite_Command()
-
-class PasteAttributeCommand(gui.QUndoCommand):
-    def __init__(self, win, description):
-        super().__init__(description)
-        self.win = win
-
-    def redo(self):
-        self.win.do()
-
-    def undo(self):
-        self.win.opposite_Command()
+        print('Undo copy attribute for', self.name, self.value, self.item)
+        # self.win.cut_att = None
+        if self.cut:
+            item = PasteAttributeCommand(self.win, self.name, self.value, self.parent,
+                description="Undo Copy Attribute")
+            item.redo()
+            self.item = item.added
+        self.win.statusbar.showMessage('{} undone'.format(self.text()))
 #
 # Main Window
 #
@@ -691,6 +687,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def __init__(self, parent, id, fn=''):
         AxeMixin.__init__(self, parent, id, fn) # super() werkt niet - teveel argumenten
         self.show()
+
     #
     # reimplemented methods from QMainWindow
     #
@@ -701,11 +698,11 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def closeEvent(self, event):
         """applicatie afsluiten"""
-        if self.check_tree():
+        test = self.check_tree()
+        if test:
             event.accept()
         else:
             event.ignore()
-    #
     # reimplemented methods from Mixin
     # mostly because of including the gui event in the signature
     #
@@ -759,21 +756,24 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def init_tree(self, root, prefixes=None, uris=None, name=''):
         def add_to_tree(el, rt):
-            rr = add_as_child((el.tag, el.text), rt, self.ns_prefixes, self.ns_uris)
+            ## rr = add_as_child((el.tag, el.text), rt, self.ns_prefixes, self.ns_uris)
+            self.item = rt
+            rr = self._add_item(el.tag, el.text)
+            print(calculate_location(self, rr))
             for attr in el.keys():
                 h = el.get(attr)
                 if not h:
                     h = '""'
-                rrr = add_as_child((attr, h), rr, self.ns_prefixes, self.ns_uris,
-                    attr=True)
+                ## rrr = add_as_child((attr, h), rr, self.ns_prefixes, self.ns_uris,
+                    ## attr=True)
+                self.item = rr
+                _ = self._add_item(attr, h, attr=True)
             for subel in list(el):
                 add_to_tree(subel, rr)
 
         self.tree.clear() # DeleteAllItems()
         titel = AxeMixin.init_tree(self, root, prefixes, uris, name)
-        print("self.rt", self.rt)
         self.top = gui.QTreeWidgetItem()
-        print("self.top:", self.top, titel)
         self.top.setText(0, titel)
         self.tree.addTopLevelItem(self.top) # AddRoot(titel)
         self.setWindowTitle(" - ".join((os.path.split(titel)[-1],TITEL)))
@@ -787,13 +787,15 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             ns_item = gui.QTreeWidgetItem()
             ns_item.setText(0, '{}: {}'.format(prf, self.ns_uris[ix]))
             ns_root.addChild(ns_item)
-        rt = add_as_child((self.rt.tag, self.rt.text), self.top, self.ns_prefixes,
-            self.ns_uris)
+        ## rt = add_as_child((self.rt.tag, self.rt.text), self.top, self.ns_prefixes,
+            ## self.ns_uris)
+        self.item = self.top
+        rt = self._add_item(self.rt.tag, self.rt.text)
         for el in list(self.rt):
             add_to_tree(el, rt)
         #self.tree.selection = self.top
         # set_selection()
-        self.replaced = {}  # dict of nodes that have been replaced while editing
+        self.replaced = {} # dict of nodes that have been replaced while editing
         self.mark_dirty(False)
 
     def cut(self, ev=None):
@@ -811,12 +813,16 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         if data == (self.rt.tag, self.rt.text or ""):
             self._meldfout("Can't %s the root" % txt)
             return
-        command = CopyElementCommand(self, self.item, cut, retain,
-            "{} Element".format(txt))
+        if text.startswith(ELSTART):
+            command = CopyElementCommand(self, self.item, cut, retain,
+                "{} Element".format(txt))
+        else:
+            command = CopyAttributeCommand(self, self.item, cut, retain,
+                "{} Attribute".format(txt))
         self.undo_stack.push(command)
         if cut:
             self.mark_dirty(True)
-
+            ## self.tree.setCurrentItem(prev)
 
     def paste_aft(self, ev=None):
         AxeMixin.paste_aft(self)
@@ -827,67 +833,87 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def paste(self, ev=None, before=True, pastebelow=False):
         if not self._checkselection():
             return
+        if self.item.parent() == self.top and not pastebelow:
+            self._meldinfo("Can't paste before or after the root")
+            return
         data = (str(self.item.text(1)), str(self.item.text(2)))
-        if pastebelow and not str(self.item.text(0)).startswith(ELSTART):
+        print(pastebelow, str(self.item.text(0)))
+        if not str(self.item.text(0)).startswith(ELSTART) and (pastebelow or
+                self.cut_att):
             self._meldfout("Can't paste below an attribute")
             return
-        if data == ((self.rt.tag, self.rt.text) or ""):
-            if before:
-                self._meldfout("Can't paste before the root")
-                return
-            else:
-                self._meldinfo("Pasting as first element below root")
-                pastebelow = True
-        ## if self.cut:
-            ## self._enable_pasteitems(False)
         if self.cut_att:
-            item = getshortname(self.cut_att, self.ns_prefixes, self.ns_uris,
-                attr=True)
-            node = gui.QTreeWidgetItem()
-            node.setText(0, item)
-            node.setText(1, self.cut_att[0])
-            node.setText(2, self.cut_att[1])
-            if pastebelow:
-                self.item.addChild(node)
-            else:
-                add_to = self.item.parent() # self.item.get_parent()
-                added = False
-                for ix in range(add_to.childCount()):
-                    if add_to.child(ix) == self.item:
-                        if not before:
-                            ix += 1
-                        add_to.insertChild(ix, node)
-                        added = True
-                        break
-                if not added:
-                    add_to.addChild(item)
+            ## item = getshortname((self.cut_att, self.ns_prefixes, self.ns_uris),
+                ## attr=True)
+            ## node = gui.QTreeWidgetItem()
+            ## node.setText(0, item)
+            ## node.setText(1, self.cut_att[0])
+            ## node.setText(2, self.cut_att[1])
+            ## if pastebelow:
+                ## self.item.addChild(node)
+            ## else:
+                ## add_to = self.item.parent() # self.item.get_parent()
+                ## added = False
+                ## for ix in range(add_to.childCount()):
+                    ## if add_to.child(ix) == self.item:
+                        ## if not before:
+                            ## ix += 1
+                        ## add_to.insertChild(ix, node)
+                        ## added = True
+                        ## break
+                ## if not added:
+                    ## add_to.addChild(item)
+            name, value = self.cut_att
+            command = PasteAttributeCommand(self, name, value, self.item,
+                description="Paste Attribute")
+            self.undo_stack.push(command)
+            ## self._add_item(name, value, before=before, below=pastebelow, attr=True)
         elif self.cut_el:
-            def zetzeronder(node, el, pos=-1):
-                subnode = gui.QTreeWidgetItem()
-                subnode.setText(0, el[0])
-                subnode.setText(1, el[1][0])
-                subnode.setText(2, el[1][1])
-                if pos == -1:
-                    node.addChild(subnode)
-                else:
-                    node.insertChild(pos, subnode)
-                for x in el[2]:
-                    zetzeronder(subnode, x)
-            if pastebelow:
-                node = self.item
-                ix = -1
-            else:
-                node = self.item.parent()
-                cnt = node.childCount()
-                for ix in range(cnt):
-                    x = node.child(ix)
-                    if x == self.item:
-                        if not before:
-                            ix += 1
-                        break
-                if ix == cnt:
-                    ix = -1
-            zetzeronder(node, self.cut_el[0], ix)
+            ## print('In paste, self.item is', self.item)
+            tag, text = self.cut_el[0][1]
+            ## def zetzeronder(node, el, pos=-1):
+                ## subnode = gui.QTreeWidgetItem()
+                ## subnode.setText(0, el[0])
+                ## subnode.setText(1, el[1][0])
+                ## subnode.setText(2, el[1][1])
+                ## if pos == -1:
+                    ## node.addChild(subnode)
+                ## else:
+                    ## node.insertChild(pos, subnode)
+                ## for x in el[2]:
+                    ## zetzeronder(subnode, x)
+            ## if pastebelow:
+                ## node = self.item
+                ## ix = -1
+            ## else:
+                ## node = self.item.parent()
+                ## cnt = node.childCount()
+                ## for ix in range(cnt):
+                    ## x = node.child(ix)
+                    ## if x == self.item:
+                        ## if not before:
+                            ## ix += 1
+                        ## break
+                ## if ix == cnt:
+                    ## ix = -1
+            ## zetzeronder(node, self.cut_el[0], ix)
+            ## def zetzeronder(node, data, before=False, below=True):
+                ## text, data, children = data
+                ## tag, value = data
+                ## self.item = node
+                ## is_attr = False if text.startswith(ELSTART) else True
+                ## add_under = self._add_item(tag, value, before=before,
+                    ## below=below, attr=is_attr)
+                ## below = True
+                ## for item in children:
+                    ## zetzeronder(add_under, item)
+            ## node = self.item
+            ## zetzeronder(node, self.cut_el[0], before=before, below=pastebelow)
+            ## self.item = node
+            command = PasteElementCommand(self, tag, text, self.item,
+                before=before, below=pastebelow, description="Paste Element",
+                data=self.cut_el)
+            self.undo_stack.push(command)
         self.mark_dirty(True)
 
     def ins_aft(self, ev=None):
@@ -899,11 +925,18 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def insert(self, ev=None, before=True, below=False):
         if not self._checkselection():
             return
+        if str(self.item.text(0)).startswith(ELSTART) or (not before and not below):
+            pass
+        else:
+            self._meldfout("Can't add element to attribute")
+            return
+        if self.item.parent() == self.top and not below:
+            self._meldinfo("Can't insert before or after the root")
+            return
         edt = ElementDialog(self, title="New element").exec_()
         if edt == gui.QDialog.Accepted:
-            data = (self.data['tag'], self.data['text'])
-            command = AddElementCommand(self, data, self.item, before, below,
-                "Insert Element")
+            command = PasteElementCommand(self, self.data['tag'], self.data['text'],
+                self.item, before, below, "Insert Element")
             self.undo_stack.push(command)
             self.mark_dirty(True)
     #
@@ -1078,7 +1111,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def _enable_pasteitems(self, active=False):
         """activeert of deactiveert de paste-entries in het menu
-        afhankelijk van of er iets te pASTEN VALT
+        afhankelijk van of er iets te pasten valt
         """
         if active:
             self.pastebefore_item.setText("Paste Before")
@@ -1092,14 +1125,40 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         """get the currently selected item
 
         if there is no selection or the file title is selected, display a message
-        (if requested). I think originally it returned False in that case
+        (if requested). Also return False in that case
         """
         sel = True
         self.item = self.tree.currentItem()
         print("self.item", self.item)
         if message and (self.item is None or self.item == self.top):
             self._meldinfo('You need to select an element or attribute first')
+            sel = False
         return sel
+
+    def _add_item(self, name, value, before=False, below=True, attr=False):
+        if below:
+            add_under = self.item
+            insert = -1
+        else:
+            add_under = self.item.parent()
+            insert = add_under.indexOfChild(self.item)
+            if not before:
+                insert += 1
+        ## rt = add_as_child((name, value), add_under, self.ns_prefixes, self.ns_uris,
+            ## attr, insert=ix)
+        ## return rt
+        if value is None:
+            value = ""
+        h = ((str(name), str(value)), self.ns_prefixes, self.ns_uris)
+        item = gui.QTreeWidgetItem()
+        item.setText(0, getshortname(h, attr))
+        item.setText(1, name)
+        item.setText(2, value)
+        if insert == -1:
+            add_under.addChild(item)
+        else:
+            add_under.insertChild(insert, item)
+        return item
     #
     # exposed
     #
@@ -1110,14 +1169,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def quit(self, ev=None):
         self.close()
-
-    def afsl(self, ev=None):
-        if self.check_tree():
-            if ev:
-                ev.accept()
-        else:
-            if ev:
-                ev.ignore()
 
     def on_keyup(self, ev=None):
         ky = ev.key()
@@ -1198,18 +1249,15 @@ class MainFrame(gui.QMainWindow, AxeMixin):
     def add_attr(self, ev=None):
         if not self._checkselection():
             return
+        if not str(self.item.text(0)).startswith(ELSTART):
+            self._meldfout("Can't add attribute to attribute")
+            return
         edt = AttributeDialog(self, title="New attribute").exec_()
         if edt == gui.QDialog.Accepted:
-            if str(self.item.text(0)).startswith(ELSTART):
-                data = (self.data["name"], self.data["value"])
-
-                command = AddAttributeCommand(self, data, self.item, #before, below,
-                    "Insert Attribute")
-                self.undo_stack.push(command)
-
-                self.mark_dirty(True)
-            else:
-                self._meldfout("Can't add attribute to attribute")
+            command = PasteAttributeCommand(self, self.data["name"],
+                self.data["value"], self.item, "Insert Attribute")
+            self.undo_stack.push(command)
+            self.mark_dirty(True)
 
     def search(self, event=None, reversed=False):
         self._search_pos = None
