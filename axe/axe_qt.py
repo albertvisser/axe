@@ -409,7 +409,7 @@ class VisualTree(gui.QTreeWidget):
             item = self.itemAt(xc, yc)
             if item and item != self.parent.top:
                 ## self.parent.setCurrentItem(item)
-                menu = self.parent.init_menus(popup=True)
+                menu = self.parent._init_menus(popup=True)
                 menu.exec_(core.QPoint(xc, yc))
             else:
                 event.ignore()
@@ -428,11 +428,26 @@ class UndoRedoStack(gui.QUndoStack):
         gui.QUndoStack.__init__(self, parent)
         self.cleanChanged.connect(self.clean_changed)
         self.indexChanged.connect(self.index_changed)
+        self.maxundo = self.undoLimit()
+        self.setUndoLimit(1) # self.unset_undo_limit(False)
+        print('Undo limit', self.undoLimit())
         win = self.parent()
         win.undo_item.setText('Nothing to undo')
         win.redo_item.setText('Nothing to redo')
         win.undo_item.setDisabled(True)
         win.redo_item.setDisabled(True)
+
+    def unset_undo_limit(self, state):
+        print('state is', state)
+        if state:
+            self.setUndoLimit(self.maxundo)
+            nolim, yeslim = 'un', ''
+        else:
+            self.setUndoLimit(1)
+            nolim, yeslim = '', ' to one'
+        ## self.parent().setundo_action.setChecked(state)
+        self.parent().statusbar.showMessage('Undo level is now {}limited{}'.format(
+            nolim, yeslim))
 
     def clean_changed(self, state):
         ## print('undo stack status changed:', state)
@@ -445,10 +460,16 @@ class UndoRedoStack(gui.QUndoStack):
         ## """change text of undo/redo menuitems according to stack change"""
         ## print('undo stack index changed:', num)
         win = self.parent()
-        win.undo_item.setText('Undo ' + self.undoText())
+        test = self.undoText()
+        if test:
+            win.undo_item.setText('&Undo ' + test)
+            win.undo_item.setEnabled(True)
+        else:
+            win.undo_item.setText('Nothing to undo')
+            win.undo_item.setDisabled(True)
         test = self.redoText()
         if test:
-            win.redo_item.setText('Redo ' + test)
+            win.redo_item.setText('&Redo ' + test)
             win.redo_item.setEnabled(True)
         else:
             win.redo_item.setText('Nothing to redo')
@@ -461,8 +482,8 @@ class PasteElementCommand(gui.QUndoCommand):
     def __init__(self, win, tag, text, item, before, below,
             description="", data=None):
         self.win = win          # treewidget
-        self.item = item        # where we are now
-        self.parent = item.parent()
+        ## self.item = item        # where we are now
+        ## self.parent = item.parent()
         self.tag = tag          # element name
         self.data = text        # element text
         self.before = before    # switch
@@ -475,7 +496,7 @@ class PasteElementCommand(gui.QUndoCommand):
             description += ' Before'
         else:
             description += ' After'
-        print("init {}".format(description), self.tag, self.data, self.item)
+        print("init {}".format(description), self.tag, self.data) ##, self.item)
         super().__init__(description)
 
     def redo(self):
@@ -490,7 +511,7 @@ class PasteElementCommand(gui.QUndoCommand):
             for item in children:
                 zetzeronder(add_under, item)
             return add_under
-        self.win.item = self.item
+        ## self.win.item = self.item
         self.added = self.win._add_item(self.tag, self.data, before=self.before,
             below=self.below)
         if self.children is not None:
@@ -597,7 +618,7 @@ class CopyElementCommand(gui.QUndoCommand):
         if self.cut:
             print('cutting item from parent', self.parent)
             self.parent.removeChild(self.item)
-            self.item = None
+            self.item = self.prev
             self.win.tree.setCurrentItem(self.prev)
 
     def undo(self):
@@ -659,6 +680,21 @@ class CopyAttributeCommand(gui.QUndoCommand):
 #
 class MainFrame(gui.QMainWindow, AxeMixin):
     "Main GUI class"
+
+    undoredowarning = """\
+    NOTE:
+
+    Limiting undo/redo to one action has a reason.
+
+    This feature may not work as intended when items are removed
+    and immediately un-removed or when multiple redo actions are
+    executed when the originals were done at different levels
+    in the tree.
+
+    So be prepared for surprises, I haven't quite figured this lot
+    out yet.
+    """
+
     def __init__(self, parent, id, fn=''):
         AxeMixin.__init__(self, parent, id, fn) # super() werkt niet - teveel argumenten
         self.show()
@@ -887,6 +923,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                         ("&Open", self.openxml, 'Ctrl+O'),
                         ('&Save', self.savexml, 'Ctrl+S'),
                         ('Save &As', self.savexmlas, 'Shift+Ctrl+S'),
+                        ('&Unlimited Undo', self._limit_undo, ''),
                         ('E&xit', self.quit, 'Ctrl+Q'),
                     ),
                     (
@@ -894,8 +931,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                         ("&Collapse All (sub)Levels", self.collapse, 'Ctrl+-'),
                     ),
                     (
-                        ("&Undo", self.undo, 'Ctrl+Z'),
-                        ("&Redo", self.redo, 'Ctrl+Y'),
+                        ("Nothing to &Undo", self.undo, 'Ctrl+Z'),
+                        ("Nothing to &Redo", self.redo, 'Ctrl+Y'),
                         ("&Edit", self.edit, 'Ctrl+E,F2'),
                         ("&Delete", self.delete, 'Ctrl+D,Delete'),
                         ("C&ut", self.cut, 'Ctrl+X'),
@@ -918,7 +955,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 for text, callback, shortcuts in menudata:
                     act = gui.QAction(text, self)
                     self.connect(act, core.SIGNAL('triggered()'), callback)
-                    act.setShortcuts([x for x in shortcuts.split(',')])
+                    if shortcuts:
+                        act.setShortcuts([x for x in shortcuts.split(',')])
                     if ix == 0:
                         self.filemenu_actions.append(act)
                     elif ix == 1:
@@ -930,11 +968,16 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             self.undo_item, self.redo_item = self.editmenu_actions[0:2]
             self.pastebefore_item, self.pasteafter_item, \
                 self.pasteunder_item = self.editmenu_actions[6:9]
+            self.setundo_action = self.filemenu_actions[-2]
+            self.setundo_action.setCheckable(True)
+            self.setundo_action.setChecked(False)
 
             menubar = self.menuBar()
             filemenu = menubar.addMenu("&File")
             for act in self.filemenu_actions[:4]:
                 filemenu.addAction(act)
+            filemenu.addSeparator()
+            filemenu.addAction(self.setundo_action)
             filemenu.addSeparator()
             filemenu.addAction(self.filemenu_actions[-1])
             viewmenu = menubar.addMenu("&View")
@@ -1071,6 +1114,11 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         else:
             add_under.insertChild(insert, item)
         return item
+    def _limit_undo(self, ev=None):
+        newstate = self.setundo_action.isChecked()
+        self.undo_stack.unset_undo_limit(newstate)
+        if newstate:
+            self._meldinfo(self.undoredowarning)
     #
     # exposed
     #
