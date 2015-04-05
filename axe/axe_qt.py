@@ -65,7 +65,6 @@ class ElementDialog(gui.QDialog):
         self.txt_tag = gui.QLineEdit(self)
 
         self.cb_ns = gui.QCheckBox('Namespace:', self)
-        ## self.cb_ns.setCheckable(False)
         self.cmb_ns = gui.QComboBox(self)
         self.cmb_ns.setEditable(False)
         self.cmb_ns.addItem('-- none --')
@@ -167,7 +166,6 @@ class AttributeDialog(gui.QDialog):
         self.txt_name = gui.QLineEdit(self)
 
         self.cb_ns = gui.QCheckBox('Namespace:', self)
-        ## self.cb_ns.setCheckable(False)
         self.cmb_ns = gui.QComboBox(self)
         self.cmb_ns.setEditable(False)
         self.cmb_ns.addItem('-- none --')
@@ -492,26 +490,7 @@ class PasteElementCommand(gui.QUndoCommand):
             for item in children:
                 zetzeronder(add_under, item)
             return add_under
-        ## if add_under is None:
-            ## if self.below:
-                ## add_under = self.item
-                ## loc = -1
-                ## print('Adding under', end=" ")
-            ## else:
-                ## add_under = self.item.parent()
-                ## loc = add_under.indexOfChild(self.item)
-                ## print('Adding', end=" ")
-                ## if not self.before:
-                    ## loc += 1
-                    ## print('after', end=" ")
-        ## else:
-            ## print('Adding under given', end=" ")
-        ## print(add_under, self.data)
-        ## self.added = add_as_child(self.data, add_under, self.win.ns_prefixes,
-            ## self.win.ns_uris, insert=loc)
-        add_under = self.item
-        print(add_under, self.tag, self.data)
-        self.win.item = add_under
+        self.win.item = self.item
         self.added = self.win._add_item(self.tag, self.data, before=self.before,
             below=self.below)
         if self.children is not None:
@@ -542,8 +521,6 @@ class PasteAttributeCommand(gui.QUndoCommand):
 
     def redo(self):
         print('(redo) add attr', self.name, self.value, self.item)
-        ## self.added = add_as_child(self.data, self.item, self.win.ns_prefixes,
-            ## self.win.ns_uris, attr=True)
         self.win.item = self.item
         self.added = self.win._add_item(self.name, self.value, attr=True)
         self.win.tree.expandItem(self.added.parent())
@@ -585,7 +562,6 @@ class CopyElementCommand(gui.QUndoCommand):
         self.undodata = None
         self.win = win      # treewidget
         self.item = item    # where we are now
-        ## self.vtext = str(self.item.text(0))  # visual item text
         self.tag = str(self.item.text(1))
         self.data = str(self.item.text(2)) # name and text
         print("init {}".format(description), self.tag, self.data, self.item)
@@ -641,7 +617,6 @@ class CopyAttributeCommand(gui.QUndoCommand):
         super().__init__(description)
         self.win = win      # treewidget
         self.item = item    # where we are now
-        ## self.vtext = str(self.item.text(0))  # visual item text
         self.name = str(self.item.text(1))
         self.value = str(self.item.text(2)) # name and text
         print("init {}".format(description), self.name, self.value, self.item)
@@ -756,7 +731,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def init_tree(self, root, prefixes=None, uris=None, name=''):
         def add_to_tree(el, rt):
-            ## rr = add_as_child((el.tag, el.text), rt, self.ns_prefixes, self.ns_uris)
             self.item = rt
             rr = self._add_item(el.tag, el.text)
             print(calculate_location(self, rr))
@@ -764,8 +738,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 h = el.get(attr)
                 if not h:
                     h = '""'
-                ## rrr = add_as_child((attr, h), rr, self.ns_prefixes, self.ns_uris,
-                    ## attr=True)
                 self.item = rr
                 _ = self._add_item(attr, h, attr=True)
             for subel in list(el):
@@ -787,8 +759,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             ns_item = gui.QTreeWidgetItem()
             ns_item.setText(0, '{}: {}'.format(prf, self.ns_uris[ix]))
             ns_root.addChild(ns_item)
-        ## rt = add_as_child((self.rt.tag, self.rt.text), self.top, self.ns_prefixes,
-            ## self.ns_uris)
         self.item = self.top
         rt = self._add_item(self.rt.tag, self.rt.text)
         for el in list(self.rt):
@@ -837,79 +807,19 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             self._meldinfo("Can't paste before or after the root")
             return
         data = (str(self.item.text(1)), str(self.item.text(2)))
-        print(pastebelow, str(self.item.text(0)))
+        print(pastebelow, str(self.item.text(0)), self.cut_att)
         if not str(self.item.text(0)).startswith(ELSTART) and (pastebelow or
                 self.cut_att):
-            self._meldfout("Can't paste below an attribute")
+            self._meldinfo("Can't paste below an attribute")
+            print(self.in_dialog)
             return
         if self.cut_att:
-            ## item = getshortname((self.cut_att, self.ns_prefixes, self.ns_uris),
-                ## attr=True)
-            ## node = gui.QTreeWidgetItem()
-            ## node.setText(0, item)
-            ## node.setText(1, self.cut_att[0])
-            ## node.setText(2, self.cut_att[1])
-            ## if pastebelow:
-                ## self.item.addChild(node)
-            ## else:
-                ## add_to = self.item.parent() # self.item.get_parent()
-                ## added = False
-                ## for ix in range(add_to.childCount()):
-                    ## if add_to.child(ix) == self.item:
-                        ## if not before:
-                            ## ix += 1
-                        ## add_to.insertChild(ix, node)
-                        ## added = True
-                        ## break
-                ## if not added:
-                    ## add_to.addChild(item)
             name, value = self.cut_att
             command = PasteAttributeCommand(self, name, value, self.item,
                 description="Paste Attribute")
             self.undo_stack.push(command)
-            ## self._add_item(name, value, before=before, below=pastebelow, attr=True)
         elif self.cut_el:
-            ## print('In paste, self.item is', self.item)
             tag, text = self.cut_el[0][1]
-            ## def zetzeronder(node, el, pos=-1):
-                ## subnode = gui.QTreeWidgetItem()
-                ## subnode.setText(0, el[0])
-                ## subnode.setText(1, el[1][0])
-                ## subnode.setText(2, el[1][1])
-                ## if pos == -1:
-                    ## node.addChild(subnode)
-                ## else:
-                    ## node.insertChild(pos, subnode)
-                ## for x in el[2]:
-                    ## zetzeronder(subnode, x)
-            ## if pastebelow:
-                ## node = self.item
-                ## ix = -1
-            ## else:
-                ## node = self.item.parent()
-                ## cnt = node.childCount()
-                ## for ix in range(cnt):
-                    ## x = node.child(ix)
-                    ## if x == self.item:
-                        ## if not before:
-                            ## ix += 1
-                        ## break
-                ## if ix == cnt:
-                    ## ix = -1
-            ## zetzeronder(node, self.cut_el[0], ix)
-            ## def zetzeronder(node, data, before=False, below=True):
-                ## text, data, children = data
-                ## tag, value = data
-                ## self.item = node
-                ## is_attr = False if text.startswith(ELSTART) else True
-                ## add_under = self._add_item(tag, value, before=before,
-                    ## below=below, attr=is_attr)
-                ## below = True
-                ## for item in children:
-                    ## zetzeronder(add_under, item)
-            ## node = self.item
-            ## zetzeronder(node, self.cut_el[0], before=before, below=pastebelow)
-            ## self.item = node
             command = PasteElementCommand(self, tag, text, self.item,
                 before=before, below=pastebelow, description="Paste Element",
                 data=self.cut_el)
@@ -963,6 +873,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         self._enable_pasteitems(False)
         self.undo_stack = UndoRedoStack(self)
         self.mark_dirty(False)
+        self.in_dialog = False
 
     def _init_menus(self, popup=False):
         if popup:
@@ -1073,9 +984,11 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             ## return filemenu, viewmenu, editmenu
 
     def _meldinfo(self, text):
+        self.in_dialog = True
         gui.QMessageBox.information(self, self.title, text)
 
     def _meldfout(self, text, abort=False):
+        self.in_dialog = True
         gui.QMessageBox.critical(self, self.title, text)
         if abort:
             self.quit()
@@ -1086,6 +999,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         """
         retval = dict(zip((gui.QMessageBox.Yes, gui.QMessageBox.No,
             gui.QMessageBox.Cancel), (1, 0, -1)))
+        self.in_dialog = True
         h = gui.QMessageBox.question(self, self.title, prompt,
             gui.QMessageBox.Yes | gui.QMessageBox.No | gui.QMessageBox.Cancel,
             defaultButton = gui.QMessageBox.Yes)
@@ -1093,6 +1007,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def _ask_for_text(self, prompt):
         """vraagt om tekst en retourneert het antwoord"""
+        self.in_dialog = True
         data, ok = gui.QInputDialog.getText(self, self.title, prompt,
             gui.QLineEdit.Normal, "")
         return data
@@ -1144,9 +1059,6 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             insert = add_under.indexOfChild(self.item)
             if not before:
                 insert += 1
-        ## rt = add_as_child((name, value), add_under, self.ns_prefixes, self.ns_uris,
-            ## attr, insert=ix)
-        ## return rt
         if value is None:
             value = ""
         h = ((str(name), str(value)), self.ns_prefixes, self.ns_uris)
@@ -1176,15 +1088,18 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         skip = False
         if item and item != self.top:
             if ky == core.Qt.Key_Return:
-                if item.childCount() > 0:
-                    if self.tree.isItemExpanded(item):
-                        self.tree.collapseItem(item)
-                        self.tree.setCurrentItem(item.parent())
-                    else:
-                        self.tree.expandItem(item)
-                        self.tree.setCurrentItem(item.child(0))
+                if self.in_dialog:
+                    self.in_dialog = False
                 else:
-                    self.edit()
+                    if item.childCount() > 0:
+                        if self.tree.isItemExpanded(item):
+                            self.tree.collapseItem(item)
+                            self.tree.setCurrentItem(item.parent())
+                        else:
+                            self.tree.expandItem(item)
+                            self.tree.setCurrentItem(item.child(0))
+                    else:
+                        self.edit()
                 skip = True
             elif ky == core.Qt.Key_Backspace:
                 if self.tree.isItemExpanded(item):
