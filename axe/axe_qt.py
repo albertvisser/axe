@@ -811,6 +811,12 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             ns_root.addChild(ns_item)
         self.item = self.top
         rt = self._add_item(self.rt.tag, self.rt.text)
+        for attr in self.rt.keys():
+            h = self.rt.get(attr)
+            if not h:
+                h = '""'
+            self.item = rt
+            self._add_item(attr, h, attr=True)
         for el in list(self.rt):
             add_to_tree(el, rt)
         #self.tree.selection = self.top
