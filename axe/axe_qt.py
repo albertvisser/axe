@@ -135,8 +135,15 @@ class ElementDialog(gui.QDialog):
     def on_ok(self):
         self._parent.data = {}
         tag = str(self.txt_tag.text())
-        if tag == '' or len(tag.split()) > 1:
-            self._parent._meldfout('Element name must not be empty or contain spaces')
+        fout = ''
+        if tag == '':
+            fout = 'Element name must not be empty'
+        elif len(tag.split()) > 1:
+            fout = 'Element name must not contain spaces'
+        elif tag[0].isdigit():
+            fout = 'Element name must not start with a digit'
+        if fout:
+            self._parent._meldfout(fout)
             self.txt_tag.setFocus()
             return
         if self.cb_ns.isChecked():
@@ -228,8 +235,15 @@ class AttributeDialog(gui.QDialog):
     def on_ok(self):
         self._parent.data = {}
         nam = self.txt_name.text()
+        fout = ''
         if nam == '':
-            self._parent._meldfout('Attribute name must not be empty or contain spaces')
+            fout = 'Attribute name must not be empty'
+        elif len(nam.split()) > 1:
+            fout = 'Attribute name must not contain spaces'
+        elif nam[0].isdigit():
+            fout = 'Attribute name must not start with a digit'
+        if fout:
+            self._parent._meldfout(fout)
             self.txt_name.setFocus()
             return
         if self.cb_ns.isChecked():
