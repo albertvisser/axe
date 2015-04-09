@@ -1111,19 +1111,28 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         return sel
 
     def _add_item(self, name, value, before=False, below=True, attr=False):
+        if value is None:
+            value = ""
+        h = ((str(name), str(value)), self.ns_prefixes, self.ns_uris)
+        itemtext = getshortname(h, attr)
         if below:
             add_under = self.item
             insert = -1
+            if not itemtext.startswith(ELSTART):
+                cnt = self.item.childCount()
+                for seq in range(cnt):
+                    subitem = self.item.child(seq)
+                    if str(subitem.text(0)).startswith(ELSTART):
+                        break
+                if cnt and seq < cnt:
+                    insert = seq
         else:
             add_under = self.item.parent()
             insert = add_under.indexOfChild(self.item)
             if not before:
                 insert += 1
-        if value is None:
-            value = ""
-        h = ((str(name), str(value)), self.ns_prefixes, self.ns_uris)
         item = gui.QTreeWidgetItem()
-        item.setText(0, getshortname(h, attr))
+        item.setText(0, itemtext)
         item.setText(1, name)
         item.setText(2, value)
         if insert == -1:
@@ -1131,6 +1140,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         else:
             add_under.insertChild(insert, item)
         return item
+
     def _limit_undo(self, ev=None):
         newstate = self.setundo_action.isChecked()
         self.undo_stack.unset_undo_limit(newstate)
