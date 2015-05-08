@@ -2,14 +2,10 @@
 
 "PyQT versie van een op een treeview gebaseerde XML-editor"
 import os
+# always log in program directory
 import logging
-try:
-    logging.basicConfig(filename='axe_qt.log', level=logging.DEBUG,
-        format='%(asctime)s %(message)s')
-except PermissionError:
-    logging.basicConfig(filename=os.path.join(os.path.dirname(__file__),
-        'axe_qt.log'), level=logging.DEBUG, format='%(asctime)s %(message)s')
-
+logging.basicConfig(filename=os.path.join(os.path.dirname(__file__),
+    'axe_qt.log'), level=logging.DEBUG, format='%(asctime)s %(message)s')
 import sys
 import functools
 import PyQt4.QtGui as gui
