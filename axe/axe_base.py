@@ -173,11 +173,13 @@ class AxeMixin(object):
         en retourneert de overeenkomstig gewijzigde tekst voor de titel
         """
         self.tree_dirty = state
+        test = ' - ' + TITEL
+        test2 = '*' + test
         if state:
-            if not data.endswith(' *'):
-                return data + ' *'
-        elif data.endswith(' *'):
-            return data[:-2]
+            if test2 not in data:
+                return data.replace(test, test2)
+        elif test2 in data:
+            return data.replace(test2, test)
 
     def check_tree(self):
         """vraag of er iets moet gebeuren wanneer de data gewijzigd is
