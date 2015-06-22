@@ -182,6 +182,288 @@ class MainFrame(wx.Frame, AxeMixin):
     def __init__(self, parent, id, fn=''):
         AxeMixin.__init__(self, parent, id, fn)
 
+    def on_doubleclick(self,ev=None):
+        pt = ev.GetPosition()
+        item, flags = self.tree.HitTest(pt)
+        if item:
+            if item == self.top:
+                edit = False
+            else:
+                data = self.tree.GetItemText(item)
+                edit = True
+                if data.startswith(ELSTART):
+                    if self.tree.GetChildrenCount(item):
+                        edit = False
+        if edit:
+            self.edit()
+        ev.Skip()
+
+    def on_rightdown(self, ev=None):
+        pt = ev.GetPosition()
+        item, flags = self.tree.HitTest(pt)
+        if item and item != self.top:
+            self.tree.SelectItem(item)
+            menu = self.init_menus(popup=True)
+            self.PopupMenu(menu)
+            ## print "klaar met menu"
+            menu.Destroy()
+        ## pass
+
+    def on_keyup(self, ev=None):
+        ky = ev.GetKeyCode()
+        item = self.tree.Selection
+        if item and item != self.top:
+            if ky == wx.WXK_DELETE:
+                self.delete()
+            elif ky == wx.WXK_F2:
+                self.edit()
+            elif ky == wx.WXK_RETURN:
+                if self.tree.ItemHasChildren(item):
+                    if self.tree.IsExpanded(item):
+                        self.tree.Collapse(item)
+                    else:
+                        self.tree.Expand(item)
+                        item, dummy = self.tree.GetFirstChild(item)
+                        self.tree.SelectItem(item)
+                else:
+                    self.edit()
+            elif ky == wx.WXK_BACK:
+                if self.tree.IsExpanded(item):
+                    self.tree.Collapse(item)
+                self.tree.SelectItem(self.tree.GetItemParent(item))
+        ev.Skip()
+    def mark_dirty(self, state):
+        data = AxeMixin.mark_dirty(self, state, self.GetTitle())
+        if data:
+            self.SetTitle(data)
+
+    def newxml(self, ev=None):
+        AxeMixin.newxml(self)
+        print("self.newxml aangeroepen")
+
+    def openxml(self, ev=None):
+        AxeMixin.openxml(self)
+
+    def savexml(self, ev=None):
+        AxeMixin.savexml(self)
+
+    def savexmlas(self, ev=None):
+        ok = AxeMixin.savexmlas(self)
+        if ok:
+            self.tree.SetItemText(self.top, self.xmlfn)
+            self.SetTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
+
+    def savexmlfile(self, oldfile=''):      # writexml
+        def expandnode(rt, root, tree):
+            tag, c = self.tree.GetFirstChild(rt)
+            while tag.IsOk():
+                text = self.tree.GetItemText(tag)
+                data = self.tree.GetItemPyData(tag)
+                node = tree.expand(root, text, data)
+                if node is not None:
+                    expandnode(tag, node, tree)
+                tag, c = self.tree.GetNextChild(rt, c)
+        AxeMixin.savexmlfile(self, oldfile)
+        top = self.tree.GetRootItem()
+        rt = self.tree.GetLastChild(top)
+        text = self.tree.GetItemText(rt)
+        data = self.tree.GetItemPyData(rt)
+        tree = XMLTree(data[0]) # .split(None,1)
+        root = tree.root
+        expandnode(rt, root, tree)
+        h = tree.write(self.xmlfn)
+        self.mark_dirty(False)
+
+    def about(self, ev=None):
+        AxeMixin.about(self)
+
+    def init_tree(self, root, prefixes=None, uris=None, name=''):    # blijft gui methode
+        def add_to_tree(el, rt):
+            h = (el.tag, el.text)
+            rr = self.tree.AppendItem(rt, getshortname((h, prefixes, uris)))
+            self.tree.SetItemPyData(rr, h)
+            for attr in el.keys():
+                h = el.get(attr)
+                if not h:
+                    h = '""'
+                h = (attr, h)
+                rrr = self.tree.AppendItem(rr, getshortname((h, prefixes, uris),
+                    attr=True))
+                self.tree.SetItemPyData(rrr, h)
+            for subel in list(el):
+                add_to_tree(subel, rr)
+
+        self.tree.DeleteAllItems()
+        titel = AxeMixin.init_tree(self, root, prefixes, uris, name)
+        self.top = self.tree.AddRoot(titel)
+        self.SetTitle(" - ".join((os.path.split(titel)[-1],TITEL)))
+
+        h = (self.rt.tag,self.rt.text)
+        rt = self.tree.AppendItem(self.top, getshortname((h, prefixes, uris)))
+        self.tree.SetItemPyData(rt,h)
+        for el in list(self.rt):
+            add_to_tree(el,rt)
+        #self.tree.selection = self.top
+        # set_selection()
+        self.mark_dirty(False)
+
+    def cut(self, ev=None):
+        AxeMixin.cut(self)
+
+    def delete(self, ev=None):
+        AxeMixin.delete(self)
+
+    def copy(self, ev=None, cut=False, retain=True): # retain is t.b.v. delete functie
+        def push_el(el, result):
+            # print "start: ",result
+            text = self.tree.GetItemText(el)
+            data = self.tree.GetItemPyData(el)
+            children = []
+            # print "before looping over contents:",text,y
+            if text.startswith(ELSTART):
+                subel, whereami = self.tree.GetFirstChild(el)
+                while x.IsOk():
+                    temp = push_el(subel, children)
+                    subel, whereami = self.tree.GetNextChild(el, whereami)
+            # print "after  looping over contents: ",text,y
+            result.append((text, data, children))
+            # print "end:  ",result
+            return result
+        if DESKTOP and not self.checkselection():
+            return
+        text = self.tree.GetItemText(self.item)
+        data = self.tree.GetItemPyData(self.item)
+        txt = AxeMixin.copy(self, cut, retain)
+        if data == (self.rt.tag, self.rt.text):
+            wx.MessageBox("Can't %s the root" % txt,
+                self.title, wx.OK | wx.ICON_ERROR)
+            return
+        ## print "copy(): print text,data"
+        ## print text,data
+        if retain:
+            if text.startswith(ELSTART):
+                ## self.cut_el = self.item # hmmm... hier moet de aanroep van push_el komen
+                self.cut_el = []
+                self.cut_el = push_el(self.item, self.cut_el)
+                self.cut_att = None
+            else:
+                self.cut_el = None
+                self.cut_att = data
+            self.enable_pasteitems(True)
+        if cut:
+            prev = self.tree.GetPrevSibling(self.item)
+            if not prev.IsOk():
+                prev = self.tree.GetItemParent(self.item)
+                if prev == self.rt:
+                    prev = self.tree.GetNextSibling(self.item)
+            self.tree.Delete(self.item)
+            self.mark_dirty(True)
+            self.tree.SelectItem(prev)
+
+    def paste_aft(self, ev=None):
+        AxeMixin.paste_aft(self)
+
+    def paste_und(self, ev=None):
+        AxeMixin.paste_und(self)
+
+    def paste(self, ev=None, before=True, pastebelow=False):
+        if DESKTOP and not self.checkselection():
+            return
+        data = self.tree.GetItemPyData(self.item)
+        if pastebelow and not self.tree.GetItemText(self.item).startswith(ELSTART):
+            wx.MessageBox("Can't paste below an attribute",self.title,
+                wx.OK | wx.ICON_ERROR)
+            return
+        if data == self.rt:
+            if before:
+                wx.MessageBox("Can't paste before the root",
+                    self.title,wx.OK | wx.ICON_ERROR)
+                return
+            else:
+                wx.MessageBox("Pasting as first element below root",
+                    self.title,wx.OK | wx.ICON_INFORMATION)
+                pastebelow = True
+        ## if self.cut:
+            ## self.enable_pasteitems(False)
+        print "paste(): print self.cut_el, self.cut_att"
+        print self.cut_el, self.cut_att
+        if self.cut_att:
+            item = getshortname(self.cut_att, attr=True)
+            data = self.cut_att
+            if pastebelow:
+                node = self.tree.AppendItem(self.item, item)
+                self.tree.SetItemPyData(node, data)
+            else:
+                add_to = self.tree.GetItemParent(self.item) # self.item.get_parent()
+                added = False
+                x, c = self.tree.GetFirstChild(add_to)
+                for i in range(self.tree.GetChildrenCount(add_to)):
+                    if x == self.item:
+                        if not before:
+                            i += 1
+                        node = self.tree.InsertItemBefore(add_to, i, item)
+                        self.tree.SetItemPyData(node, data)
+                        added = True
+                        break
+                    x, c = self.tree.GetNextChild(add_to, c)
+                if not added:
+                    node = self.tree.AppendItem(add_to, item)
+                    self.tree.SetItemPyData(node, data)
+        else:
+            def zetzeronder(node, el, pos=-1):
+                if pos == -1:
+                    subnode = self.tree.AppendItem(node, el[0])
+                    self.tree.SetItemPyData(subnode, el[1])
+                else:
+                    subnode = self.tree.InsertItemBefore(node, i, el[0])
+                    self.tree.SetItemPyData(subnode, el[1])
+                for x in el[2]:
+                    zetzeronder(subnode, x)
+            if pastebelow:
+                node = self.item
+                i = -1
+            else:
+                node = self.tree.GetItemParent(self.item) # self.item.get_parent()
+                x, c = self.tree.GetFirstChild(node)
+                cnt = self.tree.GetChildrenCount(node)
+                for i in range(cnt):
+                    if x == self.item:
+                        if not before:
+                            i += 1
+                        break
+                    x, c = self.tree.GetNextChild(node, c)
+                if i == cnt:
+                    i = -1
+            zetzeronder(node, self.cut_el[0], i)
+        self.mark_dirty(True)
+
+    def ins_aft(self, ev=None):
+        AxeMixin.ins_aft(self)
+
+    def ins_chld(self, ev=None):
+        AxeMixin.ins_chld(self)
+
+    def insert(self, ev=None, before=True, below=False):
+        if DESKTOP and not self.checkselection():
+            return
+        edt = ElementDialog(self, title="New element")
+        if edt.ShowModal() == wx.ID_SAVE:
+            data = (self.data['tag'], self.data['text'])
+            text = getshortname(data)
+            if below:
+                rt = self.tree.AppendItem(self.item, text)
+                self.tree.SetItemPyData(rt, data)
+            else:
+                parent = self.tree.GetItemParent(self.item)
+                if before:
+                    item = self.tree.GetPrevSibling(self.item)
+                else:
+                    item = self.item
+                node = self.tree.InsertItem(parent, item, text)
+                self.tree.SetPyData(node, data)
+            self.mark_dirty(True)
+        edt.Destroy()
+
     def _init_gui(self, parent, id):
         self.parent = parent
         wx.Frame.__init__(self, parent, id, pos=(2, 2), size=(620, 900))
@@ -322,23 +604,13 @@ class MainFrame(wx.Frame, AxeMixin):
         else:
             return filemenu, viewmenu, editmenu
 
-    def enable_pasteitems(self, active=False):
-        """activeert of deactiveert de paste-entries in het menu
-        afhankelijk van of er iets te pASTEN VALT
-        """
-        print("enable pasteitems called using {}".format(active))
-        if active:
-            self.pastebefore_item.SetItemLabel("Paste Before")
-        else:
-            self.pastebefore_item.SetItemLabel("Nothing to Paste")
-        self.pastebefore_item.Enable(active)
-        self.pasteafter_item.Enable(active)
-        self.pasteunder_item.Enable(active)
+    def _meldinfo(self, text):
+        wx.MessageBox(text, self.title, wx.OK | wx.ICON_INFORMATION)
 
-    def mark_dirty(self, state):
-        data = AxeMixin.mark_dirty(self, state, self.GetTitle())
-        if data:
-            self.SetTitle(data)
+    def _meldfout(self, text, abort=False):
+        wx.MessageBox(text, self.title, wx.OK | wx.ICON_ERROR)
+        if abort:
+            self.quit()
 
     def _ask_yesnocancel(self, prompt):
         """stelt een vraag en retourneert het antwoord
@@ -348,16 +620,9 @@ class MainFrame(wx.Frame, AxeMixin):
         h = wx.MessageBox(prompt, self.title, style = wx.YES_NO | wx.CANCEL)
         return h
 
-    def newxml(self, ev=None):
-        AxeMixin.newxml(self)
-        print("self.newxml aangeroepen")
-
     def _ask_for_text(self, prompt):
         """vraagt om tekst en retourneert het antwoord"""
         return wx.GetTextFromUser(prompt, self.title)
-
-    def openxml(self, ev=None):
-        AxeMixin.openxml(self)
 
     def _file_to_read(self):
         dlg = wx.FileDialog(
@@ -371,44 +636,6 @@ class MainFrame(wx.Frame, AxeMixin):
         fnaam = dlg.GetPath() if ok else ''
         dlg.Destroy()
         return ok, fnaam
-
-    def _meldinfo(self, text):
-        wx.MessageBox(text, self.title, wx.OK | wx.ICON_INFORMATION)
-
-    def _meldfout(self, text, abort=False):
-        wx.MessageBox(text, self.title, wx.OK | wx.ICON_ERROR)
-        if abort:
-            self.quit()
-
-    def savexml(self, ev=None):
-        AxeMixin.savexml(self)
-
-    def savexmlfile(self, oldfile=''):
-        def expandnode(rt, root, tree):
-            tag, c = self.tree.GetFirstChild(rt)
-            while tag.IsOk():
-                text = self.tree.GetItemText(tag)
-                data = self.tree.GetItemPyData(tag)
-                node = tree.expand(root, text, data)
-                if node is not None:
-                    expandnode(tag, node, tree)
-                tag, c = self.tree.GetNextChild(rt, c)
-        AxeMixin.savexmlfile(self, oldfile)
-        top = self.tree.GetRootItem()
-        rt = self.tree.GetLastChild(top)
-        text = self.tree.GetItemText(rt)
-        data = self.tree.GetItemPyData(rt)
-        tree = XMLTree(data[0]) # .split(None,1)
-        root = tree.root
-        expandnode(rt, root, tree)
-        h = tree.write(self.xmlfn)
-        self.mark_dirty(False)
-
-    def savexmlas(self, ev=None):
-        ok = AxeMixin.savexmlas(self)
-        if ok:
-            self.tree.SetItemText(self.top, self.xmlfn)
-            self.SetTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
 
     def _file_to_save(self, d, f):
         dlg = wx.FileDialog(
@@ -424,8 +651,26 @@ class MainFrame(wx.Frame, AxeMixin):
         dlg.Destroy()
         return ok, name
 
-    def about(self, ev=None):
-        AxeMixin.about(self)
+    def enable_pasteitems(self, active=False):
+        """activeert of deactiveert de paste-entries in het menu
+        afhankelijk van of er iets te pASTEN VALT
+        """
+        print("enable pasteitems called using {}".format(active))
+        if active:
+            self.pastebefore_item.SetItemLabel("Paste Before")
+        else:
+            self.pastebefore_item.SetItemLabel("Nothing to Paste")
+        self.pastebefore_item.Enable(active)
+        self.pasteafter_item.Enable(active)
+        self.pasteunder_item.Enable(active)
+
+    def checkselection(self):
+        sel = True
+        self.item = self.tree.Selection
+        if self.item is None or self.item == self.top:
+            wx.MessageBox('You need to select an element or attribute first',
+                self.title, wx.OK | wx.ICON_INFORMATION)
+        return sel
 
     def quit(self, ev=None):
         self.Close()
@@ -436,93 +681,6 @@ class MainFrame(wx.Frame, AxeMixin):
             ev.Skip()
         ev.Veto()
 
-    def init_tree(self, name=''):    # blijft gui methode
-        def add_to_tree(el, rt):
-            h = (el.tag, el.text)
-            rr = self.tree.AppendItem(rt, getshortname(h))
-            self.tree.SetItemPyData(rr, h)
-            for attr in el.keys():
-                h = el.get(attr)
-                if not h:
-                    h = '""'
-                h = (attr, h)
-                rrr = self.tree.AppendItem(rr, getshortname(h, attr=True))
-                self.tree.SetItemPyData(rrr, h)
-            for subel in list(el):
-                add_to_tree(subel, rr)
-
-        self.tree.DeleteAllItems()
-        titel = AxeMixin.init_tree(self, name)
-        self.top = self.tree.AddRoot(titel)
-        self.SetTitle(" - ".join((os.path.split(titel)[-1],TITEL)))
-
-        h = (self.rt.tag,self.rt.text)
-        rt = self.tree.AppendItem(self.top,getshortname(h))
-        self.tree.SetItemPyData(rt,h)
-        for el in list(self.rt):
-            add_to_tree(el,rt)
-        #self.tree.selection = self.top
-        # set_selection()
-        self.mark_dirty(False)
-
-    def on_doubleclick(self,ev=None):
-        pt = ev.GetPosition()
-        item, flags = self.tree.HitTest(pt)
-        if item:
-            if item == self.top:
-                edit = False
-            else:
-                data = self.tree.GetItemText(item)
-                edit = True
-                if data.startswith(ELSTART):
-                    if self.tree.GetChildrenCount(item):
-                        edit = False
-        if edit:
-            self.edit()
-        ev.Skip()
-
-    def on_rightdown(self, ev=None):
-        pt = ev.GetPosition()
-        item, flags = self.tree.HitTest(pt)
-        if item and item != self.top:
-            self.tree.SelectItem(item)
-            menu = self.init_menus(popup=True)
-            self.PopupMenu(menu)
-            ## print "klaar met menu"
-            menu.Destroy()
-        ## pass
-
-    def on_keyup(self, ev=None):
-        ky = ev.GetKeyCode()
-        item = self.tree.Selection
-        if item and item != self.top:
-            if ky == wx.WXK_DELETE:
-                self.delete()
-            elif ky == wx.WXK_F2:
-                self.edit()
-            elif ky == wx.WXK_RETURN:
-                if self.tree.ItemHasChildren(item):
-                    if self.tree.IsExpanded(item):
-                        self.tree.Collapse(item)
-                    else:
-                        self.tree.Expand(item)
-                        item, dummy = self.tree.GetFirstChild(item)
-                        self.tree.SelectItem(item)
-                else:
-                    self.edit()
-            elif ky == wx.WXK_BACK:
-                if self.tree.IsExpanded(item):
-                    self.tree.Collapse(item)
-                self.tree.SelectItem(self.tree.GetItemParent(item))
-        ev.Skip()
-
-    def checkselection(self):
-        sel = True
-        self.item = self.tree.Selection
-        if self.item is None or self.item == self.top:
-            wx.MessageBox('You need to select an element or attribute first',
-                self.title, wx.OK | wx.ICON_INFORMATION)
-        return sel
 
     def expand(self,ev=None):
         item = self.tree.Selection
@@ -561,136 +719,6 @@ class MainFrame(wx.Frame, AxeMixin):
                 self.mark_dirty(True)
         edt.Destroy()
 
-    def cut(self, ev=None):
-        AxeMixin.cut(self)
-
-    def delete(self, ev=None):
-        AxeMixin.delete(self)
-
-    def copy(self, ev=None, cut=False, retain=True): # retain is t.b.v. delete functie
-        def push_el(el, result):
-            # print "start: ",result
-            text = self.tree.GetItemText(el)
-            data = self.tree.GetItemPyData(el)
-            children = []
-            # print "before looping over contents:",text,y
-            if text.startswith(ELSTART):
-                subel, whereami = self.tree.GetFirstChild(el)
-                while x.IsOk():
-                    temp = push_el(subel, children)
-                    subel, whereami = self.tree.GetNextChild(el, whereami)
-            # print "after  looping over contents: ",text,y
-            result.append((text, data, children))
-            # print "end:  ",result
-            return result
-        if DESKTOP and not self.checkselection():
-            return
-        text = self.tree.GetItemText(self.item)
-        data = self.tree.GetItemPyData(self.item)
-        txt = AxeMixin.copy(self, cut, retain)
-        if data == (self.rt.tag, self.rt.text):
-            wx.MessageBox("Can't %s the root" % txt,
-                self.title, wx.OK | wx.ICON_ERROR)
-            return
-        ## print "copy(): print text,data"
-        ## print text,data
-        if retain:
-            if text.startswith(ELSTART):
-                ## self.cut_el = self.item # hmmm... hier moet de aanroep van push_el komen
-                self.cut_el = []
-                self.cut_el = push_el(self.item, self.cut_el)
-                self.cut_att = None
-            else:
-                self.cut_el = None
-                self.cut_att = data
-            self.enable_pasteitems(True)
-        if cut:
-            prev = self.tree.GetPrevSibling(self.item)
-            if not prev.IsOk():
-                prev = self.tree.GetItemParent(self.item)
-                if prev == self.rt:
-                    prev = self.tree.GetNextSibling(self.item)
-            self.tree.Delete(self.item)
-            self.mark_dirty(True)
-            self.tree.SelectItem(prev)
-
-    def paste_aft(self, ev=None):
-        AxeMixin.paste_aft(self)
-
-    def paste_und(self, ev=None):
-        AxeMixin.paste_und(self)
-
-    def paste(self, ev=None, before=True, pastebelow=False):
-        if DESKTOP and not self.checkselection():
-            return
-        data = self.tree.GetItemPyData(self.item)
-        if pastebelow and not self.tree.GetItemText(self.item).startswith(ELSTART):
-            wx.MessageBox("Can't paste below an attribute",self.title,
-                wx.OK | wx.ICON_ERROR)
-            return
-        if data == self.rt:
-            if before:
-                wx.MessageBox("Can't paste before the root",
-                    self.title,wx.OK | wx.ICON_ERROR)
-                return
-            else:
-                wx.MessageBox("Pasting as first element below root",
-                    self.title,wx.OK | wx.ICON_INFORMATION)
-                pastebelow = True
-        ## if self.cut:
-            ## self.enable_pasteitems(False)
-        print "paste(): print self.cut_el, self.cut_att"
-        print self.cut_el, self.cut_att
-        if self.cut_att:
-            item = getshortname(self.cut_att, attr=True)
-            data = self.cut_att
-            if pastebelow:
-                node = self.tree.AppendItem(self.item, item)
-                self.tree.SetItemPyData(node, data)
-            else:
-                add_to = self.tree.GetItemParent(self.item) # self.item.get_parent()
-                added = False
-                x, c = self.tree.GetFirstChild(add_to)
-                for i in range(self.tree.GetChildrenCount(add_to)):
-                    if x == self.item:
-                        if not before:
-                            i += 1
-                        node = self.tree.InsertItemBefore(add_to, i, item)
-                        self.tree.SetItemPyData(node, data)
-                        added = True
-                        break
-                    x, c = self.tree.GetNextChild(add_to, c)
-                if not added:
-                    node = self.tree.AppendItem(add_to, item)
-                    self.tree.SetItemPyData(node, data)
-        else:
-            def zetzeronder(node, el, pos=-1):
-                if pos == -1:
-                    subnode = self.tree.AppendItem(node, el[0])
-                    self.tree.SetItemPyData(subnode, el[1])
-                else:
-                    subnode = self.tree.InsertItemBefore(node, i, el[0])
-                    self.tree.SetItemPyData(subnode, el[1])
-                for x in el[2]:
-                    zetzeronder(subnode, x)
-            if pastebelow:
-                node = self.item
-                i = -1
-            else:
-                node = self.tree.GetItemParent(self.item) # self.item.get_parent()
-                x, c = self.tree.GetFirstChild(node)
-                cnt = self.tree.GetChildrenCount(node)
-                for i in range(cnt):
-                    if x == self.item:
-                        if not before:
-                            i += 1
-                        break
-                    x, c = self.tree.GetNextChild(node, c)
-                if i == cnt:
-                    i = -1
-            zetzeronder(node, self.cut_el[0], i)
-        self.mark_dirty(True)
-
     def add_attr(self, ev=None):
         if DESKTOP and not self.checkselection():
             return
@@ -705,33 +733,6 @@ class MainFrame(wx.Frame, AxeMixin):
                 self.mark_dirty(True)
             else:
                 self._meldfout("Can't add attribute to attribute")
-        edt.Destroy()
-
-    def ins_aft(self, ev=None):
-        AxeMixin.ins_aft(self)
-
-    def ins_chld(self, ev=None):
-        AxeMixin.ins_chld(self)
-
-    def insert(self, ev=None, before=True, below=False):
-        if DESKTOP and not self.checkselection():
-            return
-        edt = ElementDialog(self, title="New element")
-        if edt.ShowModal() == wx.ID_SAVE:
-            data = (self.data['tag'], self.data['text'])
-            text = getshortname(data)
-            if below:
-                rt = self.tree.AppendItem(self.item, text)
-                self.tree.SetItemPyData(rt, data)
-            else:
-                parent = self.tree.GetItemParent(self.item)
-                if before:
-                    item = self.tree.GetPrevSibling(self.item)
-                else:
-                    item = self.item
-                node = self.tree.InsertItem(parent, item, text)
-                self.tree.SetPyData(node, data)
-            self.mark_dirty(True)
         edt.Destroy()
 
     def on_click(self, event):
