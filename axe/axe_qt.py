@@ -507,6 +507,7 @@ class PasteElementCommand(gui.QUndoCommand):
         else:
             description += ' After'
         print("init {}".format(description), self.tag, self.data) ##, self.item)
+        self.first_edit = not self.win.tree_dirty
         super().__init__(description)
 
     def redo(self):
@@ -537,6 +538,8 @@ class PasteElementCommand(gui.QUndoCommand):
         item = CopyElementCommand(self.win, self.added, cut=True, retain=False,
             description="Undo add element")
         item.redo()
+        if self.first_edit:
+            self.win.mark_dirty(False)
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
 
@@ -548,6 +551,7 @@ class PasteAttributeCommand(gui.QUndoCommand):
         self.name = name        # attribute name
         self.value = value      # attribute value
         print("init {}".format(description), self.name, self.value, self.item)
+        self.first_edit = not self.win.tree_dirty
         super().__init__(description)
 
     def redo(self):
@@ -562,6 +566,8 @@ class PasteAttributeCommand(gui.QUndoCommand):
         item = CopyElementCommand(self.win, self.added, cut=True, retain=False,
             description="Undo add attribute")
         item.redo()
+        if self.first_edit:
+            self.win.mark_dirty(False)
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
 
@@ -573,6 +579,7 @@ class EditCommand(gui.QUndoCommand):
         self.item = self.win.item
         self.old_state = old_state
         self.new_state = new_state
+        self.first_edit = not self.win.tree_dirty
 
     def redo(self):
         "change node's state to new"
@@ -585,6 +592,8 @@ class EditCommand(gui.QUndoCommand):
         self.item.setText(0, self.old_state[0])
         self.item.setText(1, self.old_state[1])
         self.item.setText(2, self.old_state[2])
+        if self.first_edit:
+            self.win.mark_dirty(False)
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
 class CopyElementCommand(gui.QUndoCommand):
@@ -598,6 +607,7 @@ class CopyElementCommand(gui.QUndoCommand):
         print("init {}".format(description), self.tag, self.data, self.item)
         self.cut = cut
         self.retain = retain
+        self.first_edit = not self.win.tree_dirty
 
     def redo(self):
         def push_el(el, result):
@@ -640,6 +650,8 @@ class CopyElementCommand(gui.QUndoCommand):
                 description="Undo Copy Element")
             item.redo() # add_under=add_under, loc=self.loc)
             self.item = item.added
+        if self.first_edit:
+            self.win.mark_dirty(False)
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
             ## self.win.tree.setCurrentItem(self.item)
 
@@ -653,6 +665,7 @@ class CopyAttributeCommand(gui.QUndoCommand):
         print("init {}".format(description), self.name, self.value, self.item)
         self.cut = cut
         self.retain = retain
+        self.first_edit = not self.win.tree_dirty
 
     def redo(self):
         print('copying item', self.item, 'with text', self.value)
@@ -684,6 +697,8 @@ class CopyAttributeCommand(gui.QUndoCommand):
                 description="Undo Copy Attribute")
             item.redo()
             self.item = item.added
+        if self.first_edit:
+            self.win.mark_dirty(False)
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
 #
 # Main Window
