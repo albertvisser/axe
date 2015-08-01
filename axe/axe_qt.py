@@ -790,6 +790,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                 add_to_tree(subel, rr)
 
         self.tree.clear() # DeleteAllItems()
+        self.undo_stack.clear()
         titel = AxeMixin.init_tree(self, root, prefixes, uris, name)
         self.top = gui.QTreeWidgetItem()
         self.top.setText(0, titel)
