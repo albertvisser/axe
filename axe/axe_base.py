@@ -8,11 +8,19 @@ import sys
 import shutil
 ## import copy
 import xml.etree.ElementTree as et
+# always log in program directory
+import logging
 
 ELSTART = '<>'
 TITEL = "Albert's (Simple) XML-editor"
-PPATH = os.path.split(__file__)[0]
+PPATH = os.path.dirname(__file__)
 axe_iconame = os.path.join(PPATH, "axe.ico")
+logging.basicConfig(filename=os.path.join(os.path.dirname(PPATH), 'logs',
+    'axe_qt.log'), level=logging.DEBUG, format='%(asctime)s %(message)s')
+
+def log(message):
+    if 'DEBUG' in os.environ and os.environ["DEBUG"] != "0":
+        logging.info(message)
 
 def getshortname(x, attr=False):
     x, ns_prefixes, ns_uris = x
