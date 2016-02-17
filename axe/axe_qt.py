@@ -1125,7 +1125,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
 
     def _add_item(self, name, value, before=False, below=True, attr=False):
         log('in _add_item for {} value {} before is {} below is {}'.format(
-            name, value, before, below)
+            name, value, before, below))
         if value is None:
             value = ""
         h = ((str(name), str(value)), self.ns_prefixes, self.ns_uris)
