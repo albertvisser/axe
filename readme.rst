@@ -14,9 +14,6 @@ and to avoid adding things I don't need.
 The DTD parser/editor bit is also an experiment in working with a kind of element
 factories I think.
 
-There's also a PyQt version that is meant to smooth the transition in making this
-application work in Python 3.
-
 
 Usage
 -----
@@ -30,7 +27,8 @@ Requirements
 ------------
 
 - Python (with ElementTree)
-- wxPython or PyQT4 (for the current versions)
+- PyQT4 for the current version
+- wxPython for the previous version,which doesn't work with Python 3
 - Tkinter and Gene Cash's Tree module (for the original PC version)
 - PocketPyGUI (for a PocketPC version)
 
