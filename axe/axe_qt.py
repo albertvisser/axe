@@ -529,6 +529,7 @@ class PasteElementCommand(gui.QUndoCommand):
         ## if self.replaced:
             ## self.win.replaced[calculate_location(add_under)] = self.added
         self.win.tree.expandItem(self.added)
+        log("self.added after adding children: {}".format(self.added))
 
     def undo(self):
         "essentially 'cut' Command"
@@ -863,11 +864,11 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             self.mark_dirty(True)
             ## self.tree.setCurrentItem(prev)
 
-    def paste_aft(self, ev=None):
-        AxeMixin.paste_aft(self)
+    def paste_after(self, ev=None):
+        AxeMixin.paste_after(self)
 
-    def paste_und(self, ev=None):
-        AxeMixin.paste_und(self)
+    def paste_under(self, ev=None):
+        AxeMixin.paste_under(self)
 
     def paste(self, ev=None, before=True, pastebelow=False):
         if not self._checkselection():
@@ -895,11 +896,11 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             self.undo_stack.push(command)
         self.mark_dirty(True)
 
-    def ins_aft(self, ev=None):
-        AxeMixin.ins_aft(self)
+    def insert_after(self, ev=None):
+        AxeMixin.insert_after(self)
 
-    def ins_chld(self, ev=None):
-        AxeMixin.ins_chld(self)
+    def insert_child(self, ev=None):
+        AxeMixin.insert_child(self)
 
     def insert(self, ev=None, before=True, below=False):
         if not self._checkselection():
@@ -942,6 +943,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         self.undo_stack = UndoRedoStack(self)
         self.mark_dirty(False)
         self.in_dialog = False
+
     def _init_menus(self, popup=False):
         if popup:
             viewmenu = gui.QMenu("&View")
@@ -969,12 +971,12 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                         ("C&ut", self.cut, 'Ctrl+X'),
                         ("&Copy", self.copy, 'Ctrl+C'),
                         ("Paste Before", self.paste, 'Shift+Ctrl+V'),
-                        ("Paste After", self.paste_aft, 'Ctrl+V'),
-                        ("Paste Under", self.paste_und, 'Alt+Ctrl+V'),
+                        ("Paste After", self.paste_after, 'Ctrl+V'),
+                        ("Paste Under", self.paste_under, 'Alt+Ctrl+V'),
                         ("Insert Attribute", self.add_attr, 'Shift+Insert'),
                         ('Insert Element Before', self.insert, 'Ctrl+Insert'),
-                        ('Insert Element After', self.ins_aft, 'Alt+Insert'),
-                        ('Insert Element Under', self.ins_chld, 'Insert'),
+                        ('Insert Element After', self.insert_after, 'Alt+Insert'),
+                        ('Insert Element Under', self.insert_child, 'Insert'),
                     ),
                     (
                         ("&Find", self.search, 'Ctrl+F'),

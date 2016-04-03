@@ -285,19 +285,19 @@ class AxeMixin(object):
             txt = 'copy'
         return txt
 
-    def paste_aft(self):
+    def paste_after(self):
         self.paste(before=False)
 
-    def paste_und(self):
+    def paste_under(self):
         self.paste(pastebelow=True)
 
     def paste(self, before=True, pastebelow=False):
         pass
 
-    def ins_aft(self, ev=None):
+    def insert_after(self, ev=None):
         self.insert(before=False)
 
-    def ins_chld(self, ev=None):
+    def insert_child(self, ev=None):
         self.insert(below=True)
 
     def insert(self, before=True, below=False):
