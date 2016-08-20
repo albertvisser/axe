@@ -484,16 +484,19 @@ class UndoRedoStack(gui.QUndoStack):
 #
 class PasteElementCommand(gui.QUndoCommand):
 
-    def __init__(self, win, tag, text, item, before, below,
-            description="", data=None):
+    def __init__(self, win, tag, text, before, below,
+            description="", data=None, where=None):
+        """
+        "where we are" is optional because it can be determined from the current
+        position but it should also be possible to provide it
+        """
         self.win = win          # treewidget
-        ## self.item = item        # where we are now
-        ## self.parent = item.parent()
         self.tag = tag          # element name
         self.data = text        # element text
         self.before = before    # switch
         self.below = below      # switch
         self.children = data
+        self.where = where
         self.replaced = None    # in case item is replaced while redoing
         if below:
             description += ' Under'
@@ -518,8 +521,16 @@ class PasteElementCommand(gui.QUndoCommand):
             for item in children:
                 zetzeronder(add_under, item)
             return add_under
+        print('redo of add')
+        print('    tag is', self.tag)
+        print('    data is', self.data)
+        print('    before is', self.before)
+        print('    below is', self.below)
         ## self.win.item = self.item
         log('In paste element redo for tag {} data {}'.format(self.tag, self.data))
+        if self.where:
+            self.win.item = self.where
+        print('    where is', self.where)
         self.added = self.win._add_item(self.tag, self.data, before=self.before,
             below=self.below)
         log('newly added {} with children {}'.format(self.added, self.children))
@@ -621,7 +632,9 @@ class CopyElementCommand(gui.QUndoCommand):
             return result
         log('In copy element redo for item {} with data {}'.format(self.item,
             self.data))
+        print("redo of ", self.item)
         if self.undodata is None:
+            print('building reference data')
             self.parent = self.item.parent()
             self.loc = self.parent.indexOfChild(self.item)
             self.undodata = push_el(self.item, [])
@@ -631,6 +644,10 @@ class CopyElementCommand(gui.QUndoCommand):
                 self.prev = self.parent
                 if self.prev == self.win.rt:
                     self.prev = self.parent.child(self.loc + 1)
+            print('   parent:', self.parent)
+            print('   location:', self.loc)
+            print('   undodata:', self.undodata)
+            print('   pointer fallback:', self.prev)
         if self.retain:
             log('Retaining item')
             self.win.cut_el = self.undodata
@@ -647,9 +664,16 @@ class CopyElementCommand(gui.QUndoCommand):
             self.data, self.item))
         # self.cut_el = None
         if self.cut:
-            item = PasteElementCommand(self.win, self.tag, self.data, self.parent,
-                before=False, below=True, data = self.undodata,
-                description="Undo Copy Element")
+            print('undo of', self.item)
+            if self.loc >= self.parent.childCount():
+                item = PasteElementCommand(self.win, self.tag, self.data,
+                    before=False, below=True, data = self.undodata,
+                    description="Undo Copy Element", where=self.parent)
+            else:
+                item = PasteElementCommand(self.win, self.tag, self.data,
+                    before=True, below=False, data = self.undodata,
+                    description="Undo Copy Element",
+                    where=self.parent.child(self.loc))
             item.redo() # add_under=add_under, loc=self.loc)
             self.item = item.added
         if self.first_edit:
@@ -695,8 +719,8 @@ class CopyAttributeCommand(gui.QUndoCommand):
         log('Undo copy attribute for {} {} {}'.format(self.name, self.value, self.item))
         # self.win.cut_att = None
         if self.cut:
-            item = PasteAttributeCommand(self.win, self.name, self.value, self.parent,
-                description="Undo Copy Attribute")
+            item = PasteAttributeCommand(self.win, self.name, self.value,
+                self.parent, description="Undo Copy Attribute")
             item.redo()
             self.item = item.added
         if self.first_edit:
@@ -890,7 +914,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
             self.undo_stack.push(command)
         elif self.cut_el:
             tag, text = self.cut_el[0][1]
-            command = PasteElementCommand(self, tag, text, self.item,
+            command = PasteElementCommand(self, tag, text,
                 before=before, below=pastebelow, description="Paste Element",
                 data=self.cut_el)
             self.undo_stack.push(command)
@@ -916,7 +940,7 @@ class MainFrame(gui.QMainWindow, AxeMixin):
         edt = ElementDialog(self, title="New element").exec_()
         if edt == gui.QDialog.Accepted:
             command = PasteElementCommand(self, self.data['tag'], self.data['text'],
-                self.item, before, below, "Insert Element")
+                before=before, below=below, description="Insert Element")
             self.undo_stack.push(command)
             self.mark_dirty(True)
     #
@@ -1190,8 +1214,8 @@ class MainFrame(gui.QMainWindow, AxeMixin):
                         else:
                             self.tree.expandItem(item)
                             self.tree.setCurrentItem(item.child(0))
-                    else:
-                        self.edit()
+                    ## else:
+                        ## self.edit()
                 skip = True
             elif ky == core.Qt.Key_Backspace:
                 if self.tree.isItemExpanded(item):
