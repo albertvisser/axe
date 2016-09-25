@@ -159,15 +159,15 @@ class XMLTree(object):
 
 
 class AxeMixin(object):
-    def __init__(self, parent, id, fn=''):
+    def __init__(self):
         self.title = "Albert's XML Editor"
-        if fn:
+        if self.fn:
             self.xmlfn = os.path.abspath(fn)
         else:
             self.xmlfn = ''
         self.cut_att = None
         self.cut_el = None
-        self._init_gui(parent, id)
+        self._init_gui()
         self.init_tree(et.Element('New'))
         if self.xmlfn != '':
             try:
