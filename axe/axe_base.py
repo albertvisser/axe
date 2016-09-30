@@ -162,7 +162,7 @@ class AxeMixin(object):
     def __init__(self):
         self.title = "Albert's XML Editor"
         if self.fn:
-            self.xmlfn = os.path.abspath(fn)
+            self.xmlfn = os.path.abspath(self.fn)
         else:
             self.xmlfn = ''
         self.cut_att = None
