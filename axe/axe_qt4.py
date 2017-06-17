@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
-"PyQT5 versie van een op een treeview gebaseerde XML-editor"
+"PyQT versie van een op een treeview gebaseerde XML-editor"
 import os
 import sys
 import functools
-import PyQt5.QtWidgets as qtw
-import PyQt5.QtGui as gui
-import PyQt5.QtCore as core
+import PyQt4.QtGui as gui
+import PyQt4.QtCore as core
 from .axe_base import getshortname, find_next, XMLTree, AxeMixin, log
 from .axe_base import ELSTART, TITEL, axe_iconame
 if os.name == "nt":
@@ -48,30 +47,30 @@ def flatten_tree(element):
 #
 # Dialog windows
 #
-class ElementDialog(qtw.QDialog):
+class ElementDialog(gui.QDialog):
     def __init__(self, parent, title="", item=None):
-        super().__init__(parent)
+        gui.QDialog.__init__(self, parent)
         self.setWindowTitle(title)
         self.setWindowIcon(parent._icon)
         self._parent = parent
-        lbl_name = qtw.QLabel("element name:  ", self)
-        self.txt_tag = qtw.QLineEdit(self)
+        lbl_name = gui.QLabel("element name:  ", self)
+        self.txt_tag = gui.QLineEdit(self)
 
-        self.cb_ns = qtw.QCheckBox('Namespace:', self)
-        self.cmb_ns = qtw.QComboBox(self)
+        self.cb_ns = gui.QCheckBox('Namespace:', self)
+        self.cmb_ns = gui.QComboBox(self)
         self.cmb_ns.setEditable(False)
         self.cmb_ns.addItem('-- none --')
         self.cmb_ns.addItems(self._parent.ns_uris)
 
-        self.cb = qtw.QCheckBox('Bevat data:', self)
+        self.cb = gui.QCheckBox('Bevat data:', self)
         self.cb.setCheckable(False)
-        self.txt_data = qtw.QTextEdit(self)
+        self.txt_data = gui.QTextEdit(self)
         self.txt_data.setTabChangesFocus(True)
-        self.btn_ok = qtw.QPushButton('&Save', self)
-        self.btn_ok.clicked.connect(self.on_ok)
+        self.btn_ok = gui.QPushButton('&Save', self)
+        self.connect(self.btn_ok, core.SIGNAL('clicked()'), self.on_ok)
         self.btn_ok.setDefault(True)
-        self.btn_cancel = qtw.QPushButton('&Cancel', self)
-        self.btn_cancel.clicked.connect(self.on_cancel)
+        self.btn_cancel = gui.QPushButton('&Cancel', self)
+        self.connect(self.btn_cancel, core.SIGNAL('clicked()'), self.on_cancel)
 
         ns_tag = tag = ns_uri = txt = ''
         if item:
@@ -91,12 +90,12 @@ class ElementDialog(qtw.QDialog):
         self.txt_tag.setText(tag)
         self.txt_data.setText(txt)
 
-        sizer = qtw.QVBoxLayout()
+        sizer = gui.QVBoxLayout()
 
-        hsizer = qtw.QHBoxLayout()
-        gsizer = qtw.QGridLayout()
+        hsizer = gui.QHBoxLayout()
+        gsizer = gui.QGridLayout()
         gsizer.addWidget(lbl_name, 0, 0)
-        hsizer2 = qtw.QHBoxLayout()
+        hsizer2 = gui.QHBoxLayout()
         hsizer2.addWidget(self.txt_tag)
         hsizer2.addStretch()
         gsizer.addLayout(hsizer2, 0, 1)
@@ -106,14 +105,14 @@ class ElementDialog(qtw.QDialog):
         hsizer.addStretch()
         sizer.addLayout(hsizer)
 
-        hsizer = qtw.QHBoxLayout()
-        vsizer = qtw.QVBoxLayout()
+        hsizer = gui.QHBoxLayout()
+        vsizer = gui.QVBoxLayout()
         vsizer.addWidget(self.cb)
         vsizer.addWidget(self.txt_data)
         hsizer.addLayout(vsizer)
         sizer.addLayout(hsizer)
 
-        hsizer = qtw.QHBoxLayout()
+        hsizer = gui.QHBoxLayout()
         hsizer.addStretch()
         hsizer.addWidget(self.btn_ok)
         hsizer.addWidget(self.btn_cancel)
@@ -123,7 +122,7 @@ class ElementDialog(qtw.QDialog):
         self.setLayout(sizer)
 
     def on_cancel(self):
-        super().done(qtw.QDialog.Rejected)
+        gui.QDialog.done(self, gui.QDialog.Rejected)
 
     def on_ok(self):
         self._parent.data = {}
@@ -149,35 +148,35 @@ class ElementDialog(qtw.QDialog):
         self._parent.data["tag"] = tag
         self._parent.data["data"] = self.cb.isChecked()
         self._parent.data["text"] = self.txt_data.toPlainText()
-        super().done(qtw.QDialog.Accepted)
+        gui.QDialog.done(self, gui.QDialog.Accepted)
 
     def keyPressEvent(self, event):
         """event handler voor toetsaanslagen"""
         if event.key() == core.Qt.Key_Escape:
-            super().done(qtw.QDialog.Rejected)
+            gui.QDialog.done(self, gui.QDialog.Rejected)
 
-class AttributeDialog(qtw.QDialog):
+class AttributeDialog(gui.QDialog):
     def __init__(self, parent, title='', item=None):
-        super().__init__(parent)
+        gui.QDialog.__init__(self, parent)
         self.setWindowTitle(title)
         self.setWindowIcon(parent._icon)
         self._parent = parent
-        lbl_name = qtw.QLabel("Attribute name:", self)
-        self.txt_name = qtw.QLineEdit(self)
+        lbl_name = gui.QLabel("Attribute name:", self)
+        self.txt_name = gui.QLineEdit(self)
 
-        self.cb_ns = qtw.QCheckBox('Namespace:', self)
-        self.cmb_ns = qtw.QComboBox(self)
+        self.cb_ns = gui.QCheckBox('Namespace:', self)
+        self.cmb_ns = gui.QComboBox(self)
         self.cmb_ns.setEditable(False)
         self.cmb_ns.addItem('-- none --')
         self.cmb_ns.addItems(self._parent.ns_uris)
 
-        lbl_value = qtw.QLabel("Attribute value:", self)
-        self.txt_value = qtw.QLineEdit(self)
-        self.btn_ok = qtw.QPushButton('&Save', self)
+        lbl_value = gui.QLabel("Attribute value:", self)
+        self.txt_value = gui.QLineEdit(self)
+        self.btn_ok = gui.QPushButton('&Save', self)
         self.btn_ok.setDefault(True)
-        self.btn_ok.clicked.connect(self.on_ok)
-        self.btn_cancel = qtw.QPushButton('&Cancel', self)
-        self.btn_cancel.clicked.connect(self.on_cancel)
+        self.connect(self.btn_ok, core.SIGNAL('clicked()'), self.on_ok)
+        self.btn_cancel = gui.QPushButton('&Cancel', self)
+        self.connect(self.btn_cancel, core.SIGNAL('clicked()'), self.on_cancel)
 
         ns_nam = nam = ns_uri = val = ''
         if item:
@@ -195,19 +194,19 @@ class AttributeDialog(qtw.QDialog):
         self.txt_name.setText(nam)
         self.txt_value.setText(val)
 
-        sizer = qtw.QVBoxLayout()
+        sizer = gui.QVBoxLayout()
 
-        hsizer = qtw.QHBoxLayout()
-        gsizer = qtw.QGridLayout()
+        hsizer = gui.QHBoxLayout()
+        gsizer = gui.QGridLayout()
         gsizer.addWidget(lbl_name, 0, 0)
-        hsizer2 = qtw.QHBoxLayout()
+        hsizer2 = gui.QHBoxLayout()
         hsizer2.addWidget(self.txt_name)
         hsizer2.addStretch()
         gsizer.addLayout(hsizer2, 0, 1)
         gsizer.addWidget(self.cb_ns, 1, 0)
         gsizer.addWidget(self.cmb_ns, 1, 1)
         gsizer.addWidget(lbl_value, 2, 0)
-        hsizer2 = qtw.QHBoxLayout()
+        hsizer2 = gui.QHBoxLayout()
         hsizer2.addWidget(self.txt_value)
         hsizer2.addStretch()
         gsizer.addLayout(hsizer2, 2, 1)
@@ -215,7 +214,7 @@ class AttributeDialog(qtw.QDialog):
         hsizer.addStretch()
         sizer.addLayout(hsizer)
 
-        hsizer = qtw.QHBoxLayout()
+        hsizer = gui.QHBoxLayout()
         hsizer.addStretch()
         hsizer.addWidget(self.btn_ok)
         hsizer.addWidget(self.btn_cancel)
@@ -248,88 +247,88 @@ class AttributeDialog(qtw.QDialog):
             nam = '{{{}}}{}'.format(self.cmb_ns.itemText(seq), nam)
         self._parent.data["name"] = nam
         self._parent.data["value"] = self.txt_value.text()
-        super().done(qtw.QDialog.Accepted)
+        gui.QDialog.done(self, gui.QDialog.Accepted)
 
     def on_cancel(self):
-        super().done(qtw.QDialog.Rejected)
+        gui.QDialog.done(self, gui.QDialog.Rejected)
 
     def keyPressEvent(self, event):
         """event handler voor toetsaanslagen"""
         if event.key() == core.Qt.Key_Escape:
-            super().done(qtw.QDialog.Rejected)
+            gui.QDialog.done(self, gui.QDialog.Rejected)
 
-class SearchDialog(qtw.QDialog):
+class SearchDialog(gui.QDialog):
     def __init__(self, parent, title="", item=None):
-        super().__init__(parent)
+        gui.QDialog.__init__(self, parent)
         self.setWindowTitle(title)
         self._parent = parent
 
-        self.cb_element = qtw.QLabel('Element', self)
-        lbl_element = qtw.QLabel("name:", self)
-        self.txt_element = qtw.QLineEdit(self)
+        self.cb_element = gui.QLabel('Element', self)
+        lbl_element = gui.QLabel("name:", self)
+        self.txt_element = gui.QLineEdit(self)
         self.txt_element.textChanged.connect(self.set_search)
 
-        self.cb_attr = qtw.QLabel('Attribute', self)
-        lbl_attr_name = qtw.QLabel("name:", self)
-        self.txt_attr_name = qtw.QLineEdit(self)
+        self.cb_attr = gui.QLabel('Attribute', self)
+        lbl_attr_name = gui.QLabel("name:", self)
+        self.txt_attr_name = gui.QLineEdit(self)
         self.txt_attr_name.textChanged.connect(self.set_search)
-        lbl_attr_val = qtw.QLabel("value:", self)
-        self.txt_attr_val = qtw.QLineEdit(self)
+        lbl_attr_val = gui.QLabel("value:", self)
+        self.txt_attr_val = gui.QLineEdit(self)
         self.txt_attr_val.textChanged.connect(self.set_search)
 
-        self.cb_text = qtw.QLabel('Text', self)
-        lbl_text = qtw.QLabel("value:", self)
-        self.txt_text = qtw.QLineEdit(self)
+        self.cb_text = gui.QLabel('Text', self)
+        lbl_text = gui.QLabel("value:", self)
+        self.txt_text = gui.QLineEdit(self)
         self.txt_text.textChanged.connect(self.set_search)
 
-        self.lbl_search = qtw.QLabel('', self)
+        self.lbl_search = gui.QLabel('', self)
 
-        self.btn_ok = qtw.QPushButton('&Ok', self)
+        self.btn_ok = gui.QPushButton('&Ok', self)
         self.btn_ok.clicked.connect(self.on_ok)
         self.btn_ok.setDefault(True)
-        self.btn_cancel = qtw.QPushButton('&Cancel', self)
+        self.btn_cancel = gui.QPushButton('&Cancel', self)
         self.btn_cancel.clicked.connect(self.on_cancel)
 
-        sizer = qtw.QVBoxLayout()
+        sizer = gui.QVBoxLayout()
 
-        gsizer = qtw.QGridLayout()
+        gsizer = gui.QGridLayout()
 
         gsizer.addWidget(self.cb_element, 0, 0)
-        vsizer = qtw.QVBoxLayout()
-        hsizer = qtw.QHBoxLayout()
+        vsizer = gui.QVBoxLayout()
+        hsizer = gui.QHBoxLayout()
         hsizer.addWidget(lbl_element)
         hsizer.addWidget(self.txt_element)
         vsizer.addLayout(hsizer)
         gsizer.addLayout(vsizer, 0, 1)
 
-        vsizer = qtw.QVBoxLayout()
+        vsizer = gui.QVBoxLayout()
         vsizer.addSpacing(5)
         vsizer.addWidget(self.cb_attr)
         vsizer.addStretch()
         gsizer.addLayout(vsizer, 1, 0)
-        vsizer = qtw.QVBoxLayout()
-        hsizer = qtw.QHBoxLayout()
+        vsizer = gui.QVBoxLayout()
+        hsizer = gui.QHBoxLayout()
         hsizer.addWidget(lbl_attr_name)
         hsizer.addWidget(self.txt_attr_name)
         vsizer.addLayout(hsizer)
-        hsizer = qtw.QHBoxLayout()
+        hsizer = gui.QHBoxLayout()
         hsizer.addWidget(lbl_attr_val)
         hsizer.addWidget(self.txt_attr_val)
         vsizer.addLayout(hsizer)
         gsizer.addLayout(vsizer, 1, 1)
 
         gsizer.addWidget(self.cb_text, 2, 0)
-        hsizer = qtw.QHBoxLayout()
+        hsizer = gui.QHBoxLayout()
         hsizer.addWidget(lbl_text)
         hsizer.addWidget(self.txt_text)
         gsizer.addLayout(hsizer, 2, 1)
         sizer.addLayout(gsizer)
 
-        hsizer = qtw.QHBoxLayout()
+        hsizer = gui.QHBoxLayout()
         hsizer.addWidget(self.lbl_search)
         sizer.addLayout(hsizer)
 
-        hsizer = qtw.QHBoxLayout()
+        hsizer = gui.QHBoxLayout()
         hsizer.addStretch()
         hsizer.addWidget(self.btn_ok)
         hsizer.addWidget(self.btn_cancel)
@@ -382,17 +381,17 @@ class SearchDialog(qtw.QDialog):
             return
 
         self._parent.search_args = (ele, attr_name, attr_val, text)
-        self().done(qtw.QDialog.Accepted)
+        gui.QDialog.done(self, gui.QDialog.Accepted)
 
     def on_cancel(self):
-        super().done(qtw.QDialog.Rejected)
+        gui.QDialog.done(self, gui.QDialog.Rejected)
 #
 # Tree widget (subclass overriding some event handlers)
 #
-class VisualTree(qtw.QTreeWidget):
+class VisualTree(gui.QTreeWidget):
     def __init__(self, parent):
         self.parent = parent
-        super().__init__()
+        gui.QTreeWidget.__init__(self)
 
     def mouseDoubleClickEvent(self, event):
         item = self.itemAt(event.x(), event.y())
@@ -427,11 +426,11 @@ class VisualTree(qtw.QTreeWidget):
 #
 # Undo stack (subclass overriding some event handlers)
 #
-class UndoRedoStack(qtw.QUndoStack):
+class UndoRedoStack(gui.QUndoStack):
 
     def __init__(self, parent):
         ## super().__init__(parent)
-        super().__init__(parent)
+        gui.QUndoStack.__init__(self, parent)
         self.cleanChanged.connect(self.clean_changed)
         self.indexChanged.connect(self.index_changed)
         self.maxundo = self.undoLimit()
@@ -483,7 +482,7 @@ class UndoRedoStack(qtw.QUndoStack):
 #
 # UndoCommand subclasses
 #
-class PasteElementCommand(qtw.QUndoCommand):
+class PasteElementCommand(gui.QUndoCommand):
 
     def __init__(self, win, tag, text, before, below,
             description="", data=None, where=None):
@@ -555,7 +554,7 @@ class PasteElementCommand(qtw.QUndoCommand):
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
 
-class PasteAttributeCommand(qtw.QUndoCommand):
+class PasteAttributeCommand(gui.QUndoCommand):
     def __init__(self, win, name, value, item, description=""):
         super().__init__(description)
         self.win = win          # treewidget
@@ -583,7 +582,7 @@ class PasteAttributeCommand(qtw.QUndoCommand):
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
 
-class EditCommand(qtw.QUndoCommand):
+class EditCommand(gui.QUndoCommand):
     def __init__(self, win, old_state, new_state, description=""):
         log("building editcommand for {}".format(description))
         super().__init__(description)
@@ -608,7 +607,7 @@ class EditCommand(qtw.QUndoCommand):
             self.win.mark_dirty(False)
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
-class CopyElementCommand(qtw.QUndoCommand):
+class CopyElementCommand(gui.QUndoCommand):
     def __init__(self, win, item, cut, retain, description=""):
         super().__init__(description)
         self.undodata = None
@@ -682,7 +681,7 @@ class CopyElementCommand(qtw.QUndoCommand):
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
             ## self.win.tree.setCurrentItem(self.item)
 
-class CopyAttributeCommand(qtw.QUndoCommand):
+class CopyAttributeCommand(gui.QUndoCommand):
     def __init__(self, win, item, cut, retain, description):
         super().__init__(description)
         self.win = win      # treewidget
@@ -730,7 +729,7 @@ class CopyAttributeCommand(qtw.QUndoCommand):
 #
 # Main Window
 #
-class MainFrame(qtw.QMainWindow, AxeMixin):
+class MainFrame(gui.QMainWindow, AxeMixin):
     "Main GUI class"
 
     undoredowarning = """\
@@ -749,8 +748,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
 
     def __init__(self, fn=''):
         self.fn = fn
-        super().__init__()
-        ## AxeMixin.__init__(self, parent, fn) # super() werkt niet - teveel argumenten
+        AxeMixin.__init__(self) # super() werkt niet - teveel argumenten
         self.show()
 
     #
@@ -759,7 +757,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
     def keyReleaseEvent(self, event):
         skip = self.on_keyup(event)
         if not skip:
-            super().keyReleaseEvent(event)
+            gui.QMainWindow.keyReleaseEvent(self, event)
 
     def closeEvent(self, event):
         """applicatie afsluiten"""
@@ -836,7 +834,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
         self.tree.clear() # DeleteAllItems()
         self.undo_stack.clear()
         titel = AxeMixin.init_tree(self, root, prefixes, uris, name)
-        self.top = qtw.QTreeWidgetItem()
+        self.top = gui.QTreeWidgetItem()
         self.top.setText(0, titel)
         self.tree.addTopLevelItem(self.top) # AddRoot(titel)
         self.setWindowTitle(" - ".join((os.path.split(titel)[-1],TITEL)))
@@ -844,10 +842,10 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
         namespaces = False
         for ix, prf in enumerate(self.ns_prefixes):
             if not namespaces:
-                ns_root = qtw.QTreeWidgetItem(['namespaces'])
+                ns_root = gui.QTreeWidgetItem(['namespaces'])
                 self.top.addChild(ns_root)
                 namespaces = True
-            ns_item = qtw.QTreeWidgetItem()
+            ns_item = gui.QTreeWidgetItem()
             ns_item.setText(0, '{}: {}'.format(prf, self.ns_uris[ix]))
             ns_root.addChild(ns_item)
         self.item = self.top
@@ -941,7 +939,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
             self._meldinfo("Can't insert before or after the root")
             return
         edt = ElementDialog(self, title="New element").exec_()
-        if edt == qtw.QDialog.Accepted:
+        if edt == gui.QDialog.Accepted:
             command = PasteElementCommand(self, self.data['tag'], self.data['text'],
                 before=before, below=below, description="Insert Element")
             self.undo_stack.push(command)
@@ -953,7 +951,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
         """Deze methode wordt aangeroepen door de __init__ van de mixin class
         """
         ## self.parent = parent
-        ## qtw.QMainWindow.__init__(self, parent) # aparte initialisatie net als voor mixin
+        gui.QMainWindow.__init__(self) # aparte initialisatie net als voor mixin
         self._icon = gui.QIcon(axe_iconame)
         self.resize(620, 900)
         self.setWindowIcon(self._icon)
@@ -964,7 +962,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
         self._init_menus()
 
         self.tree = VisualTree(self)
-        self.tree.headerItem().setHidden(True)
+        self.tree.setItemHidden(self.tree.headerItem(), True)
         self.setCentralWidget(self.tree)
         self._enable_pasteitems(False)
         self.undo_stack = UndoRedoStack(self)
@@ -973,7 +971,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
 
     def _init_menus(self, popup=False):
         if popup:
-            viewmenu = qtw.QMenu("&View")
+            viewmenu = gui.QMenu("&View")
         else:
             self.filemenu_actions, self.viewmenu_actions = [], []
             self.editmenu_actions, self.searchmenu_actions = [], []
@@ -1013,8 +1011,8 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
                         ("&Replace", self.replace, 'Ctrl+H'),
                     ))):
                 for text, callback, shortcuts in menudata:
-                    act = qtw.QAction(text, self)
-                    act.triggered.connect(callback)
+                    act = gui.QAction(text, self)
+                    self.connect(act, core.SIGNAL('triggered()'), callback)
                     if shortcuts:
                         act.setShortcuts([x for x in shortcuts.split(',')])
                     if ix == 0:
@@ -1088,42 +1086,41 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
 
     def _meldinfo(self, text):
         self.in_dialog = True
-        qtw.QMessageBox.information(self, self.title, text)
+        gui.QMessageBox.information(self, self.title, text)
 
     def _meldfout(self, text, abort=False):
         self.in_dialog = True
-        qtw.QMessageBox.critical(self, self.title, text)
+        gui.QMessageBox.critical(self, self.title, text)
         if abort:
             self.quit()
-
     def _ask_yesnocancel(self, prompt):
         """stelt een vraag en retourneert het antwoord
         1 = Yes, 0 = No, -1 = Cancel
         """
-        retval = dict(zip((qtw.QMessageBox.Yes, qtw.QMessageBox.No,
-            qtw.QMessageBox.Cancel), (1, 0, -1)))
+        retval = dict(zip((gui.QMessageBox.Yes, gui.QMessageBox.No,
+            gui.QMessageBox.Cancel), (1, 0, -1)))
         self.in_dialog = True
-        h = qtw.QMessageBox.question(self, self.title, prompt,
-            qtw.QMessageBox.Yes | qtw.QMessageBox.No | qtw.QMessageBox.Cancel,
-            defaultButton = qtw.QMessageBox.Yes)
+        h = gui.QMessageBox.question(self, self.title, prompt,
+            gui.QMessageBox.Yes | gui.QMessageBox.No | gui.QMessageBox.Cancel,
+            defaultButton = gui.QMessageBox.Yes)
         return retval[h]
 
     def _ask_for_text(self, prompt):
         """vraagt om tekst en retourneert het antwoord"""
         self.in_dialog = True
-        data, ok = qtw.QInputDialog.getText(self, self.title, prompt,
-            qtw.QLineEdit.Normal, "")
+        data, ok = gui.QInputDialog.getText(self, self.title, prompt,
+            gui.QLineEdit.Normal, "")
         return data
 
     def _file_to_read(self):
-        fnaam, pattern = qtw.QFileDialog.getOpenFileName(self, "Choose a file",
-            os.getcwd(), HMASK)
+        fnaam = gui.QFileDialog.getOpenFileName(self, "Choose a file", os.getcwd(),
+            HMASK)
         ok = bool(fnaam)
         return ok, str(fnaam)
 
     def _file_to_save(self, dirname, filename):
-        name, pattern = qtw.QFileDialog.getSaveFileName(self, "Save file as ...",
-            dirname, HMASK)
+        name = gui.QFileDialog.getSaveFileName(self, "Save file as ...", dirname,
+            HMASK)
         ok = bool(name)
         return ok, str(name)
 
@@ -1176,7 +1173,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
             insert = add_under.indexOfChild(self.item)
             if not before:
                 insert += 1
-        item = qtw.QTreeWidgetItem()
+        item = gui.QTreeWidgetItem()
         item.setText(0, itemtext)
         item.setText(1, name)
         item.setText(2, value)
@@ -1259,7 +1256,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
                 data['data'] = True
                 data['text'] = text
             edt = ElementDialog(self, title='Edit an element', item=data).exec_()
-            if edt == qtw.QDialog.Accepted:
+            if edt == gui.QDialog.Accepted:
                 h = ((self.data["tag"], self.data["text"]), self.ns_prefixes,
                     self.ns_uris)
                 new_state = getshortname(h), self.data["tag"], self.data["text"]
@@ -1272,7 +1269,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
             state = data, nam, val   # current values to be passed to UndoAction
             data = {'item': self.item, 'name': nam, 'value': val}
             edt = AttributeDialog(self,title='Edit an attribute',item=data).exec_()
-            if edt == qtw.QDialog.Accepted:
+            if edt == gui.QDialog.Accepted:
                 h = ((self.data["name"], self.data["value"]), self.ns_prefixes,
                     self.ns_uris)
                 new_state = getshortname(h, attr=True), self.data["name"], self.data["value"]
@@ -1288,7 +1285,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
             self._meldfout("Can't add attribute to attribute")
             return
         edt = AttributeDialog(self, title="New attribute").exec_()
-        if edt == qtw.QDialog.Accepted:
+        if edt == gui.QDialog.Accepted:
             command = PasteAttributeCommand(self, self.data["name"],
                 self.data["value"], self.item, "Insert Attribute")
             self.undo_stack.push(command)
@@ -1297,7 +1294,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
     def search(self, event=None, reversed=False):
         self._search_pos = None
         edt = SearchDialog(self, title='Search options').exec_()
-        if edt == qtw.QDialog.Accepted:
+        if edt == gui.QDialog.Accepted:
             self.search_next(event, reversed)
             ## found, is_attr = find_next(flatten_tree(self.top), self.search_args,
                 ## reversed) # self.tree.top.child(0)
@@ -1332,7 +1329,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
 
 
 def axe_gui(args):
-    app = qtw.QApplication(sys.argv)
+    app = gui.QApplication(sys.argv)
     if len(args) > 1:
         frm = MainFrame(fn=" ".join(args[1:]))
     else:
