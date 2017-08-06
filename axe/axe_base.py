@@ -1,28 +1,33 @@
 # -*- coding: utf-8 -*-
 """
-GUI-onafhankelijke code
+XMLEdit GUI-onafhankelijke code
 """
 
 import os
-import sys
+## import sys
 import shutil
 ## import copy
 import xml.etree.ElementTree as et
-# always log in program directory
 import logging
 
 ELSTART = '<>'
 TITEL = "Albert's (Simple) XML-editor"
 PPATH = os.path.dirname(__file__)
 axe_iconame = os.path.join(PPATH, "axe.ico")
-logging.basicConfig(filename=os.path.join(os.path.dirname(PPATH), 'logs',
-    'axe_qt.log'), level=logging.DEBUG, format='%(asctime)s %(message)s')
+# always log in program directory
+logging.basicConfig(filename=os.path.join(os.path.dirname(PPATH), 'logs', 'axe_qt.log'),
+                    level=logging.DEBUG, format='%(asctime)s %(message)s')
+
 
 def log(message):
+    """if enabled, write a line to the log"""
     if 'DEBUG' in os.environ and os.environ["DEBUG"] != "0":
         logging.info(message)
 
+
 def getshortname(x, attr=False):
+    """build and return a name for this node
+    """
     x, ns_prefixes, ns_uris = x
     t = ''
     if attr:
@@ -30,7 +35,7 @@ def getshortname(x, attr=False):
         if t[-1] == "\n":
             t = t[:-1]
     elif x[1]:
-        t = x[1].split("\n",1)[0]
+        t = x[1].split("\n", 1)[0]
     w = 60
     if len(t) > w:
         t = t[:w].lstrip() + '...'
@@ -50,6 +55,7 @@ def getshortname(x, attr=False):
     else:
         return strt
 
+
 def find_next(data, search_args, reverse=False, pos=None):
     """searches the flattened tree from start or the given pos
     to find the next item that fulfills the search criteria
@@ -60,7 +66,7 @@ def find_next(data, search_args, reverse=False, pos=None):
 
     if pos:
         pos, is_attr = pos
-        found_item = False
+        ## found_item = False
         for ix, item in enumerate(data):
             if is_attr:
                 found_attr = False
@@ -80,7 +86,7 @@ def find_next(data, search_args, reverse=False, pos=None):
         elif ix < len(data) - 1:
             data = data[ix + 1:]
         else:
-            return None, False # no more data to search
+            return None, False  # no more data to search
 
     ele_ok = attr_name_ok = attr_value_ok = attr_ok = text_ok = False
     itemfound = False
@@ -119,8 +125,10 @@ def find_next(data, search_args, reverse=False, pos=None):
     else:
         return None, False
 
-def parse_nsmap(file):
 
+def parse_nsmap(file):
+    """analyze namespaces
+    """
     root = None
     ns_prefixes = []
     ns_uris = []
@@ -135,11 +143,15 @@ def parse_nsmap(file):
 
     return et.ElementTree(root), ns_prefixes, ns_uris
 
-class XMLTree(object):
+
+class XMLTree():
+    """class to store XMLdata
+    """
     def __init__(self, data):
         self.root = et.Element(data)
 
     def expand(self, root, text, data):
+        "expand node"
         if text.startswith(ELSTART):
             node = et.SubElement(root, data[0])
             if data[1]:
@@ -150,6 +162,7 @@ class XMLTree(object):
             return None
 
     def write(self, fn, ns_data=None):
+        "write XML to tree"
         tree = et.ElementTree(self.root)
         if ns_data:
             prefixes, uris = ns_data
@@ -158,7 +171,8 @@ class XMLTree(object):
         tree.write(fn, encoding="utf-8", xml_declaration=True)
 
 
-class AxeMixin(object):
+class AxeMixin():
+    "Mixin met non-GUI methoden"
     def __init__(self):
         self.title = "Albert's XML Editor"
         if self.fn:
@@ -197,7 +211,7 @@ class AxeMixin(object):
         ok = True
         if self.tree_dirty:
             h = self._ask_yesnocancel("XML data has been modified - "
-                "save before continuing?")
+                                      "save before continuing?")
             if h == 1:
                 self.savexml()
             elif h == -1:
@@ -217,6 +231,7 @@ class AxeMixin(object):
             self.init_tree(et.Element(h))
 
     def openxml(self):
+        "load XML file (after checking if current needs to be saved)"
         if self.check_tree():
             ok, fname = self._file_to_read()
             if ok:
@@ -229,20 +244,23 @@ class AxeMixin(object):
                 self.init_tree(tree.getroot(), prefixes, uris)
 
     def savexml(self):
+        "(re)save XML; ask for filename if unknown"
         if self.xmlfn == '':
             self.savexmlas()
         else:
             self.savexmlfile()
 
     def savexmlas(self):
+        "ask for filename, then save"
         d, f = os.path.split(self.xmlfn)
         ok, name = self._file_to_save(d, f)
         if ok:
             self.xmlfn = name
-            self.savexmlfile() # oldfile=os.path.join(d,f))
+            self.savexmlfile()  # oldfile=os.path.join(d,f))
         return ok
 
     def savexmlfile(self, oldfile=''):
+        "do the actual saving; backup first"
         if oldfile == '':
             oldfile = self.xmlfn + '.bak'
         if os.path.exists(self.xmlfn):
@@ -250,11 +268,13 @@ class AxeMixin(object):
         self.writexml()
 
     def writexml(self):
-        namespace_data = None
+        "write XML back to file"
+        ## namespace_data = None   # not used
         XMLTree('root').write(self.xmlfn)
 
     def about(self):
-        self.meldinfo("Made in 2008 by Albert Visser\nWritten in (wx)Python")
+        "Credits"
+        self.meldinfo("Started in 2008 by Albert Visser\nWritten in Python")
 
     def init_tree(self, root, prefixes=None, uris=None, name=''):
         "stelt een en ander in en geeft titel voor in de visuele tree terug"
@@ -270,12 +290,15 @@ class AxeMixin(object):
         return titel
 
     def cut(self):
+        "cut is copy with remove and retain"
         self.copy(cut=True)
 
     def delete(self):
+        "delete is copy with remove and without retain"
         self.copy(cut=True, retain=False)
 
-    def copy(self, cut=False, retain=True): # retain is t.b.v. delete functie
+    def copy(self, cut=False, retain=True):
+        "placeholder for standard copy"
         if cut:
             if retain:
                 txt = 'cut'
@@ -286,20 +309,25 @@ class AxeMixin(object):
         return txt
 
     def paste_after(self):
+        "paste after instead of before"
         self.paste(before=False)
 
     def paste_under(self):
+        "paste under instead of after"
         self.paste(pastebelow=True)
 
     def paste(self, before=True, pastebelow=False):
+        "placeholder for paste after"
         pass
 
-    def insert_after(self, ev=None):
+    def insert_after(self):
+        "insert after instead of before"
         self.insert(before=False)
 
-    def insert_child(self, ev=None):
+    def insert_child(self):
+        "insert under instead of before"
         self.insert(below=True)
 
     def insert(self, before=True, below=False):
+        "placeholder for insert before"
         pass
-

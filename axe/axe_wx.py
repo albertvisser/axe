@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+"""wxPython versie van een op een treeview gebaseerde XML-editor
 
-"wxPython versie van een op een treeview gebaseerde XML-editor"
+not actively maintained
+"""
 
 ## import logging
 ## logging.basicConfig(filename='axe_wx.log', level=logging.DEBUG,

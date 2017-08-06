@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
-
-"PyQT versie van een op een treeview gebaseerde XML-editor"
+"""PyQt4 versie van een op een treeview gebaseerde XML-editor - not actively maintained
+"""
 import os
 import sys
 import functools

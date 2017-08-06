@@ -1,3 +1,5 @@
+"""XMLEditor Tkinter versie - not actively maintained
+"""
 import os,sys,shutil
 from tkinter import *
 from tkinter.ttk import *

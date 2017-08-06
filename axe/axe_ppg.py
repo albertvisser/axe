@@ -1,3 +1,5 @@
+"""XMLEdit PocketPyGUI versie - not actively maintained
+"""
 import os,sys,shutil,copy
 from xml.etree.ElementTree import Element, ElementTree, SubElement
 ELSTART = '<>'

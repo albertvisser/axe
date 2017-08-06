@@ -1,3 +1,5 @@
+"""Voorstudie voor een DTD editor (wxPython versie) - not actively maintained
+"""
 import os,sys,shutil,copy
 from xml.etree.ElementTree import Element, ElementTree, SubElement
 import parsedtd as pd
