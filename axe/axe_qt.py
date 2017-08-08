@@ -1242,7 +1242,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
                     self.in_dialog = False
                 else:
                     if item.childCount() > 0:
-                        if self.tree.isItemExpanded(item):
+                        if item.isExpanded():
                             self.tree.collapseItem(item)
                             self.tree.setCurrentItem(item.parent())
                         else:
@@ -1252,7 +1252,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
                         ## self.edit()
                 skip = True
             elif ky == core.Qt.Key_Backspace:
-                if self.tree.isItemExpanded(item):
+                if item.isExpanded():
                     self.tree.collapseItem(item)
                     self.tree.setCurrentItem(item.parent())
                 skip = True
