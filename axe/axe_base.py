@@ -4,6 +4,7 @@ XMLEdit GUI-onafhankelijke code
 """
 
 import os
+import pathlib
 ## import sys
 import shutil
 ## import copy
@@ -12,10 +13,10 @@ import logging
 
 ELSTART = '<>'
 TITEL = "Albert's (Simple) XML-editor"
-PPATH = os.path.dirname(__file__)
-axe_iconame = os.path.join(PPATH, "axe.ico")
+APATH = pathlib.Path(__file__).parent
+axe_iconame = str(APATH / "axe.ico")
 # always log in program directory
-logging.basicConfig(filename=os.path.join(os.path.dirname(PPATH), 'logs', 'axe_qt.log'),
+logging.basicConfig(filename=str(APATH.parent / 'logs' / 'axe_qt.log'),
                     level=logging.DEBUG, format='%(asctime)s %(message)s')
 
 
@@ -252,8 +253,7 @@ class AxeMixin():
 
     def savexmlas(self):
         "ask for filename, then save"
-        d, f = os.path.split(self.xmlfn)
-        ok, name = self._file_to_save(d, f)
+        ok, name = self._file_to_save()
         if ok:
             self.xmlfn = name
             self.savexmlfile()  # oldfile=os.path.join(d,f))

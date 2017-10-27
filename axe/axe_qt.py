@@ -821,7 +821,8 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
         ok = AxeMixin.savexmlas(self)
         if ok:
             self.top.setText(0, self.xmlfn)
-            self.setWindowTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
+            ## self.setWindowTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
+            self.mark_dirty(False)
 
     def writexml(self):
         "(re)write tree to XML file"
@@ -872,7 +873,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
         self.top = qtw.QTreeWidgetItem()
         self.top.setText(0, titel)
         self.tree.addTopLevelItem(self.top)  # AddRoot(titel)
-        self.setWindowTitle(" - ".join((os.path.split(titel)[-1], TITEL)))
+        self.setWindowTitle(" - ".join((os.path.basename(titel), TITEL)))
         # eventuele namespaces toevoegen
         namespaces = False
         for ix, prf in enumerate(self.ns_prefixes):
@@ -1145,10 +1146,10 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
         ok = bool(fnaam)
         return ok, str(fnaam)
 
-    def _file_to_save(self, dirname, filename):
+    def _file_to_save(self):
         """ask for file to save"""
-        name, *_ = qtw.QFileDialog.getSaveFileName(self, "Save file as ...",
-                                                   os.path.join(dirname, filename), HMASK)
+        name, *_ = qtw.QFileDialog.getSaveFileName(self, "Save file as ...", self.xmlfn,
+                                                   HMASK)
         ok = bool(name)
         return ok, str(name)
 
