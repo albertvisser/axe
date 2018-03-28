@@ -145,6 +145,10 @@ def parse_nsmap(file):
     return et.ElementTree(root), ns_prefixes, ns_uris
 
 
+class MixinError(BaseException):
+    pass
+
+
 class XMLTree():
     """class to store XMLdata
     """
@@ -189,7 +193,10 @@ class AxeMixin():
                 tree, prefixes, uris = parse_nsmap(self.xmlfn)
             except (IOError, et.ParseError) as err:
                 self._meldfout(str(err), abort=True)
-            self.init_tree(tree.getroot(), prefixes, uris)
+                self.init_tree(None)
+                return None
+            else:
+                self.init_tree(tree.getroot(), prefixes, uris)
 
     def mark_dirty(self, state, data):
         """past gewijzigd-status aan

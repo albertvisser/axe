@@ -7,7 +7,7 @@ import PyQt5.QtWidgets as qtw
 import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
 from .axe_base import getshortname, find_next, XMLTree, AxeMixin, log
-from .axe_base import ELSTART, TITEL, axe_iconame
+from .axe_base import ELSTART, TITEL, axe_iconame, MixinError
 if os.name == "nt":
     HMASK = "XML files (*.xml);;All files (*.*)"
 elif os.name == "posix":
@@ -779,7 +779,6 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
     def __init__(self, fn=''):
         self.fn = fn
         super().__init__()
-        ## AxeMixin.__init__(self, parent, fn) # super() werkt niet - teveel argumenten
         self.show()
 
     # reimplemented methods from QMainWindow
@@ -874,6 +873,8 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
         self.top.setText(0, titel)
         self.tree.addTopLevelItem(self.top)  # AddRoot(titel)
         self.setWindowTitle(" - ".join((os.path.basename(titel), TITEL)))
+        if not root:
+            return
         # eventuele namespaces toevoegen
         namespaces = False
         for ix, prf in enumerate(self.ns_prefixes):
