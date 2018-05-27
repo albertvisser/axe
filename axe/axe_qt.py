@@ -1331,12 +1331,12 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
             self.undo_stack.push(command)
             self.mark_dirty(True)
 
-    def search(self, reversed=False):
+    def search(self, reverse=False):
         "start search after asking for options"
         self._search_pos = None
         edt = SearchDialog(self, title='Search options').exec_()
         if edt == qtw.QDialog.Accepted:
-            self.search_next(reversed)
+            self.search_next(reverse)
             ## found, is_attr = find_next(flatten_tree(self.top), self.search_args,
                 ## reversed) # self.tree.top.child(0)
             ## if found:
@@ -1345,12 +1345,12 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
 
     def search_last(self):
         "start backwards search"
-        self.search(reversed=True)
+        self.search(reverse=True)
 
-    def search_next(self, reversed=False):
+    def search_next(self, reverse=False):
         "find (default is forward)"
         found, is_attr = find_next(flatten_tree(self.top), self.search_args,
-                                   reversed, self._search_pos)  # self.tree.top.child(0)
+                                   reverse, self._search_pos)  # self.tree.top.child(0)
         if found:
             self.tree.setCurrentItem(found)
             self._search_pos = (found, is_attr)
@@ -1359,7 +1359,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
 
     def search_prev(self):
         "find backwards"
-        self.search_next(reversed=True)
+        self.search_next(reverse=True)
 
     def replace(self):
         "replace an element?"
