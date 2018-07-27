@@ -12,7 +12,7 @@ import xml.etree.ElementTree as et
 import logging
 
 ELSTART = '<>'
-TITEL = "Albert's (Simple) XML-editor"
+TITEL = "Albert's (Simple) XML editor"
 APATH = pathlib.Path(__file__).parent
 axe_iconame = str(APATH / "axe.ico")
 # always log in program directory
@@ -146,6 +146,8 @@ def parse_nsmap(file):
 
 
 class MixinError(BaseException):
+    """Custom exception for AxeMixin
+    """
     pass
 
 
@@ -238,9 +240,9 @@ class AxeMixin():
             self.xmlfn = ""
             self.init_tree(et.Element(h))
 
-    def openxml(self):
+    def openxml(self, skip_check=False):
         "load XML file (after checking if current needs to be saved)"
-        if self.check_tree():
+        if skip_check or self.check_tree():
             ok, fname = self._file_to_read()
             if ok:
                 try:
