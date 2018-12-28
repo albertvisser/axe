@@ -156,7 +156,7 @@ class ElementDialog(qtw.QDialog):
         super().accept()
 
     def keyPressEvent(self, event):
-        """event handler voor toetsaanslagen"""
+        """reimplemented event handler voor toetsaanslagen"""
         if event.key() == core.Qt.Key_Escape:
             super().done(qtw.QDialog.Rejected)
 
@@ -797,7 +797,6 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
             event.ignore()
 
     # reimplemented methods from Mixin
-    # mostly because of including the gui event in the signature
     def mark_dirty(self, state):
         """past gewijzigd-status aan
         en stelt de overeenkomstig gewijzigde tekst voor de titel in
@@ -806,6 +805,7 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
         if data:
             self.setWindowTitle(data)
 
+    # mostly because of including the gui event in the signature
     ## def newxml(self, ev=None):
         ## AxeMixin.newxml(self)
 
@@ -1105,8 +1105,8 @@ class MainFrame(qtw.QMainWindow, AxeMixin):
 
         if popup:
             return searchmenu
-        ## else:
-            ## return filemenu, viewmenu, editmenu
+        else:
+            return filemenu, viewmenu, editmenu
 
     def _meldinfo(self, text):
         """notify about some information"""
@@ -1382,6 +1382,7 @@ def axe_gui(args):
     else:
         frm = MainFrame()
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     axe_gui(sys.argv)
