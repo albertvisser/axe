@@ -1,17 +1,10 @@
 #! /usr/bin/env python3
-"""Startup script for XML Editor - intermediary for choosing a GUI toolkit
+"""Startup script for XML Editor
 """
 import sys
-## from axe_ppg import MainGui
-## from axe_tk import MainGui - NB werkt niet op deze manier
-## from axe.axe_wx import axe_gui
-## from axe.axe_qt4 import axe_gui
-from axe.axe_qt import axe_gui
+from axe.base import Editor
 
-
-def main(args):
-    "start GUI with passed arguments"
-    axe_gui(args)
-
-if __name__ == '__main__':
-    main(sys.argv)
+if len(sys.argv) > 1:
+    Editor(sys.argv[1])
+else:
+    Editor('')

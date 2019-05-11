@@ -6,7 +6,7 @@ import sys
 import PyQt5.QtWidgets as qtw
 import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
-from .shared import ELSTART, TITEL, axe_iconame, getshortname, find_next, XMLTree, log
+from .shared import ELSTART, axe_iconame, getshortname, log
 if os.name == "nt":
     HMASK = "XML files (*.xml);;All files (*.*)"
 elif os.name == "posix":
@@ -27,24 +27,6 @@ def calculate_location(win, node):
         id_.insert(0, idx)
         node = node.parent()
     return tuple(id_)
-
-
-def flatten_tree(element):
-    """return the tree's structure as a flat list
-    probably nicer as a generator function
-    """
-    attr_list = []
-    elem_list = [(element, str(element.text(1)), str(element.text(2)), attr_list)]
-
-    subel_list = []
-    for seq in range(element.childCount()):
-        subitem = element.child(seq)
-        if str(subitem.text(0)).startswith(ELSTART):
-            subel_list = flatten_tree(subitem)
-            elem_list.extend(subel_list)
-        else:
-            attr_list.append((subitem, str(subitem.text(1)), str(subitem.text(2))))
-    return elem_list
 
 
 # Dialog windows
@@ -530,10 +512,9 @@ class PasteElementCommand(qtw.QUndoCommand):
             log('zetzeronder voor node {} met data {}'.format(node, data))
             text, data, children = data
             tag, value = data
-            self.win.item = node
             is_attr = False if text.startswith(ELSTART) else True
-            add_under = self.win.add_item(tag, value, before=before,
-                                           below=below, attr=is_attr)
+            add_under = self.win.editor.add_item(node, tag, value, before=before, below=below,
+                                                 attr=is_attr)
             below = True
             for item in children:
                 zetzeronder(add_under, item)
@@ -543,13 +524,10 @@ class PasteElementCommand(qtw.QUndoCommand):
         print('    data is', self.data)
         print('    before is', self.before)
         print('    below is', self.below)
-        ## self.win.item = self.item
-        log('In paste element redo for tag {} data {}'.format(self.tag, self.data))
-        if self.where:
-            self.win.item = self.where
         print('    where is', self.where)
-        self.added = self.win.add_item(self.tag, self.data, before=self.before,
-                                        below=self.below)
+        log('In paste element redo for tag {} data {}'.format(self.tag, self.data))
+        self.added = self.win.editor.add_item(self.where, self.tag, self.data, before=self.before,
+                                              below=self.below)
         log('newly added {} with children {}'.format(self.added, self.children))
         if self.children is not None:
             for item in self.children[0][2]:
@@ -568,7 +546,7 @@ class PasteElementCommand(qtw.QUndoCommand):
                                   description=__doc__)
         item.redo()
         if self.first_edit:
-            self.win.mark_dirty(False)
+            self.win.editor.mark_dirty(False)
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
 
@@ -587,8 +565,7 @@ class PasteAttributeCommand(qtw.QUndoCommand):
     def redo(self):
         "(Re)Do add attribute"
         log('(redo) add attr {} {} {}'.format(self.name, self.value, self.item))
-        self.win.item = self.item
-        self.added = self.win.add_item(self.name, self.value, attr=True)
+        self.added = self.win.editor.add_item(self.item, self.name, self.value, attr=True)
         self.win.tree.expandItem(self.added.parent())
         log('Added {}'.format(self.added))
 
@@ -599,7 +576,7 @@ class PasteAttributeCommand(qtw.QUndoCommand):
                                   description=__doc__)
         item.redo()
         if self.first_edit:
-            self.win.mark_dirty(False)
+            self.win.editor.mark_dirty(False)
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
 
@@ -626,7 +603,7 @@ class EditCommand(qtw.QUndoCommand):
         self.item.setText(1, self.old_state[1])
         self.item.setText(2, self.old_state[2])
         if self.first_edit:
-            self.win.mark_dirty(False)
+            self.win.editor.mark_dirty(False)
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
 
@@ -704,7 +681,7 @@ class CopyElementCommand(qtw.QUndoCommand):
             item.redo()  # add_under=add_under, loc=self.loc)
             self.item = item.added
         if self.first_edit:
-            self.win.mark_dirty(False)
+            self.win.editor.mark_dirty(False)
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
         ## self.win.tree.setCurrentItem(self.item)
 
@@ -755,7 +732,7 @@ class CopyAttributeCommand(qtw.QUndoCommand):
             item.redo()
             self.item = item.added
         if self.first_edit:
-            self.win.mark_dirty(False)
+            self.win.editor.mark_dirty(False)
         self.win.statusbar.showMessage('{} undone'.format(self.text()))
 
 
@@ -802,107 +779,68 @@ class Gui(qtw.QMainWindow):
         else:
             event.ignore()
 
-    # reimplemented methods from Mixin
-    def mark_dirty(self, state):
-        """past gewijzigd-status aan
-        en stelt de overeenkomstig gewijzigde tekst voor de titel in
-        """
-        data = self.editor.mark_dirty(state, str(self.windowTitle()))
-        if data:
-            self.setWindowTitle(data)
+    # helper methods for getting/setting data in visual tree
+    def get_node_children(self, node):
+        "return descendants of the given node"
+        return [node.child(i) for i in range(node.childCount())]
 
-    # mostly because of including the gui event in the signature
-    ## def newxml(self, ev=None):
-        ## AxeMixin.newxml(self)
+    def get_node_title(self, node):
+        "return the title of the given node"
+        return node.text(0)
 
-    ## def openxml(self, ev=None):
-        ## AxeMixin.openxml(self)
+    def get_node_data(self, node):
+        "return data (element name and text/CDATA) associated with the given node"
+        return node.text(1), node.text(2)
 
-    ## def savexml(self, ev=None):
-        ## AxeMixin.savexml(self)
+    def get_treetop(self):
+        "return the visual tree's root element"
+        top = self.tree.topLevelItem(0)
+        rt = top.child(0)
+        if rt.text(0) == 'namespaces':
+            rt = top.child(1)
 
+    def setup_new_tree(self, title):
+        "build new visual tree and return its root element"
+        self.tree.clear()  # DeleteAllItems()
+        self.undo_stack.clear()
+        self.top = qtw.QTreeWidgetItem()
+        self.top.setText(0, title)
+        self.tree.addTopLevelItem(self.top)  # AddRoot(titel)
+        return self.top
+
+    def add_node_to_parent(self, parent, pos=-1):
+        "add a new descendant to an element at the given position and return it"
+        node = qtw.QTreeWidgetItem()
+        if pos == -1:
+            parent.addChild(node)
+        else:
+            parent.insertChild(pos, node)
+        return node
+
+    def set_node_title(self, node, title):
+        "set the title for the given node"
+        node.setText(0, title)
+
+    def get_node_parentpos(self, node):
+        "return the parent of the given node and its position under it"
+        parent = node.parent()
+        pos = parent.indexOfChild(node)
+        return parent, pos
+
+    def set_node_data(self, node, name, value):
+        "set the data (element name, text/CDATA) associated with the given node"
+        node.setText(1, name)
+        node.setText(2, value)
+
+    def set_selected_item(self, item):
+        self.tree.setCurrentItem(item)
+
+    # finishing off actions from main program
     def after_save(self):
         """save as and notify of result"""
         self.top.setText(0, self.xmlfn)
         ## self.setWindowTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
-        self.mark_dirty(False)
-
-    def writexml(self):
-        "(re)write tree to XML file"
-        def expandnode(rt, root, tree):
-            "recursively expand node"
-            for ix in range(rt.childCount()):
-                tag = rt.child(ix)
-                text = str(tag.text(0))
-                data = (str(tag.text(1)), str(tag.text(2)))
-                node = tree.expand(root, text, data)
-                if node is not None:
-                    expandnode(tag, node, tree)
-        top = self.tree.topLevelItem(0)
-        rt = top.child(0)
-        text = str(rt.text(0))
-        if text == 'namespaces':
-            rt = top.child(1)
-            text = str(rt.text(0))
-        data = (str(rt.text(1)), str(rt.text(2)))
-        tree = XMLTree(data[0])  # .split(None,1)
-        root = tree.root
-        expandnode(rt, root, tree)
-        namespace_data = None
-        if self.ns_prefixes:
-            namespace_data = (self.ns_prefixes, self.ns_uris)
-        tree.write(self.xmlfn, namespace_data)
-        self.mark_dirty(False)
-
-    def init_tree(self, root, prefixes=None, uris=None, name=''):
-        "set up display tree"
-        def add_to_tree(el, rt):
-            "recursively add elements"
-            self.item = rt
-            rr = self.add_item(el.tag, el.text)
-            ## log(calculate_location(self, rr))
-            for attr in el.keys():
-                h = el.get(attr)
-                if not h:
-                    h = '""'
-                self.item = rr
-                self.add_item(attr, h, attr=True)
-            for subel in list(el):
-                add_to_tree(subel, rr)
-
-        self.tree.clear()  # DeleteAllItems()
-        self.undo_stack.clear()
-        titel = self.editor.init_tree(root, prefixes, uris, name)
-        self.top = qtw.QTreeWidgetItem()
-        self.top.setText(0, titel)
-        self.tree.addTopLevelItem(self.top)  # AddRoot(titel)
-        self.setWindowTitle(" - ".join((os.path.basename(titel), TITEL)))
-        if not root:
-            return
-        # eventuele namespaces toevoegen
-        namespaces = False
-        for ix, prf in enumerate(self.editor.ns_prefixes):
-            if not namespaces:
-                ns_root = qtw.QTreeWidgetItem(['namespaces'])
-                self.top.addChild(ns_root)
-                namespaces = True
-            ns_item = qtw.QTreeWidgetItem()
-            ns_item.setText(0, '{}: {}'.format(prf, self.ns_uris[ix]))
-            ns_root.addChild(ns_item)
-        self.item = self.top
-        rt = self.add_item(self.editor.rt.tag, self.editor.rt.text)
-        for attr in self.editor.rt.keys():
-            h = self.editor.rt.get(attr)
-            if not h:
-                h = '""'
-            self.item = rt
-            self.add_item(attr, h, attr=True)
-        for el in list(self.editor.rt):
-            add_to_tree(el, rt)
-        # self.tree.selection = self.top
-        # set_selection()
-        self.replaced = {}  # dict of nodes that have been replaced while editing
-        self.mark_dirty(False)
+        self.editor.mark_dirty(False)
 
     def copy(self, cut=False, retain=True):
         """execute cut/delete/copy action"""
@@ -922,7 +860,7 @@ class Gui(qtw.QMainWindow):
                                            "{} Attribute".format(txt))
         self.undo_stack.push(command)
         if cut:
-            self.mark_dirty(True)
+            self.editor.mark_dirty(True)
             ## self.tree.setCurrentItem(prev)
 
     def paste(self, before=True, pastebelow=False):
@@ -947,11 +885,11 @@ class Gui(qtw.QMainWindow):
         elif self.cut_el:
             tag, text = self.cut_el[0][1]
             command = PasteElementCommand(self, tag, text,
-                                          before=before, below=pastebelow,
+                                          before=before, below=pastebelow, where=self.item,
                                           description="Paste Element",
                                           data=self.cut_el)
             self.undo_stack.push(command)
-        self.mark_dirty(True)
+        self.editor.mark_dirty(True)
 
     def insert(self, before=True, below=False):
         """execute insert action"""
@@ -968,10 +906,10 @@ class Gui(qtw.QMainWindow):
         edt = ElementDialog(self, title="New element").exec_()
         if edt == qtw.QDialog.Accepted:
             command = PasteElementCommand(self, self.data['tag'], self.data['text'],
-                                          before=before, below=below,
+                                          before=before, below=below, where=self.item,
                                           description="Insert Element")
             self.undo_stack.push(command)
-            self.mark_dirty(True)
+            self.editor.mark_dirty(True)
 
     # internals
     def init_gui(self):
@@ -993,8 +931,18 @@ class Gui(qtw.QMainWindow):
         self.setCentralWidget(self.tree)
         self.enable_pasteitems(False)
         self.undo_stack = UndoRedoStack(self)
-        self.mark_dirty(False)
+        self.editor.mark_dirty(False)
         self.in_dialog = False
+
+    def set_windowtitle(self, text):
+        """set screen title
+        """
+        self.setWindowTitle(text)
+
+    def get_windowtitle(self):
+        """get screen title
+        """
+        return self.windowTitle()
 
     def init_menus(self, popup=False):
         """setup application menu"""
@@ -1017,8 +965,8 @@ class Gui(qtw.QMainWindow):
                         self.editmenu_actions.append(act)
                     elif ix == 3:
                         self.searchmenu_actions.append(act)
-            act = qtw.Action('&Unlimited Undo', self)
-            act.triggered.connect(self._limit_undo),
+            act = qtw.QAction('&Unlimited Undo', self)
+            act.triggered.connect(self.limit_undo),
             self.filemenu_actions.insert(-1, act)
             self.undo_item, self.redo_item = self.editmenu_actions[0:2]
             self.pastebefore_item, self.pasteafter_item, \
@@ -1153,41 +1101,6 @@ class Gui(qtw.QMainWindow):
             sel = False
         return sel
 
-    def add_item(self, name, value, before=False, below=True, attr=False):
-        """execute adding of item"""
-        log('in add_item for {} value {} before is {} below is {}'.format(
-            name, value, before, below))
-        if value is None:
-            value = ""
-        h = ((str(name), str(value)), self.editor.ns_prefixes, self.editor.ns_uris)
-        itemtext = getshortname(h, attr)
-        if below:
-            add_under = self.item
-            insert = -1
-            if not itemtext.startswith(ELSTART):
-                cnt = self.item.childCount()
-                for seq in range(cnt):
-                    subitem = self.item.child(seq)
-                    if str(subitem.text(0)).startswith(ELSTART):
-                        break
-                if cnt and seq < cnt:
-                    insert = seq
-        else:
-            add_under = self.item.parent()
-            insert = add_under.indexOfChild(self.item)
-            if not before:
-                insert += 1
-        item = qtw.QTreeWidgetItem()
-        item.setText(0, itemtext)
-        item.setText(1, name)
-        item.setText(2, value)
-        if insert == -1:
-            log('add under {}'.format(add_under))
-            add_under.addChild(item)
-        else:
-            add_under.insertChild(insert, item)
-        return item
-
     def limit_undo(self):
         "set undo limit"
         newstate = self.setundo_action.isChecked()
@@ -1236,21 +1149,23 @@ class Gui(qtw.QMainWindow):
                 skip = True
         return skip
 
-    def expand_current(self):
+    def expand_item(self, item=None):
         "expand a tree item"
         def expand_with_children(item):
             "do it recursively"
             self.tree.expandItem(item)
             for ix in range(item.childCount()):
                 expand_with_children(item.child(ix))
-        item = self.tree.currentItem()
+        if not item:
+            item = self.tree.currentItem()
         if item:
             expand_with_children(item)
             self.tree.resizeColumnToContents(0)
 
-    def collapse_current(self):
+    def collapse_item(self, item=None):
         "collapse tree item"
-        item = self.tree.currentItem()
+        if not item:
+            item = self.tree.currentItem()
         if item:
             self.tree.collapseItem(item)    # mag eventueel recursief in overeenstemming met vorige
             self.tree.resizeColumnToContents(0)
@@ -1275,7 +1190,7 @@ class Gui(qtw.QMainWindow):
                 log('calling editcommand for element')
                 command = EditCommand(self, state, new_state, "Edit Element")
                 self.undo_stack.push(command)
-                self.mark_dirty(True)
+                self.editor.mark_dirty(True)
         else:
             nam, val = str(self.item.text(1)), str(self.item.text(2))
             state = data, nam, val   # current values to be passed to UndoAction
@@ -1288,7 +1203,7 @@ class Gui(qtw.QMainWindow):
                 log('calling editcommand for attribute')
                 command = EditCommand(self, state, new_state, "Edit Attribute")
                 self.undo_stack.push(command)
-                self.mark_dirty(True)
+                self.editor.mark_dirty(True)
 
     def add_attribute(self):
         "ask for attibute, then start add action"
@@ -1302,29 +1217,16 @@ class Gui(qtw.QMainWindow):
             command = PasteAttributeCommand(self, self.data["name"], self.data["value"],
                                             self.item, "Insert Attribute")
             self.undo_stack.push(command)
-            self.mark_dirty(True)
+            self.editor.mark_dirty(True)
 
-    def find_first(self, reverse=False):
-        "start search after asking for options"
-        self._search_pos = None
-        edt = SearchDialog(self, title='Search options').exec_()
-        if edt == qtw.QDialog.Accepted:
-            self.search_next(reverse)
-            ## found, is_attr = find_next(flatten_tree(self.top), self.search_args,
-                ## reversed) # self.tree.top.child(0)
-            ## if found:
-                ## self.tree.setCurrentItem(found)
-                ## self._search_pos = (found, is_attr)
-
-    def find_next(self, reverse=False):
-        "find (default is forward)"
-        found, is_attr = find_next(flatten_tree(self.top), self.search_args,
-                                   reverse, self._search_pos)  # self.tree.top.child(0)
-        if found:
-            self.tree.setCurrentItem(found)
-            self._search_pos = (found, is_attr)
-        else:
-            self.meldinfo('Niks (meer) gevonden')
+    def get_search_args(self):
+        """send dialog to get search argument(s)
+        """
+        self.search_args = []
+        with SearchDialog(self, title='Search options') as edt:
+            ok = edt.exec_()
+            if ok == qtw.QDialog.Accepted:
+                return self.search_args
 
     def do_undo(self):
         "undo action"

@@ -11,30 +11,8 @@ import shutil
 import xml.etree.ElementTree as et
 # import logging
 
-# from .shared import ELSTART, TITEL, log
-from .shared import TITEL, XMLTree
+from .shared import ELSTART, TITEL, getshortname, log
 from .gui import Gui
-
-# ELSTART = shared.ELSTART
-# TITEL = shared.TITEL
-# APATH = pathlib.Path(__file__).parent
-# axe_iconame = str(APATH / "axe.ico")
-# # always log in program directory
-# LOGFILE = APATH.parent / 'logs' / 'axe_qt.log'
-# LOGPLEASE = 'DEBUG' in os.environ and os.environ["DEBUG"] != "0"
-# if LOGPLEASE:
-#     if not LOGFILE.parent.exists():
-#         LOGFILE.parent.mkdir()
-#     if not LOGFILE.exists():
-#         LOGFILE.touch()
-#     logging.basicConfig(filename=str(LOGFILE),
-#                         level=logging.DEBUG, format='%(asctime)s %(message)s')
-
-
-# def log(message):
-#     """if enabled, write a line to the log"""
-#     if LOGPLEASE:
-#         logging.info(message)
 
 # def getshortname(x, attr=False):
 #     """build and return a name for this node
@@ -67,74 +45,74 @@ from .gui import Gui
 #         return strt
 
 
-# def find_next(data, search_args, reverse=False, pos=None):
-#     """searches the flattened tree from start or the given pos
-#     to find the next item that fulfills the search criteria
-#     """
-#     wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
-#     if reverse:
-#         data.reverse()
-#
-#     if pos:
-#         pos, is_attr = pos
-#         ## found_item = False
-#         for ix, item in enumerate(data):
-#             if is_attr:
-#                 found_attr = False
-#                 for ix2, attr in enumerate(item[3]):
-#                     if attr[0] == pos:
-#                         found_attr = True
-#                         break
-#                 if found_attr:
-#                     break
-#             else:
-#                 if item[0] == pos:
-#                     break
-#         if is_attr:
-#             data = data[ix:]
-#             id, name, text, attrs = data[0]
-#             data[0] = id, name, text, attrs[ix2 + 1:]
-#         elif ix < len(data) - 1:
-#             data = data[ix + 1:]
-#         else:
-#             return None, False  # no more data to search
-#
-#     ele_ok = attr_name_ok = attr_value_ok = attr_ok = text_ok = False
-#     itemfound = False
-#     for item, element_name, element_text, attr_list in data:
-#         if not wanted_ele or wanted_ele in element_name:
-#             ele_ok = True
-#         if not wanted_text or wanted_text in element_text:
-#             text_ok = True
-#
-#         attr_item = None
-#         if wanted_attr or wanted_value:
-#             if reverse:
-#                 attr_list.reverse()
-#             for attr, name, value in attr_list:
-#                 if not wanted_attr or wanted_attr in name:
-#                     attr_name_ok = True
-#                 if not wanted_value or wanted_value in value:
-#                     attr_value_ok = True
-#                 if attr_name_ok and attr_value_ok:
-#                     attr_ok = True
-#                     if not (wanted_ele or wanted_text):
-#                         attr_item = attr
-#                     break
-#         else:
-#             attr_ok = True
-#
-#         ok = ele_ok and text_ok and attr_ok
-#         if ok:
-#             if attr_item:
-#                 itemfound, is_attr = attr_item, True
-#             else:
-#                 itemfound, is_attr = item, False
-#             break
-#     if itemfound:
-#         return itemfound, is_attr
-#     else:
-#         return None, False
+def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
+    """searches the flattened tree from start or the given pos
+    to find the next item that fulfills the search criteria
+    """
+    wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
+    if reverse:
+        data.reverse()
+
+    if pos:
+        pos, is_attr = pos
+        ## found_item = False
+        for ix, item in enumerate(data):
+            if is_attr:
+                found_attr = False
+                for ix2, attr in enumerate(item[3]):
+                    if attr[0] == pos:
+                        found_attr = True
+                        break
+                if found_attr:
+                    break
+            else:
+                if item[0] == pos:
+                    break
+        if is_attr:
+            data = data[ix:]
+            id, name, text, attrs = data[0]
+            data[0] = id, name, text, attrs[ix2 + 1:]
+        elif ix < len(data) - 1:
+            data = data[ix + 1:]
+        else:
+            return None, False  # no more data to search
+
+    ele_ok = attr_name_ok = attr_value_ok = attr_ok = text_ok = False
+    itemfound = False
+    for item, element_name, element_text, attr_list in data:
+        if not wanted_ele or wanted_ele in element_name:
+            ele_ok = True
+        if not wanted_text or wanted_text in element_text:
+            text_ok = True
+
+        attr_item = None
+        if wanted_attr or wanted_value:
+            if reverse:
+                attr_list.reverse()
+            for attr, name, value in attr_list:
+                if not wanted_attr or wanted_attr in name:
+                    attr_name_ok = True
+                if not wanted_value or wanted_value in value:
+                    attr_value_ok = True
+                if attr_name_ok and attr_value_ok:
+                    attr_ok = True
+                    if not (wanted_ele or wanted_text):
+                        attr_item = attr
+                    break
+        else:
+            attr_ok = True
+
+        ok = ele_ok and text_ok and attr_ok
+        if ok:
+            if attr_item:
+                itemfound, is_attr = attr_item, True
+            else:
+                itemfound, is_attr = item, False
+            break
+    if itemfound:
+        return itemfound, is_attr
+    else:
+        return None, False
 
 
 def parse_nsmap(file):
@@ -155,31 +133,31 @@ def parse_nsmap(file):
     return et.ElementTree(root), ns_prefixes, ns_uris
 
 
-# class XMLTree():
-#     """class to store XMLdata
-#     """
-#     def __init__(self, data):
-#         self.root = et.Element(data)
-#
-#     def expand(self, root, text, data):
-#         "expand node"
-#         if text.startswith(ELSTART):
-#             node = et.SubElement(root, data[0])
-#             if data[1]:
-#                 node.text = data[1]
-#             return node
-#         else:
-#             root.set(data[0], data[1])
-#             return None
-#
-#     def write(self, fn, ns_data=None):
-#         "write XML to tree"
-#         tree = et.ElementTree(self.root)
-#         if ns_data:
-#             prefixes, uris = ns_data
-#             for idx, prefix in enumerate(prefixes):
-#                 et.register_namespace(prefix, uris[idx])
-#         tree.write(fn, encoding="utf-8", xml_declaration=True)
+class XMLTree():
+    """class to store XMLdata
+    """
+    def __init__(self, data):
+        self.root = et.Element(data)
+
+    def expand(self, root, text, data):
+        "expand node"
+        if text.startswith(ELSTART):
+            node = et.SubElement(root, data[0])
+            if data[1]:
+                node.text = data[1]
+            return node
+        else:
+            root.set(data[0], data[1])
+            return None
+
+    def write(self, fn, ns_data=None):
+        "write XML to tree"
+        tree = et.ElementTree(self.root)
+        if ns_data:
+            prefixes, uris = ns_data
+            for idx, prefix in enumerate(prefixes):
+                et.register_namespace(prefix, uris[idx])
+        tree.write(fn, encoding="utf-8", xml_declaration=True)
 
 
 ## class AxeMixin():
@@ -192,9 +170,8 @@ class Editor():
         self.cut_att = None
         self.cut_el = None
         self.gui.init_gui()
-        self.gui.init_tree(et.Element('New'))
-        if self.xmlfn != '':
-            print(self.xmlfn)
+        self.init_tree(et.Element('New'))
+        if self.xmlfn:
             try:
                 tree, prefixes, uris = parse_nsmap(self.xmlfn)
             except (IOError, et.ParseError) as err:
@@ -202,21 +179,24 @@ class Editor():
                 self.gui.init_tree(None)
                 return None
             else:
-                self.gui.init_tree(tree.getroot(), prefixes, uris)
+                self.init_tree(tree.getroot(), prefixes, uris)
         self.gui.go()
 
-    def mark_dirty(self, state, data):
+    def mark_dirty(self, state):
         """past gewijzigd-status aan
         en retourneert de overeenkomstig gewijzigde tekst voor de titel
         """
         self.tree_dirty = state
         test = ' - ' + TITEL
         test2 = '*' + test
-        if state:
-            if test2 not in data:
-                return data.replace(test, test2)
-        elif test2 in data:
-            return data.replace(test2, test)
+        title = self.gui.get_windowtitle()
+        has_test2 = test2 in title
+        if state and not has_test2:
+            title = title.replace(test, test2)
+        elif has_test2:
+            title = title.replace(test2, test)
+        if title:
+            self.gui.set_windowtitle(title)
 
     def check_tree(self):
         """vraag of er iets moet gebeuren wanneer de data gewijzigd is
@@ -233,39 +213,117 @@ class Editor():
                 ok = False
         return ok
 
-    def savexmlfile(self, oldfile=''):
-        "do the actual saving; backup first"
+    def writexml(self, oldfile=''):
+        "(re)write tree to XML file; backup first"
+        def expandnode(rt, root, tree):
+            "recursively expand node"
+            for tag in self.gui.get_node_children(rt):
+                title = self.gui.get_node_title(tag)
+                data = self.gui.get_node_data(tag)
+                node = tree.expand(root, title, data)
+                if node is not None:
+                    expandnode(tag, node, tree)
         if oldfile == '':
             oldfile = self.xmlfn + '.bak'
         if os.path.exists(self.xmlfn):
             shutil.copyfile(self.xmlfn, oldfile)
-        self.gui.writexml()
-
-    # def writexml(self):
-    #     "write XML back to file"
-    #     ## namespace_data = None   # not used
-    #     # FIXME (?) wordt in gui gedaan omdat daar de tree structuur wordt uitgelezen
-    #     XMLTree('root').write(self.xmlfn)
+        rt = self.gui.get_treetop()
+        # text = self.gui.get_node_title(rt)
+        data = self.gui.get_node_data(rt)
+        tree = XMLTree(data[0])  # .split(None,1)
+        root = tree.root
+        expandnode(rt, root, tree)
+        namespace_data = None
+        if self.ns_prefixes:
+            namespace_data = (self.ns_prefixes, self.ns_uris)
+        tree.write(self.xmlfn, namespace_data)
+        self.mark_dirty(False)
 
     def init_tree(self, root, prefixes=None, uris=None, name=''):
-        "stelt een en ander in en geeft titel voor in de visuele tree terug"
-        self.rt = root
-        self.ns_prefixes = prefixes or []
-        self.ns_uris = uris or []
+        "set up display tree"
+        def add_to_tree(el, rt):
+            "recursively add elements"
+            rr = self.add_item(rt, el.tag, el.text)
+            ## log(calculate_location(self, rr))
+            for attr in el.keys():
+                h = el.get(attr)
+                if not h:
+                    h = '""'
+                self.add_item(rr, attr, h, attr=True)
+            for subel in list(el):
+                add_to_tree(subel, rr)
         if name:
             titel = name
         elif self.xmlfn:
             titel = self.xmlfn
         else:
             titel = '[unsaved file]'
-        return titel
+        self.top = self.gui.setup_new_tree(titel)
+        self.rt = root
+        self.ns_prefixes = prefixes or []
+        self.ns_uris = uris or []
+        self.gui.set_windowtitle(" - ".join((os.path.basename(titel), TITEL)))
+        if root is None:  # explicit test needed, empty root element is falsey
+            return
+        # eventuele namespaces toevoegen
+        namespaces = False
+        for ix, prf in enumerate(self.ns_prefixes):
+            if not namespaces:
+                ns_root = self.gui.add_node_to_parent(self.top)
+                self.gui.set_node_title(ns_root, 'namespaces')
+                # ns_root = qtw.QTreeWidgetItem(['namespaces'])
+                namespaces = True
+            ns_item = self.gui.add_node_to_parent(ns_root)
+            self.gui.set_node_title('{}: {}'.format(prf, self.ns_uris[ix]))
+        rt = self.add_item(self.top, self.rt.tag, self.rt.text)
+        for attr in self.rt.keys():
+            h = self.rt.get(attr)
+            if not h:
+                h = '""'
+            self.add_item(rt, attr, h, attr=True)
+        for el in list(self.rt):
+            add_to_tree(el, rt)
+        # self.tree.selection = self.top
+        # set_selection()
+        self.replaced = {}  # dict of nodes that have been replaced while editing
+        self.gui.expand_item(self.top)
+        self.mark_dirty(False)
+
+    def add_item(self, to_item, name, value, before=False, below=True, attr=False):
+        """execute adding of item"""
+        log('in add_item for {} value {} to {} before is {} below is {}'.format(
+            name, value, to_item, before, below))
+        if value is None:
+            value = ""
+        h = ((str(name), str(value)), self.ns_prefixes, self.ns_uris)
+        itemtext = getshortname(h, attr)
+        if below:
+            add_under = to_item
+            insert = -1
+            if not itemtext.startswith(ELSTART):
+                itemlist = self.gui.get_node_children(to_item)
+                for seq, subitem in enumerate(itemlist):
+                    if self.gui.get_node_title(subitem).startswith(ELSTART):
+                        break
+                if itemlist and seq < len(itemlist):
+                    insert = seq
+        else:
+            add_under, insert = self.gui.get_node_parentpos(to_item)
+            if not before:
+                insert += 1
+        item = self.gui.add_node_to_parent(add_under, insert)
+        self.gui.set_node_title(item, itemtext)
+        self.gui.set_node_data(item, name, value)
+        return item
 
     def get_menu_data(self):
+        """return menu structure for GUI (title, callback, keyboard shortcut(s))
+        """
         return ((("&New", self.newxml, 'Ctrl+N'),
                  ("&Open", self.openxml, 'Ctrl+O'),
                  ('&Save', self.savexml, 'Ctrl+S'),
                  ('Save &As', self.savexmlas, 'Shift+Ctrl+S'),
-                 ('E&xit', self.quit, 'Ctrl+Q'), ),
+                 ('E&xit', self.gui.quit, 'Ctrl+Q'), ),
                 (("&Expand All (sub)Levels", self.expand, 'Ctrl++'),
                  ("&Collapse All (sub)Levels", self.collapse, 'Ctrl+-'), ),
                 (("Nothing to &Undo", self.undo, 'Ctrl+Z'),
@@ -287,6 +345,42 @@ class Editor():
                  ("Find &Previous", self.search_prev, 'Shift+F3'),
                  ("&Replace", self.replace, 'Ctrl+H'), ))
 
+    def flatten_tree(self, element):
+        """return the tree's structure as a flat list
+        probably nicer as a generator function
+        """
+        attr_list = []
+        title, data = self.gui.get_node_data(element)
+        elem_list = [(element, title, data, attr_list)]
+
+        subel_list = []
+        for subel in self.gui.get_node_children(element):
+            if self.gui.get_node_title(subel).startswith(ELSTART):
+                subel_list = self.flatten_tree(subel)
+                elem_list.extend(subel_list)
+            else:
+                # attr_list.append((subel, *self.gui.get_node_data(subel)))
+                x, y = self.gui.get_node_data(subel)
+                attr_list.append((subel, x, y))
+        return elem_list
+
+    def find_first(self, reverse=False):
+        "start search after asking for options"
+        if self.gui.get_search_args():
+            loc = -1 if reverse else 0
+            self._search_pos = self.gui.get_node_children(self.gui.get_treetop())[loc], None
+            self.find_next(reverse)
+
+    def find_next(self, reverse=False):
+        "find (default is forward)"
+        found, is_attr = find_in_flattened_tree(self.flatten_tree(self.top), self.search_args,
+                                                reverse, self._search_pos)
+        if found:
+            self.gui.set_selected_item(found)
+            self._search_pos = (found, is_attr)
+        else:
+            self.gui.meldinfo('Niks (meer) gevonden')
+
     # user actions from application menu
     def newxml(self, event=None):
         """nieuwe xml boom initialiseren
@@ -298,7 +392,7 @@ class Editor():
             if not h:
                 h = "root"
             self.xmlfn = ""
-            self.gui.init_tree(et.Element(h))
+            self.init_tree(et.Element(h))
 
     def openxml(self, event=None, skip_check=False):
         "load XML file (after checking if current needs to be saved)"
@@ -311,7 +405,7 @@ class Editor():
                     self.gui.meldfout(str(e))
                     return False
                 self.xmlfn = fname
-                self.gui.init_tree(tree.getroot(), prefixes, uris)
+                self.init_tree(tree.getroot(), prefixes, uris)
 
     def savexml(self, event=None):
         "(re)save XML; ask for filename if unknown"
@@ -332,12 +426,12 @@ class Editor():
     def expand(self, event=None):
         """show all children of the current node
         """
-        self.gui.expand_current()
+        self.gui.expand_item()
 
     def collapse(self, event=None):
         """hide all children of the current node
         """
-        self.gui.collapse_current()
+        self.gui.collapse_item()
 
     def undo(self, event=None):
         "maak laatste actie ongedaan"
@@ -402,19 +496,19 @@ class Editor():
 
     def search(self):
         "start forward search"
-        self.gui.find_first()
+        self.find_first()
 
     def search_last(self):
         "start backwards search"
-        self.gui.find_first(reverse=True)
+        self.find_first(reverse=True)
 
     def search_next(self):
         "find forward"
-        self.gui.find_next()
+        self.find_next()
 
     def search_prev(self):
         "find backwards"
-        self.gui.find_next(reverse=True)
+        self.find_next(reverse=True)
 
     def replace(self):
         "replace an element?"
