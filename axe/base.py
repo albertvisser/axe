@@ -11,38 +11,8 @@ import shutil
 import xml.etree.ElementTree as et
 # import logging
 
-from .shared import ELSTART, TITEL, getshortname, log
+from .shared import ELSTART, TITEL, log
 from .gui import Gui
-
-# def getshortname(x, attr=False):
-#     """build and return a name for this node
-#     """
-#     x, ns_prefixes, ns_uris = x
-#     t = ''
-#     if attr:
-#         t = x[1]
-#         if t[-1] == "\n":
-#             t = t[:-1]
-#     elif x[1]:
-#         t = x[1].split("\n", 1)[0]
-#     w = 60
-#     if len(t) > w:
-#         t = t[:w].lstrip() + '...'
-#     fullname = x[0]
-#     if fullname.startswith('{'):
-#         uri, localname = fullname[1:].split('}')
-#         for i, x in enumerate(ns_uris):
-#             if x == uri:
-#                 prefix = ns_prefixes[i]
-#                 break
-#         fullname = ':'.join((prefix, localname))
-#     strt = ' '.join((ELSTART, fullname))
-#     if attr:
-#         return " = ".join((fullname, t))
-#     elif t:
-#         return ": ".join((strt, t))
-#     else:
-#         return strt
 
 
 def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
@@ -80,26 +50,35 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
     ele_ok = attr_name_ok = attr_value_ok = attr_ok = text_ok = False
     itemfound = False
     for item, element_name, element_text, attr_list in data:
+        # FIXME: momenteel wordt verkeerd gepositioneerd als er gezocht wordt op een element met
+        # een bepaald attribuut of een bepaalde tekst: dan gaat-ie niet naar het element maar
+        # naar het onderliggende gegeven
+        print(element_name, element_text, attr_list)
         if not wanted_ele or wanted_ele in element_name:
             ele_ok = True
+            print('ele wanted:', wanted_ele, 'found:', ele_ok)
         if not wanted_text or wanted_text in element_text:
             text_ok = True
+            print('text wanted:', wanted_ele, 'found:', ele_ok)
 
         attr_item = None
-        if wanted_attr or wanted_value:
+        if attr_list and (wanted_attr or wanted_value):
             if reverse:
                 attr_list.reverse()
             for attr, name, value in attr_list:
                 if not wanted_attr or wanted_attr in name:
                     attr_name_ok = True
+                    print('attr name wanted:', wanted_attr, 'found:', attr_name_ok)
                 if not wanted_value or wanted_value in value:
                     attr_value_ok = True
+                    print('attr value wanted:', wanted_value, 'found:', attr_value_ok)
                 if attr_name_ok and attr_value_ok:
                     attr_ok = True
                     if not (wanted_ele or wanted_text):
                         attr_item = attr
                     break
         else:
+            ele_ok = text_ok = False
             attr_ok = True
 
         ok = ele_ok and text_ok and attr_ok
@@ -169,6 +148,7 @@ class Editor():
         self.gui = Gui(self, fname)
         self.cut_att = None
         self.cut_el = None
+        self.search_args = []
         self.gui.init_gui()
         self.init_tree(et.Element('New'))
         if self.xmlfn:
@@ -289,14 +269,40 @@ class Editor():
         self.gui.expand_item(self.top)
         self.mark_dirty(False)
 
+    def getshortname(self, data, attr=False):
+        """build and return a name for this node
+        """
+        fullname, value = data
+        text = ''
+        if attr:
+            text = value.rstrip('\n')
+        elif value:
+            text = value.split("\n", 1)[0]
+        max = 60
+        if len(text) > max:
+            text = text[:max].lstrip() + '...'
+        if fullname.startswith('{'):
+            uri, localname = fullname[1:].split('}')
+            for i, ns_uri in enumerate(self.ns_uris):
+                if ns_uri == uri:
+                    prefix = self.ns_prefixes[i]
+                    break
+            fullname = ':'.join((prefix, localname))
+        strt = ' '.join((ELSTART, fullname))
+        if attr:
+            return " = ".join((fullname, text))
+        elif text:
+            return ": ".join((strt, text))
+        else:
+            return strt
+
     def add_item(self, to_item, name, value, before=False, below=True, attr=False):
         """execute adding of item"""
         log('in add_item for {} value {} to {} before is {} below is {}'.format(
             name, value, to_item, before, below))
         if value is None:
             value = ""
-        h = ((str(name), str(value)), self.ns_prefixes, self.ns_uris)
-        itemtext = getshortname(h, attr)
+        itemtext = self.getshortname((name, value), attr)
         if below:
             add_under = to_item
             insert = -1
@@ -368,6 +374,7 @@ class Editor():
         "start search after asking for options"
         if self.gui.get_search_args():
             loc = -1 if reverse else 0
+            print('getting tree top:', self.gui.get_treetop())
             self._search_pos = self.gui.get_node_children(self.gui.get_treetop())[loc], None
             self.find_next(reverse)
 
@@ -380,6 +387,18 @@ class Editor():
             self._search_pos = (found, is_attr)
         else:
             self.gui.meldinfo('Niks (meer) gevonden')
+
+    @staticmethod
+    def get_copytext(cut, retain):
+        "get text with this action"
+        if cut:
+            if retain:
+                txt = 'cut'
+            else:
+                txt = 'delete'
+        else:
+            txt = 'copy'
+        return txt
 
     # user actions from application menu
     def newxml(self, event=None):
@@ -444,38 +463,31 @@ class Editor():
     def edit(self, event=None):
         """start dialog to edit the current element
         """
-        self.gui.edit_current()
+        self.gui.edit_item()
 
     def cut(self, event=None):
         "cut is copy with remove and retain"
-        self.copy(cut=True)
+        self.gui.copy(cut=True)
 
     def delete(self, event=None):
         "delete is copy with remove and without retain"
-        self.copy(cut=True, retain=False)
+        self.gui.copy(cut=True, retain=False)
 
-    def copy(self, cut=False, retain=True):
-        "placeholder for standard copy"
-        if cut:
-            if retain:
-                txt = 'cut'
-            else:
-                txt = 'delete'
-        else:
-            txt = 'copy'
-        return txt
+    def copy(self, event=None):
+        "standard copy"
+        self.gui.copy()
 
     def paste_after(self, event=None):
         "paste after instead of before"
-        self.paste(before=False)
+        self.gui.paste(before=False)
 
     def paste_under(self, event=None):
         "paste under instead of after"
-        self.paste(pastebelow=True)
+        self.gui.paste(pastebelow=True)
 
-    def paste(self, before=True, pastebelow=False):
-        "placeholder for paste after"
-        pass
+    def paste(self, event=None):
+        "paste after"
+        self.gui.paste()
 
     def add_attr(self, event=None):
         """start dialog to add a new attribute to the element
@@ -484,33 +496,33 @@ class Editor():
 
     def insert_after(self, event=None):
         "insert after instead of before"
-        self.insert(before=False)
+        self.gui.insert(before=False)
 
     def insert_child(self, event=None):
         "insert under instead of before"
-        self.insert(below=True)
+        self.gui.insert(below=True)
 
-    def insert(self, before=True, below=False):
+    def insert(self, event=None):
         "placeholder for insert before"
-        pass
+        self.gui.insert()
 
-    def search(self):
+    def search(self, event=None):
         "start forward search"
         self.find_first()
 
-    def search_last(self):
+    def search_last(self, event=None):
         "start backwards search"
         self.find_first(reverse=True)
 
-    def search_next(self):
+    def search_next(self, event=None):
         "find forward"
         self.find_next()
 
-    def search_prev(self):
+    def search_prev(self, event=None):
         "find backwards"
         self.find_next(reverse=True)
 
-    def replace(self):
+    def replace(self, event=None):
         "replace an element?"
         self.gui.meldinfo('Replace: not sure if I wanna implement this')
 

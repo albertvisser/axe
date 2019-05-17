@@ -33,34 +33,3 @@ def log(message):
     """if enabled, write a line to the log"""
     if LOGPLEASE:
         logging.info(message)
-
-
-def getshortname(x, attr=False):
-    """build and return a name for this node
-    """
-    x, ns_prefixes, ns_uris = x
-    t = ''
-    if attr:
-        t = x[1]
-        if t[-1] == "\n":
-            t = t[:-1]
-    elif x[1]:
-        t = x[1].split("\n", 1)[0]
-    w = 60
-    if len(t) > w:
-        t = t[:w].lstrip() + '...'
-    fullname = x[0]
-    if fullname.startswith('{'):
-        uri, localname = fullname[1:].split('}')
-        for i, x in enumerate(ns_uris):
-            if x == uri:
-                prefix = ns_prefixes[i]
-                break
-        fullname = ':'.join((prefix, localname))
-    strt = ' '.join((ELSTART, fullname))
-    if attr:
-        return " = ".join((fullname, t))
-    elif t:
-        return ": ".join((strt, t))
-    else:
-        return strt

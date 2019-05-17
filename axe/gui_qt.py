@@ -6,7 +6,7 @@ import sys
 import PyQt5.QtWidgets as qtw
 import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
-from .shared import ELSTART, axe_iconame, getshortname, log
+from .shared import ELSTART, axe_iconame, log
 if os.name == "nt":
     HMASK = "XML files (*.xml);;All files (*.*)"
 elif os.name == "posix":
@@ -254,80 +254,87 @@ class SearchDialog(qtw.QDialog):
         super().__init__(parent)
         self.setWindowTitle(title)
         self._parent = parent
-
-        self.cb_element = qtw.QLabel('Element', self)
-        lbl_element = qtw.QLabel("name:", self)
-        self.txt_element = qtw.QLineEdit(self)
-        self.txt_element.textChanged.connect(self.set_search)
-
-        self.cb_attr = qtw.QLabel('Attribute', self)
-        lbl_attr_name = qtw.QLabel("name:", self)
-        self.txt_attr_name = qtw.QLineEdit(self)
-        self.txt_attr_name.textChanged.connect(self.set_search)
-        lbl_attr_val = qtw.QLabel("value:", self)
-        self.txt_attr_val = qtw.QLineEdit(self)
-        self.txt_attr_val.textChanged.connect(self.set_search)
-
-        self.cb_text = qtw.QLabel('Text', self)
-        lbl_text = qtw.QLabel("value:", self)
-        self.txt_text = qtw.QLineEdit(self)
-        self.txt_text.textChanged.connect(self.set_search)
-
-        self.lbl_search = qtw.QLabel('', self)
-
-        self.btn_ok = qtw.QPushButton('&Ok', self)
-        self.btn_ok.clicked.connect(self.accept)
-        self.btn_ok.setDefault(True)
-        self.btn_cancel = qtw.QPushButton('&Cancel', self)
-        self.btn_cancel.clicked.connect(self.reject)
+        if self._parent.editor.search_args:
+            ele_name, attr_name, attr_val, text_val = self._parent.editor.search_args
+        else:
+            ele_name = attr_name = attr_val = text_val = ''
 
         sizer = qtw.QVBoxLayout()
-
         gsizer = qtw.QGridLayout()
 
+        self.cb_element = qtw.QLabel('Element', self)
         gsizer.addWidget(self.cb_element, 0, 0)
         vsizer = qtw.QVBoxLayout()
         hsizer = qtw.QHBoxLayout()
+        lbl_element = qtw.QLabel("name:", self)
         hsizer.addWidget(lbl_element)
+        self.txt_element = qtw.QLineEdit(self)
         hsizer.addWidget(self.txt_element)
         vsizer.addLayout(hsizer)
         gsizer.addLayout(vsizer, 0, 1)
 
         vsizer = qtw.QVBoxLayout()
-        vsizer.addSpacing(5)
+        self.cb_attr = qtw.QLabel('Attribute', self)
         vsizer.addWidget(self.cb_attr)
-        vsizer.addStretch()
         gsizer.addLayout(vsizer, 1, 0)
         vsizer = qtw.QVBoxLayout()
         hsizer = qtw.QHBoxLayout()
+        lbl_attr_name = qtw.QLabel("name:", self)
         hsizer.addWidget(lbl_attr_name)
+        self.txt_attr_name = qtw.QLineEdit(self)
         hsizer.addWidget(self.txt_attr_name)
         vsizer.addLayout(hsizer)
+        gsizer.addLayout(vsizer, 1, 1)
+        vsizer = qtw.QVBoxLayout()
         hsizer = qtw.QHBoxLayout()
+        lbl_attr_val = qtw.QLabel("value:", self)
         hsizer.addWidget(lbl_attr_val)
+        self.txt_attr_val = qtw.QLineEdit(self)
         hsizer.addWidget(self.txt_attr_val)
         vsizer.addLayout(hsizer)
-        gsizer.addLayout(vsizer, 1, 1)
+        gsizer.addLayout(vsizer, 2, 1)
 
-        gsizer.addWidget(self.cb_text, 2, 0)
+        self.cb_text = qtw.QLabel('Text', self)
+        gsizer.addWidget(self.cb_text, 3, 0)
         hsizer = qtw.QHBoxLayout()
+        lbl_text = qtw.QLabel("value:", self)
         hsizer.addWidget(lbl_text)
+        self.txt_text = qtw.QLineEdit(self)
         hsizer.addWidget(self.txt_text)
-        gsizer.addLayout(hsizer, 2, 1)
+        gsizer.addLayout(hsizer, 3, 1)
         sizer.addLayout(gsizer)
 
         hsizer = qtw.QHBoxLayout()
+        self.lbl_search = qtw.QLabel('', self)
         hsizer.addWidget(self.lbl_search)
         sizer.addLayout(hsizer)
 
         hsizer = qtw.QHBoxLayout()
         hsizer.addStretch()
+        self.btn_ok = qtw.QPushButton('&Ok', self)
+        self.btn_ok.clicked.connect(self.accept)
+        self.btn_ok.setDefault(True)
         hsizer.addWidget(self.btn_ok)
+        self.btn_cancel = qtw.QPushButton('&Cancel', self)
+        self.btn_cancel.clicked.connect(self.reject)
         hsizer.addWidget(self.btn_cancel)
+        self.btn_clear = qtw.QPushButton('C&lear Values', self)
+        self.btn_clear.clicked.connect(self.clear_values)
+        hsizer.addWidget(self.btn_clear)
         hsizer.addStretch()
         sizer.addLayout(hsizer)
 
         self.setLayout(sizer)
+
+        self.txt_element.textChanged.connect(self.set_search)
+        self.txt_element.setText(ele_name)
+        self.txt_attr_name.textChanged.connect(self.set_search)
+        self.txt_attr_name.setText(attr_name)
+        self.txt_attr_val.textChanged.connect(self.set_search)
+        self.txt_attr_val.setText(attr_val)
+        self.txt_text.textChanged.connect(self.set_search)
+        self.txt_text.setText(text_val)
+
 
     def set_search(self):
         """build text describing search action"""
@@ -338,30 +345,37 @@ class SearchDialog(qtw.QDialog):
         text = self.txt_text.text()
         attr = ''
         if ele:
-            ele = ' an element named `{}`'.format(ele)
+            ele = ' an element that has a name containing `{}`\n'.format(ele)
         if attr_name or attr_val:
             attr = ' an attribute'
             if attr_name:
-                attr += ' named `{}`'.format(attr_name)
+                attr += ' that has a name containing `{}`\n'.format(attr_name)
             if attr_val:
-                attr += ' that has value `{}`'.format(attr_val)
+                attr += ' that has a value containing `{}`\n'.format(attr_val)
             if ele:
                 attr = ' with' + attr
         if text:
             out = 'search for text'
             if ele:
-                out += ' under' + ele
+                out += ' under\n' + ele
             elif attr:
-                out += ' under an element with'
+                out += ' under an element with\n'
             if attr:
                 out += attr
         elif ele:
-            out = 'search for' + ele
+            out = 'search for\n' + ele
             if attr:
                 out += attr
         elif attr:
-            out = 'search for' + attr
+            out = 'search for\n' + attr
         self.lbl_search.setText(out)
+
+    def clear_values(self):
+        "set empty search values"
+        self.txt_element.clear()
+        self.txt_attr_name.clear()
+        self.txt_attr_val.clear()
+        self.txt_text.clear()
 
     def accept(self):
         """confirm dialog and pass changed data to parent"""
@@ -374,7 +388,7 @@ class SearchDialog(qtw.QDialog):
             self.txt_element.setFocus()
             return
 
-        self._parent.search_args = (ele, attr_name, attr_val, text)
+        self._parent.editor.search_args = (ele, attr_name, attr_val, text)
         super().accept()
 
     ## def on_cancel(self):
@@ -502,7 +516,7 @@ class PasteElementCommand(qtw.QUndoCommand):
         else:
             description += ' After'
         log("init {} {} {}".format(description, self.tag, self.data))  # , self.item)
-        self.first_edit = not self.win.tree_dirty
+        self.first_edit = not self.win.editor.tree_dirty
         super().__init__(description)
 
     def redo(self):
@@ -559,7 +573,7 @@ class PasteAttributeCommand(qtw.QUndoCommand):
         self.name = name        # attribute name
         self.value = value      # attribute value
         log("init {} {} {} {}".format(description, self.name, self.value, self.item))
-        self.first_edit = not self.win.tree_dirty
+        self.first_edit = not self.win.editor.tree_dirty
         super().__init__(description)
 
     def redo(self):
@@ -589,7 +603,7 @@ class EditCommand(qtw.QUndoCommand):
         self.item = self.win.item
         self.old_state = old_state
         self.new_state = new_state
-        self.first_edit = not self.win.tree_dirty
+        self.first_edit = not self.win.editor.tree_dirty
 
     def redo(self):
         "change node's state to new"
@@ -619,7 +633,7 @@ class CopyElementCommand(qtw.QUndoCommand):
         log("init {} {} {} {}".format(description, self.tag, self.data, self.item))
         self.cut = cut
         self.retain = retain
-        self.first_edit = not self.win.tree_dirty
+        self.first_edit = not self.win.editor.tree_dirty
 
     def redo(self):
         "(Re)Do Copy Element"
@@ -645,7 +659,7 @@ class CopyElementCommand(qtw.QUndoCommand):
                 self.prev = self.parent.child(self.loc - 1)
             else:
                 self.prev = self.parent
-                if self.prev == self.win.rt:
+                if self.prev == self.win.editor.rt:
                     self.prev = self.parent.child(self.loc + 1)
             print('   parent:', self.parent)
             print('   location:', self.loc)
@@ -697,7 +711,7 @@ class CopyAttributeCommand(qtw.QUndoCommand):
         log("init {} {} {} {}".format(description, self.name, self.value, self.item))
         self.cut = cut
         self.retain = retain
-        self.first_edit = not self.win.tree_dirty
+        self.first_edit = not self.win.editor.tree_dirty
 
     def redo(self):
         "(re)do copy attribute"
@@ -716,7 +730,7 @@ class CopyAttributeCommand(qtw.QUndoCommand):
                 prev = self.parent.child(ix - 1)
             else:
                 prev = self.parent
-                if prev == self.win.rt:
+                if prev == self.win.editor.rt:
                     prev = self.parent.child(ix + 1)
             self.parent.removeChild(self.item)
             self.item = None
@@ -798,6 +812,7 @@ class Gui(qtw.QMainWindow):
         rt = top.child(0)
         if rt.text(0) == 'namespaces':
             rt = top.child(1)
+        return rt
 
     def setup_new_tree(self, title):
         "build new visual tree and return its root element"
@@ -833,7 +848,16 @@ class Gui(qtw.QMainWindow):
         node.setText(2, value)
 
     def set_selected_item(self, item):
+        "set the currently selected item to the given item"
         self.tree.setCurrentItem(item)
+
+    def is_node_root(self, item=None):
+        "check if the given element is the visual tree's root and return the result"
+        if not item:
+            item = self.item
+        if (item.text(1), item.text(2)) == (self.editor.rt.tag, self.editor.rt.text or ""):
+            return True
+        return False
 
     # finishing off actions from main program
     def after_save(self):
@@ -842,17 +866,70 @@ class Gui(qtw.QMainWindow):
         ## self.setWindowTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
         self.editor.mark_dirty(False)
 
+    def expand_item(self, item=None):
+        "expand a tree item"
+        def expand_with_children(item):
+            "do it recursively"
+            self.tree.expandItem(item)
+            for ix in range(item.childCount()):
+                expand_with_children(item.child(ix))
+        if not item:
+            item = self.tree.currentItem()
+        if item:
+            expand_with_children(item)
+            self.tree.resizeColumnToContents(0)
+
+    def collapse_item(self, item=None):
+        "collapse tree item"
+        if not item:
+            item = self.tree.currentItem()
+        if item:
+            self.tree.collapseItem(item)    # mag eventueel recursief in overeenstemming met vorige
+            self.tree.resizeColumnToContents(0)
+
+    def edit_item(self):
+        "edit an element or attribute"
+        if not self.checkselection():
+            return
+        data = str(self.item.text(0))  # self.item.get_text()
+        if data.startswith(ELSTART):
+            tag, text = str(self.item.text(1)), str(self.item.text(2))
+            state = data, tag, text   # current values to be passed to UndoAction
+            data = {'item': self.item, 'tag': tag}
+            if text:
+                data['data'] = True
+                data['text'] = text
+            edt = ElementDialog(self, title='Edit an element', item=data).exec_()
+            if edt == qtw.QDialog.Accepted:
+                name = self.editor.getshortname((self.data["tag"], self.data["text"]))
+                new_state = name, self.data["tag"], self.data["text"]
+                log('calling editcommand for element')
+                command = EditCommand(self, state, new_state, "Edit Element")
+                self.undo_stack.push(command)
+                self.editor.mark_dirty(True)
+        else:
+            nam, val = str(self.item.text(1)), str(self.item.text(2))
+            state = data, nam, val   # current values to be passed to UndoAction
+            data = {'item': self.item, 'name': nam, 'value': val}
+            edt = AttributeDialog(self, title='Edit an attribute', item=data).exec_()
+            if edt == qtw.QDialog.Accepted:
+                name = self.editor.getshortname((self.data["name"], self.data["value"]),
+                                                    attr=True)
+                new_state = name, self.data["name"], self.data["value"]
+                log('calling editcommand for attribute')
+                command = EditCommand(self, state, new_state, "Edit Attribute")
+                self.undo_stack.push(command)
+                self.editor.mark_dirty(True)
+
     def copy(self, cut=False, retain=True):
         """execute cut/delete/copy action"""
         if not self.checkselection():
             return
-        txt = self.editor.copy(self, cut, retain)
-        text = str(self.item.text(0))
-        data = (str(self.item.text(1)), str(self.item.text(2)))
-        if data == (self.rt.tag, self.rt.text or ""):
+        txt = self.editor.get_copytext(cut, retain)
+        if self.item.parent() == self.top:  # self.is_node_root():
             self.meldfout("Can't %s the root" % txt)
             return
-        if text.startswith(ELSTART):
+        if self.item.text(0).startswith(ELSTART):
             command = CopyElementCommand(self, self.item, cut, retain,
                                          "{} Element".format(txt))
         else:
@@ -890,6 +967,20 @@ class Gui(qtw.QMainWindow):
                                           data=self.cut_el)
             self.undo_stack.push(command)
         self.editor.mark_dirty(True)
+
+    def add_attribute(self):
+        "ask for attibute, then start add action"
+        if not self.checkselection():
+            return
+        if not str(self.item.text(0)).startswith(ELSTART):
+            self.meldfout("Can't add attribute to attribute")
+            return
+        edt = AttributeDialog(self, title="New attribute").exec_()
+        if edt == qtw.QDialog.Accepted:
+            command = PasteAttributeCommand(self, self.data["name"], self.data["value"],
+                                            self.item, "Insert Attribute")
+            self.undo_stack.push(command)
+            self.editor.mark_dirty(True)
 
     def insert(self, before=True, below=False):
         """execute insert action"""
@@ -1049,7 +1140,7 @@ class Gui(qtw.QMainWindow):
                            qtw.QMessageBox.Cancel), (1, 0, -1)))
         self.in_dialog = True
         h = qtw.QMessageBox.question(
-            self, self.title, prompt,
+            self, self.editor.title, prompt,
             qtw.QMessageBox.Yes | qtw.QMessageBox.No | qtw.QMessageBox.Cancel,
             defaultButton=qtw.QMessageBox.Yes)
         return retval[h]
@@ -1108,7 +1199,6 @@ class Gui(qtw.QMainWindow):
         if newstate:
             self.meldinfo(self.undoredowarning)
 
-    # exposed
     def popupmenu(self, item):
         """call up menu"""
         log('self.popupmenu called')
@@ -1149,84 +1239,15 @@ class Gui(qtw.QMainWindow):
                 skip = True
         return skip
 
-    def expand_item(self, item=None):
-        "expand a tree item"
-        def expand_with_children(item):
-            "do it recursively"
-            self.tree.expandItem(item)
-            for ix in range(item.childCount()):
-                expand_with_children(item.child(ix))
-        if not item:
-            item = self.tree.currentItem()
-        if item:
-            expand_with_children(item)
-            self.tree.resizeColumnToContents(0)
-
-    def collapse_item(self, item=None):
-        "collapse tree item"
-        if not item:
-            item = self.tree.currentItem()
-        if item:
-            self.tree.collapseItem(item)    # mag eventueel recursief in overeenstemming met vorige
-            self.tree.resizeColumnToContents(0)
-
-    def edit_current(self):
-        "edit an element or attribute"
-        if not self.checkselection():
-            return
-        data = str(self.item.text(0))  # self.item.get_text()
-        if data.startswith(ELSTART):
-            tag, text = str(self.item.text(1)), str(self.item.text(2))
-            state = data, tag, text   # current values to be passed to UndoAction
-            data = {'item': self.item, 'tag': tag}
-            if text:
-                data['data'] = True
-                data['text'] = text
-            edt = ElementDialog(self, title='Edit an element', item=data).exec_()
-            if edt == qtw.QDialog.Accepted:
-                h = ((self.data["tag"], self.data["text"]), self.ns_prefixes,
-                     self.ns_uris)
-                new_state = getshortname(h), self.data["tag"], self.data["text"]
-                log('calling editcommand for element')
-                command = EditCommand(self, state, new_state, "Edit Element")
-                self.undo_stack.push(command)
-                self.editor.mark_dirty(True)
-        else:
-            nam, val = str(self.item.text(1)), str(self.item.text(2))
-            state = data, nam, val   # current values to be passed to UndoAction
-            data = {'item': self.item, 'name': nam, 'value': val}
-            edt = AttributeDialog(self, title='Edit an attribute', item=data).exec_()
-            if edt == qtw.QDialog.Accepted:
-                h = ((self.data["name"], self.data["value"]), self.ns_prefixes,
-                     self.ns_uris)
-                new_state = getshortname(h, attr=True), self.data["name"], self.data["value"]
-                log('calling editcommand for attribute')
-                command = EditCommand(self, state, new_state, "Edit Attribute")
-                self.undo_stack.push(command)
-                self.editor.mark_dirty(True)
-
-    def add_attribute(self):
-        "ask for attibute, then start add action"
-        if not self.checkselection():
-            return
-        if not str(self.item.text(0)).startswith(ELSTART):
-            self.meldfout("Can't add attribute to attribute")
-            return
-        edt = AttributeDialog(self, title="New attribute").exec_()
-        if edt == qtw.QDialog.Accepted:
-            command = PasteAttributeCommand(self, self.data["name"], self.data["value"],
-                                            self.item, "Insert Attribute")
-            self.undo_stack.push(command)
-            self.editor.mark_dirty(True)
-
     def get_search_args(self):
         """send dialog to get search argument(s)
         """
-        self.search_args = []
-        with SearchDialog(self, title='Search options') as edt:
-            ok = edt.exec_()
-            if ok == qtw.QDialog.Accepted:
-                return self.search_args
+        # self.search_args = []
+        edt = SearchDialog(self, title='Search options').exec_()
+        if edt == qtw.QDialog.Accepted:
+            # self.editor.search_args = self.search_args
+            return True
+        return False
 
     def do_undo(self):
         "undo action"
