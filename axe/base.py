@@ -180,8 +180,6 @@ class Editor():
 
     def check_tree(self):
         """vraag of er iets moet gebeuren wanneer de data gewijzigd is
-
-        de underscore methode moet in de gui module zijn gedefinieerd
         """
         ok = True
         if self.tree_dirty:

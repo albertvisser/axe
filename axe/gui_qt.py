@@ -335,7 +335,6 @@ class SearchDialog(qtw.QDialog):
         self.txt_text.textChanged.connect(self.set_search)
         self.txt_text.setText(text_val)
 
-
     def set_search(self):
         """build text describing search action"""
         out = ''
