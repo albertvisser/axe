@@ -18,21 +18,18 @@ class ElementDialog(wx.Dialog):
     def __init__(self, parent, title='',  # size=(400, 270), pos=wx.DefaultPosition,
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
             item=None):
-        # wx.Dialog.__init__(self, parent, -1, title=title, pos=pos, size=size, style=style)
         wx.Dialog.__init__(self, parent, title=title, style=style)
         self._parent = parent
         lbl_name = wx.StaticText(self, label="element name:  ")
         self.txt_tag = wx.TextCtrl(self, size=(200, -1))
-        # self.txt_tag.Bind(wx.EVT_KEY_UP, self.on_keyup)
 
-        self.cb_ns = wx.CheckBox(self, label='Namespace:')
-        self.cmb_ns = wx.ComboBox(self)
+        self.cb_ns = wx.CheckBox(self, label='Namespace:  ')
+        self.cmb_ns = wx.ComboBox(self, size=(120, -1))
         self.cmb_ns.Append('-- none --')
         self.cmb_ns.AppendItems(self._parent.editor.ns_uris)
 
         self.cb = wx.CheckBox(self, label='Bevat data:')
         self.txt_data = wx.TextCtrl(self, size=(300, 140), style=wx.TE_MULTILINE)
-        # self.txt_data.Bind(wx.EVT_KEY_UP, self.on_keyup)
         self.btn_ok = wx.Button(self, id=wx.ID_SAVE)
         self.btn_ok.Bind(wx.EVT_BUTTON, self.on_ok)
         self.btn_cancel = wx.Button(self, id=wx.ID_CANCEL)
@@ -63,6 +60,11 @@ class ElementDialog(wx.Dialog):
         ## hsizer.Add(hsizer2, 0, wx.EXPAND | wx.ALL, 5)
         ## sizer.Add(hsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP,  5)
         sizer.Add(hsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 5)
+
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        hsizer.Add(self.cb_ns, 0, wx.ALIGN_CENTER_VERTICAL)  # | wx.LEFT | wx.RIGHT, 5)
+        hsizer.Add(self.cmb_ns, 1)  #, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        sizer.Add(hsizer, 0, wx.EXPAND | wx.ALL, 5)
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         vsizer = wx.BoxSizer(wx.VERTICAL)
@@ -101,6 +103,7 @@ class ElementDialog(wx.Dialog):
         """final checks, send changed data to parent"""
         self._parent.data = {}
         tag = self.txt_tag.GetValue()
+        fout = ''
         if tag == '':
             fout = 'Element name must not be empty'
         elif len(tag.split()) > 1:
@@ -122,42 +125,29 @@ class ElementDialog(wx.Dialog):
         self._parent.data["data"] = self.cb.IsChecked()
         self._parent.data["text"] = self.txt_data.GetValue()
         ev.Skip()
-        ## self.end('ok')
-
-#     def on_keyup(self, ev):
-#         """event handler to make "select all" possible"""
-#         ky = ev.GetKeyCode()
-#         mod = ev.GetModifiers()
-#         if ky == 65 and mod == wx.MOD_CONTROL:
-#             win = ev.GetEventObject()
-#             if win in (self.txt_tag, self.txt_data):
-#                 win.SelectAll()
 
 
 class AttributeDialog(wx.Dialog):
-    """Dialog for editing an attribute"""
+    """Dialog for editing an attribute
+    """
     def __init__(self, parent, title='',  # size=(320, 160), pos=wx.DefaultPosition,
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
             item=None):
-        # wx.Dialog.__init__(self, parent, -1, title=title, pos=pos, size=size, style=style)
         wx.Dialog.__init__(self, parent, title=title, style=style)
         self._parent = parent
         lbl_name = wx.StaticText(self, label="Attribute name:")
         self.txt_name = wx.TextCtrl(self, size=(180, -1))
-        self.txt_name.Bind(wx.EVT_KEY_UP, self.on_keyup)
         lbl_value = wx.StaticText(self, label="Attribute value:")
         self.txt_value = wx.TextCtrl(self, size=(180, -1))
-        self.txt_value.Bind(wx.EVT_KEY_UP, self.on_keyup)
-        self.btn_ok = wx.Button(self.pnl, id=wx.ID_SAVE)
-        self.btn_ok.Bind(wx.EVT_BUTTON, self.on_ok)
-        self.btn_cancel = wx.Button(self.pnl, id=wx.ID_CANCEL)
-        ## self.btn_cancel.Bind(wx.EVT_BUTTON, self.on_cancel)
-        self.SetAffirmativeId(wx.ID_SAVE)
-
-        self.cb_ns = wx.CheckBox(self, label='Namespace:')
-        self.cmb_ns = wx.ComboBox(self)
+        self.cb_ns = wx.CheckBox(self, label='Namespace:  ')
+        self.cmb_ns = wx.ComboBox(self, size=(120, -1))
         self.cmb_ns.Append('-- none --')
         self.cmb_ns.AppendItems(self._parent.editor.ns_uris)
+
+        self.btn_ok = wx.Button(self, id=wx.ID_SAVE)
+        self.btn_ok.Bind(wx.EVT_BUTTON, self.on_ok)
+        self.btn_cancel = wx.Button(self, id=wx.ID_CANCEL)
+        self.SetAffirmativeId(wx.ID_SAVE)
 
         ns_nam = nam = ns_uri = txt = ''
         if item:
@@ -181,6 +171,10 @@ class AttributeDialog(wx.Dialog):
         hsizer.Add(self.txt_name, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         sizer.Add(hsizer, 0, wx.EXPAND | wx.ALL, 5)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        hsizer.Add(self.cb_ns, 0, wx.ALIGN_CENTER_VERTICAL)  # | wx.LEFT | wx.RIGHT, 5)
+        hsizer.Add(self.cmb_ns, 1)  #, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        sizer.Add(hsizer, 0, wx.EXPAND | wx.ALL, 5)
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(lbl_value, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 5)
         hsizer.Add(self.txt_value, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         sizer.Add(hsizer, 0, wx.EXPAND | wx.ALL, 5)
@@ -189,18 +183,16 @@ class AttributeDialog(wx.Dialog):
         hsizer.Add(self.btn_cancel, 0, wx.EXPAND | wx.ALL, 2)
         sizer.Add(hsizer, 0, wx.ALL | wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 2)
 
-        vbox = wx.BoxSizer(wx.VERTICAL)
-        hbox = wx.BoxSizer(wx.HORIZONTAL)
-        hbox.Add(self, 0, wx.EXPAND | wx.ALL)
-        vbox.Add(hbox, 0, wx.EXPAND | wx.ALL)
-        self.SetSizer(vbox)
+        self.SetSizer(sizer)
         self.SetAutoLayout(True)
-        vbox.Fit(self)
-        vbox.SetSizeHints(self)
+        sizer.Fit(self)
+        sizer.SetSizeHints(self)
+        self.Layout()
         self.txt_name.SetFocus()
 
     def on_ok(self, ev):
-        """final checks, transmit changes to parent"""
+        """final checks, transmit changes to parent
+        """
         self._parent.data = {}
         nam = self.txt_name.GetValue()
         fout = ''
@@ -223,21 +215,7 @@ class AttributeDialog(wx.Dialog):
             nam = '{{{}}}{}'.format(self.cmb_ns.GetString(seq), tag)
         self._parent.data["name"] = nam
         self._parent.data["value"] = self.txt_value.GetValue()
-        ## self.end('ok')
         ev.Skip()
-
-    def on_cancel(self, ev):
-        "dismiss dialog"
-        self.end('cancel')
-
-#     def on_keyup(self, ev):
-#         """event handler to make "select all" possible"""
-#         ky = ev.GetKeyCode()
-#         mod = ev.GetModifiers()
-#         if ky == 65 and mod == wx.MOD_CONTROL:
-#             win = ev.GetEventObject()
-#             if win in (self.txt_name, self.txt_value):
-#                 win.SelectAll()
 
 
 class SearchDialog(wx.Dialog):
@@ -245,7 +223,6 @@ class SearchDialog(wx.Dialog):
     """
     def __init__(self, parent, title='',  # size=(320, 160), pos=wx.DefaultPosition,
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER):
-        # wx.Dialog.__init__(self, parent, title=title, style=style)
         super().__init__(parent, title=title, style=style)
         self._parent = parent
         if self._parent.editor.search_args:
@@ -306,7 +283,6 @@ class SearchDialog(wx.Dialog):
         self.SetAffirmativeId(wx.ID_SAVE)
         hsizer.Add(self.btn_ok)
         self.btn_cancel = wx.Button(self, id=wx.ID_CANCEL)
-        ## self.btn_cancel.Bind(wx.EVT_BUTTON, self.on_cancel)
         hsizer.Add(self.btn_cancel)
         self.btn_clear = wx.Button(self, label='C&lear Values')
         self.btn_clear.Bind(wx.EVT_BUTTON, self.clear_values)
@@ -330,6 +306,7 @@ class SearchDialog(wx.Dialog):
 
     def set_search(self, evt=None):
         """build text describing search action"""
+        print('building search text:', )
         out = ''
         ele = self.txt_element.GetValue()
         attr_name = self.txt_attr_name.GetValue()
@@ -360,6 +337,7 @@ class SearchDialog(wx.Dialog):
                 out += attr
         elif attr:
             out = 'search for\n' + attr
+        print(out)
         self.lbl_search.SetLabel(out)
 
     def clear_values(self, evt=None):
@@ -371,6 +349,7 @@ class SearchDialog(wx.Dialog):
 
     def on_ok(self, evt=None):
         """confirm dialog and pass changed data to parent"""
+        print('confirming dialog')
         ele = str(self.txt_element.GetValue())
         attr_name = str(self.txt_attr_name.GetValue())
         attr_val = str(self.txt_attr_val.GetValue())
@@ -381,6 +360,7 @@ class SearchDialog(wx.Dialog):
             return
 
         self._parent.editor.search_args = (ele, attr_name, attr_val, text)
+        evt.Skip()
 
 
 class Gui(wx.Frame):
@@ -495,6 +475,7 @@ class Gui(wx.Frame):
 
     def set_selected_item(self, item):
         "set the currently selected item to the given item"
+        self.tree.SelectItem(item)
 
     def is_node_root(self, item=None):
         "check if the given element is the visual tree's root and return the result"
@@ -503,13 +484,6 @@ class Gui(wx.Frame):
         if self.tree.getItemData(item) == (self.editor.rt.tag, self.editor.rt.text or ""):
             return True
         return False
-
-    # finishing off actions from main program
-    def after_save(self):
-        """save as and notify of result"""
-        self.tree.SetItemText(self.top, self.xmlfn)
-        ## self.SetTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
-        self.ieditor.mark_dirty(False)
 
     def expand_item(self, item=None):
         "expand a tree item"
@@ -539,18 +513,18 @@ class Gui(wx.Frame):
             with ElementDialog(self, title='Edit an element', item=data) as edt:
                 if edt.ShowModal() == wx.ID_SAVE:
                     h = (self.data["tag"], self.data["text"])
-                    self.tree.SetItemText(self.item, getshortname(h))
+                    self.tree.SetItemText(self.item, self.editor.getshortname(h))
                     self.tree.SetItemData(self.item, h)
-                    self.mark_dirty(True)
+                    self.editor.mark_dirty(True)
         else:
             nam, val = self.tree.GetItemData(self.item)  # self.item.get_data()
             data = {'item': self.item, 'name': nam, 'value': val}
             with AttributeDialog(self, title='Edit an attribute', item=data) as edt:
                 if edt.ShowModal() == wx.ID_SAVE:
                     h = (self.data["name"], self.data["value"])
-                    self.tree.SetItemText(self.item, getshortname(h, attr=True))
+                    self.tree.SetItemText(self.item, self.editor.getshortname(h, attr=True))
                     self.tree.SetItemData(self.item, h)
-                    self.mark_dirty(True)
+                    self.editor.mark_dirty(True)
 
     def copy(self, cut=False, retain=True):  # retain is t.b.v. delete functie
         """execute cut/delete/copy action"""
@@ -678,9 +652,10 @@ class Gui(wx.Frame):
         with AttributeDialog(self, title="New attribute") as edt:
             test = edt.ShowModal()
             if test == wx.ID_SAVE:
-                h = (self.data["name"], self.data["value"])
-                rt = self.tree.AppendItem(self.item, getshortname((h, [], []), attr=True))
-                self.tree.SetItemData(rt, h)
+                data = (self.data["name"], self.data["value"])
+                text = self.editor.getshortname((data, [], []))
+                rt = self.tree.AppendItem(self.item, text, attr=True)
+                self.tree.SetItemData(rt, data)
                 self.editor.mark_dirty(True)
 
     def insert(self, before=True, below=False):
@@ -690,7 +665,7 @@ class Gui(wx.Frame):
         with ElementDialog(self, title="New element") as edt:
             if edt.ShowModal() == wx.ID_SAVE:
                 data = self.data['tag'], self.data['text']
-                text = getshortname((data, [], []))
+                text = self.editor.getshortname((data, [], []))
                 if below:
                     rt = self.tree.AppendItem(self.item, text)
                     self.tree.SetItemData(rt, data)
@@ -702,7 +677,7 @@ class Gui(wx.Frame):
                         item = self.item
                     node = self.tree.InsertItem(parent, item, text)
                     self.tree.SetItemData(node, data)
-                self.mark_dirty(True)
+                self.editor.mark_dirty(True)
 
     # internals
     def init_gui(self):
@@ -755,7 +730,7 @@ class Gui(wx.Frame):
 
     def init_menus(self, popup=False):
         """setup application menu"""
-        # accels = []
+        accels = []
         filemenu = wx.Menu()
         viewmenu = wx.Menu()
         if popup:
@@ -804,6 +779,13 @@ class Gui(wx.Frame):
                         searchmenu.AppendSeparator()
                     mitem = searchmenu.Append(-1, text)
                 self.Bind(wx.EVT_MENU, callback, mitem)
+                if shortcuts:  # voorlopig alleen voor edit en delete
+                    for item in shortcuts:
+                        accel = wx.AcceleratorEntry(cmd=mitem.GetId())
+                        if accel.FromString(item):
+                            accels.append(accel)
+                self.SetAcceleratorTable(wx.AcceleratorTable(accels))
+
 
         if disable_menu:
             self.pastebefore_item.SetItemLabel("Nothing to Paste")
@@ -817,11 +799,11 @@ class Gui(wx.Frame):
 
     def meldinfo(self, text):
         """notify about some information"""
-        wx.MessageBox(text, self.title, wx.OK | wx.ICON_INFORMATION)
+        wx.MessageBox(text, self.editor.title, wx.OK | wx.ICON_INFORMATION)
 
     def meldfout(self, text, abort=False):
         """notify about an error"""
-        wx.MessageBox(text, self.title, wx.OK | wx.ICON_ERROR)
+        wx.MessageBox(text, self.editor.title, wx.OK | wx.ICON_ERROR)
         if abort:
             self.quit()
 
@@ -830,12 +812,12 @@ class Gui(wx.Frame):
         1 = Yes, 0 = No, -1 = Cancel
         """
         # retval = dict(zip((wx.YES, wx.NO, wx.CANCEL), (1, 0, -1)))
-        h = wx.MessageBox(prompt, self.title, style=wx.YES_NO | wx.CANCEL)
+        h = wx.MessageBox(prompt, self.editor.title, style=wx.YES_NO | wx.CANCEL)
         return h
 
     def ask_for_text(self, prompt):
         """vraagt om tekst en retourneert het antwoord"""
-        return wx.GetTextFromUser(prompt, self.title)
+        return wx.GetTextFromUser(prompt, self.editor.title)
 
     def file_to_read(self):
         """ask for file to load"""
@@ -848,7 +830,7 @@ class Gui(wx.Frame):
 
     def file_to_save(self):  # afwijkende signature
         """ask for file to save"""
-        d, f = os.path.split(self.xmlfn)
+        d, f = os.path.split(self.editor.xmlfn)
         with wx.FileDialog(self, message="Save file as ...", defaultDir=d, defaultFile=f,
                            wildcard=HMASK, style=wx.FD_SAVE) as dlg:
             ret = dlg.ShowModal()
@@ -917,13 +899,13 @@ class Gui(wx.Frame):
             send = True
             while send:
                 ok = edt.ShowModal()
-                if ok == wx.ID_OK:
-                    if any_search_arg_given:
-                        search_args = (x, y)
-                        send = False
+                if ok == wx.ID_SAVE:
+                    if self.editor.search_args:
+                       break
                 else:
-                    search_args = None
                     send = False
+        print(send)
+        return send
 
     def do_undo(self):
         "undo action"

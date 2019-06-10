@@ -858,13 +858,6 @@ class Gui(qtw.QMainWindow):
             return True
         return False
 
-    # finishing off actions from main program
-    def after_save(self):
-        """save as and notify of result"""
-        self.top.setText(0, self.xmlfn)
-        ## self.setWindowTitle(" - ".join((os.path.basename(self.xmlfn), TITEL)))
-        self.editor.mark_dirty(False)
-
     def expand_item(self, item=None):
         "expand a tree item"
         def expand_with_children(item):
