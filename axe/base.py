@@ -19,6 +19,7 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
     """searches the flattened tree from start or the given pos
     to find the next item that fulfills the search criteria
     """
+    print('in find_in_flattened_tree:', search_args)
     wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
     if reverse:
         data.reverse()
@@ -47,25 +48,27 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
         else:
             return None, False  # no more data to search
 
-    ele_ok = attr_name_ok = attr_value_ok = attr_ok = text_ok = False
     itemfound = False
     for item, element_name, element_text, attr_list in data:
+        ele_ok = attr_name_ok = attr_value_ok = attr_ok = text_ok = False
         # FIXME: momenteel wordt verkeerd gepositioneerd als er gezocht wordt op een element met
         # een bepaald attribuut of een bepaalde tekst: dan gaat-ie niet naar het element maar
         # naar het onderliggende gegeven
         print(element_name, element_text, attr_list)
+        # ele_ok = text_ok = False
         if not wanted_ele or wanted_ele in element_name:
             ele_ok = True
             print('ele wanted:', wanted_ele, 'found:', ele_ok)
         if not wanted_text or wanted_text in element_text:
             text_ok = True
-            print('text wanted:', wanted_ele, 'found:', ele_ok)
+            print('text wanted:', wanted_text, 'found:', text_ok)
 
         attr_item = None
         if attr_list and (wanted_attr or wanted_value):
             if reverse:
                 attr_list.reverse()
             for attr, name, value in attr_list:
+                attr_name_ok = attr_value_ok = False
                 if not wanted_attr or wanted_attr in name:
                     attr_name_ok = True
                     print('attr name wanted:', wanted_attr, 'found:', attr_name_ok)
@@ -77,8 +80,7 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
                     if not (wanted_ele or wanted_text):
                         attr_item = attr
                     break
-        else:
-            ele_ok = text_ok = False
+        elif not wanted_attr and not wanted_value:
             attr_ok = True
 
         ok = ele_ok and text_ok and attr_ok
@@ -354,7 +356,14 @@ class Editor():
         probably nicer as a generator function
         """
         attr_list = []
-        title, data = self.gui.get_node_data(element)
+        print('in flatten tree: node title', self.gui.get_node_title(element))
+        print('in flatten tree: node data', self.gui.get_node_data(element))
+        try:
+            title, data = self.gui.get_node_data(element)
+        except TypeError:
+            title = data = ''
+        if not data:
+            data = ('', '')
         elem_list = [(element, title, data, attr_list)]
 
         subel_list = []
@@ -372,7 +381,8 @@ class Editor():
         "start search after asking for options"
         if self.gui.get_search_args():
             loc = -1 if reverse else 0
-            print('getting tree top:', self.gui.get_treetop())
+            print('getting tree top:', self.gui.get_treetop(),
+                  self.gui.get_node_title(self.gui.get_treetop()))
             self._search_pos = self.gui.get_node_children(self.gui.get_treetop())[loc], None
             self.find_next(reverse)
 
@@ -429,15 +439,16 @@ class Editor():
         if self.xmlfn == '':
             self.savexmlas()
         else:
-            self.savexmlfile()
+            self.writexml()
 
     def savexmlas(self, event=None):
         "ask for filename, then save"
         ok, name = self.gui.file_to_save()
         if ok:
             self.xmlfn = name
-            self.savexmlfile()  # oldfile=os.path.join(d,f))
-            self.gui.after_save()
+            self.writexml()  # oldfile=os.path.join(d,f))
+            self.gui.set_node_title(self.gui.top, self.xmlfn)
+            self.mark_dirty(False)
         return ok
 
     def expand(self, event=None):
