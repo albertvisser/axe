@@ -342,32 +342,8 @@ class SearchDialog(qtw.QDialog):
         attr_name = self.txt_attr_name.text()
         attr_val = self.txt_attr_val.text()
         text = self.txt_text.text()
-        attr = ''
-        if ele:
-            ele = ' an element that has a name containing `{}`\n'.format(ele)
-        if attr_name or attr_val:
-            attr = ' an attribute'
-            if attr_name:
-                attr += ' that has a name containing `{}`\n'.format(attr_name)
-            if attr_val:
-                attr += ' that has a value containing `{}`\n'.format(attr_val)
-            if ele:
-                attr = ' with' + attr
-        if text:
-            out = 'search for text'
-            if ele:
-                out += ' under\n' + ele
-            elif attr:
-                out += ' under an element with\n'
-            if attr:
-                out += attr
-        elif ele:
-            out = 'search for\n' + ele
-            if attr:
-                out += attr
-        elif attr:
-            out = 'search for\n' + attr
-        self.lbl_search.setText(out)
+        out = self._parent.editor.get_search_text(ele, attr_name, attr_val, text)
+        self.lbl_search.setText('\n'.join(out))
 
     def clear_values(self):
         "set empty search values"

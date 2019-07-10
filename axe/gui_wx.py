@@ -270,12 +270,12 @@ class SearchDialog(wx.Dialog):
         self.txt_text = wx.TextCtrl(self, size=(128, -1))
         hsizer.Add(self.txt_text)
         gsizer.Add(hsizer, (3, 1))
-        sizer.Add(gsizer, flag=wx.TOP | wx.LEFT, border=15)
+        sizer.Add(gsizer, flag= wx.TOP | wx.LEFT, border=15)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.lbl_search = wx.StaticText(self)
-        hsizer.Add(self.lbl_search)
-        sizer.Add(hsizer)
+        self.sbsizer = wx.BoxSizer( wx.HORIZONTAL)
+        self.lbl_search = wx.StaticText(self, label="")  #, size=(-1, 30))
+        self.sbsizer.Add(self.lbl_search, 1, wx.LEFT | wx.RIGHT, border=5)
+        sizer.Add(self.sbsizer, 1, flag=wx.ALL, border=10)
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         self.btn_ok = wx.Button(self, id=wx.ID_SAVE)
@@ -287,12 +287,12 @@ class SearchDialog(wx.Dialog):
         self.btn_clear = wx.Button(self, label='C&lear Values')
         self.btn_clear.Bind(wx.EVT_BUTTON, self.clear_values)
         hsizer.Add(self.btn_clear)
-        sizer.Add(hsizer, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        sizer.Add(hsizer, flag=wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, border=10)
 
         self.SetSizer(sizer)
         self.SetAutoLayout(True)
         sizer.Fit(self)
-        sizer.SetSizeHints(self)
+        # sizer.SetSizeHints(self)
         self.Layout()
 
         self.txt_element.Bind(wx.EVT_TEXT, self.set_search)
@@ -306,39 +306,13 @@ class SearchDialog(wx.Dialog):
 
     def set_search(self, evt=None):
         """build text describing search action"""
-        print('building search text:', )
-        out = ''
         ele = self.txt_element.GetValue()
         attr_name = self.txt_attr_name.GetValue()
         attr_val = self.txt_attr_val.GetValue()
         text = self.txt_text.GetValue()
-        attr = ''
-        if ele:
-            ele = ' an element that has a name containing `{}`\n'.format(ele)
-        if attr_name or attr_val:
-            attr = ' an attribute'
-            if attr_name:
-                attr += ' that has a name containing `{}`\n'.format(attr_name)
-            if attr_val:
-                attr += ' that has a value containing `{}`\n'.format(attr_val)
-            if ele:
-                attr = ' with' + attr
-        if text:
-            out = 'search for text'
-            if ele:
-                out += ' under\n' + ele
-            elif attr:
-                out += ' under an element with\n'
-            if attr:
-                out += attr
-        elif ele:
-            out = 'search for\n' + ele
-            if attr:
-                out += attr
-        elif attr:
-            out = 'search for\n' + attr
-        print(out)
-        self.lbl_search.SetLabel(out)
+        out = self._parent.editor.get_search_text(ele, attr_name, attr_val, text)
+        self.lbl_search.SetLabel('\n'.join(out))
+        self.Fit()
 
     def clear_values(self, evt=None):
         "set empty search values"
@@ -687,6 +661,8 @@ class Gui(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.afsl)
 
         # set up statusbar
+        self.SetStatusBar(wx.StatusBar(self))
+        self.SetStatusText('Ready.')
 
         # self.init_menus()
         menu_bar = wx.MenuBar()

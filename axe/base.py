@@ -19,7 +19,7 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
     """searches the flattened tree from start or the given pos
     to find the next item that fulfills the search criteria
     """
-    print('in find_in_flattened_tree:', search_args)
+    # print('in find_in_flattened_tree:', search_args)
     wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
     if reverse:
         data.reverse()
@@ -51,17 +51,14 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
     itemfound = False
     for item, element_name, element_text, attr_list in data:
         ele_ok = attr_name_ok = attr_value_ok = attr_ok = text_ok = False
-        # FIXME: momenteel wordt verkeerd gepositioneerd als er gezocht wordt op een element met
-        # een bepaald attribuut of een bepaalde tekst: dan gaat-ie niet naar het element maar
-        # naar het onderliggende gegeven
-        print(element_name, element_text, attr_list)
+        # print(element_name, element_text, attr_list)
         # ele_ok = text_ok = False
         if not wanted_ele or wanted_ele in element_name:
             ele_ok = True
-            print('ele wanted:', wanted_ele, 'found:', ele_ok)
+            # print('ele wanted:', wanted_ele, 'found:', ele_ok)
         if not wanted_text or wanted_text in element_text:
             text_ok = True
-            print('text wanted:', wanted_text, 'found:', text_ok)
+            # print('text wanted:', wanted_text, 'found:', text_ok)
 
         attr_item = None
         if attr_list and (wanted_attr or wanted_value):
@@ -71,10 +68,10 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
                 attr_name_ok = attr_value_ok = False
                 if not wanted_attr or wanted_attr in name:
                     attr_name_ok = True
-                    print('attr name wanted:', wanted_attr, 'found:', attr_name_ok)
+                    # print('attr name wanted:', wanted_attr, 'found:', attr_name_ok)
                 if not wanted_value or wanted_value in value:
                     attr_value_ok = True
-                    print('attr value wanted:', wanted_value, 'found:', attr_value_ok)
+                    # print('attr value wanted:', wanted_value, 'found:', attr_value_ok)
                 if attr_name_ok and attr_value_ok:
                     attr_ok = True
                     if not (wanted_ele or wanted_text):
@@ -356,8 +353,8 @@ class Editor():
         probably nicer as a generator function
         """
         attr_list = []
-        print('in flatten tree: node title', self.gui.get_node_title(element))
-        print('in flatten tree: node data', self.gui.get_node_data(element))
+        # print('in flatten tree: node title', self.gui.get_node_title(element))
+        # print('in flatten tree: node data', self.gui.get_node_data(element))
         try:
             title, data = self.gui.get_node_data(element)
         except TypeError:
@@ -381,8 +378,8 @@ class Editor():
         "start search after asking for options"
         if self.gui.get_search_args():
             loc = -1 if reverse else 0
-            print('getting tree top:', self.gui.get_treetop(),
-                  self.gui.get_node_title(self.gui.get_treetop()))
+            # print('getting tree top:', self.gui.get_treetop(),
+            #       self.gui.get_node_title(self.gui.get_treetop()))
             self._search_pos = self.gui.get_node_children(self.gui.get_treetop())[loc], None
             self.find_next(reverse)
 
@@ -530,6 +527,49 @@ class Editor():
     def search_prev(self, event=None):
         "find backwards"
         self.find_next(reverse=True)
+
+    @staticmethod
+    def get_search_text(ele, attr_name, attr_val, text):
+        "build text describing search arguments"
+        attr = attr_name or attr_val
+        out = ['search for']
+        has_text = ' that has'
+        name_text = ' a name'
+        value_text = ' a value'
+        contain_text = '   containing `{}`'
+        if ele:
+            ele_out = [' an element' + has_text + name_text, contain_text.format(ele)]
+        if attr:
+            attr_out = [' an attribute' + has_text]
+            if attr_name:
+                attr_out[0] += name_text
+                attr_out.append(contain_text.format(attr_name))
+            if attr_val:
+                if not attr_name:
+                    attr_out[0] += value_text
+                else:
+                    attr_out.append(' and' + value_text)
+                attr_out.append(contain_text.format(attr_val))
+            if ele:
+                attr_out[0] = ' with' + attr_out[0]
+        if text:
+            out[0] += ' text'
+            out.append('   `{}`'.format(text))
+            if ele:
+                ele_out[0] = ' under' + ele_out[0]
+                out += ele_out
+            elif attr:
+                out += [' under an element with']
+            if attr:
+                out += attr_out
+        elif ele:
+            out += ele_out
+            if attr:
+                out += attr_out
+        elif attr:
+            attr_out[0] = out[0] + attr_out[0]
+            out = attr_out
+        return out
 
     def replace(self, event=None):
         "replace an element?"
