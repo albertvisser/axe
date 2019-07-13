@@ -4,7 +4,7 @@
 import os
 import sys
 import wx
-from .shared import ELSTART, axe_iconame,log
+from .shared import ELSTART, axe_iconame, log
 if os.name == "nt":
     HMASK = "XML files (*.xml)|*.xml|All files (*.*)|*.*"
 elif os.name == "posix":
@@ -16,8 +16,8 @@ class ElementDialog(wx.Dialog):
     """Dialog for editing an element
     """
     def __init__(self, parent, title='',  # size=(400, 270), pos=wx.DefaultPosition,
-            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
-            item=None):
+                 style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+                 item=None):
         wx.Dialog.__init__(self, parent, title=title, style=style)
         self._parent = parent
         lbl_name = wx.StaticText(self, label="element name:  ")
@@ -63,7 +63,7 @@ class ElementDialog(wx.Dialog):
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(self.cb_ns, 0, wx.ALIGN_CENTER_VERTICAL)  # | wx.LEFT | wx.RIGHT, 5)
-        hsizer.Add(self.cmb_ns, 1)  #, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        hsizer.Add(self.cmb_ns, 1)  # , wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         sizer.Add(hsizer, 0, wx.EXPAND | wx.ALL, 5)
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -131,8 +131,8 @@ class AttributeDialog(wx.Dialog):
     """Dialog for editing an attribute
     """
     def __init__(self, parent, title='',  # size=(320, 160), pos=wx.DefaultPosition,
-            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
-            item=None):
+                 style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+                 item=None):
         wx.Dialog.__init__(self, parent, title=title, style=style)
         self._parent = parent
         lbl_name = wx.StaticText(self, label="Attribute name:")
@@ -149,7 +149,7 @@ class AttributeDialog(wx.Dialog):
         self.btn_cancel = wx.Button(self, id=wx.ID_CANCEL)
         self.SetAffirmativeId(wx.ID_SAVE)
 
-        ns_nam = nam = ns_uri = txt = ''
+        nam = val = ns_nam = ns_uri = ''
         if item:
             ns_nam = item["name"]
             if ns_nam.startswith('{'):
@@ -172,7 +172,7 @@ class AttributeDialog(wx.Dialog):
         sizer.Add(hsizer, 0, wx.EXPAND | wx.ALL, 5)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(self.cb_ns, 0, wx.ALIGN_CENTER_VERTICAL)  # | wx.LEFT | wx.RIGHT, 5)
-        hsizer.Add(self.cmb_ns, 1)  #, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        hsizer.Add(self.cmb_ns, 1)  # , wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         sizer.Add(hsizer, 0, wx.EXPAND | wx.ALL, 5)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(lbl_value, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 5)
@@ -212,7 +212,7 @@ class AttributeDialog(wx.Dialog):
                 self._parent.meldfout('Namespace must be selected if checked')
                 self.cb_ns.SetFocus()
                 return
-            nam = '{{{}}}{}'.format(self.cmb_ns.GetString(seq), tag)
+            nam = '{{{}}}{}'.format(self.cmb_ns.GetString(seq), nam)  # tag)
         self._parent.data["name"] = nam
         self._parent.data["value"] = self.txt_value.GetValue()
         ev.Skip()
@@ -222,7 +222,7 @@ class SearchDialog(wx.Dialog):
     """Dialog to get search arguments
     """
     def __init__(self, parent, title='',  # size=(320, 160), pos=wx.DefaultPosition,
-            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER):
+                 style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER):
         super().__init__(parent, title=title, style=style)
         self._parent = parent
         if self._parent.editor.search_args:
@@ -270,10 +270,10 @@ class SearchDialog(wx.Dialog):
         self.txt_text = wx.TextCtrl(self, size=(128, -1))
         hsizer.Add(self.txt_text)
         gsizer.Add(hsizer, (3, 1))
-        sizer.Add(gsizer, flag= wx.TOP | wx.LEFT, border=15)
+        sizer.Add(gsizer, flag=wx.TOP | wx.LEFT, border=15)
 
-        self.sbsizer = wx.BoxSizer( wx.HORIZONTAL)
-        self.lbl_search = wx.StaticText(self, label="")  #, size=(-1, 30))
+        self.sbsizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.lbl_search = wx.StaticText(self, label="")  # , size=(-1, 30))
         self.sbsizer.Add(self.lbl_search, 1, wx.LEFT | wx.RIGHT, border=5)
         sizer.Add(self.sbsizer, 1, flag=wx.ALL, border=10)
 
@@ -343,7 +343,7 @@ class Gui(wx.Frame):
         self.editor = parent
         self.app = wx.App()
         self.fn = fn
-        super().__init__(parent=None, pos=(2, 2), size=(620, 900))
+        super().__init__(parent=None, pos=(2, 2))  # , size=(620, 900))
         # wx.Frame.__init__(self, parent, pos=(2, 2), size=(620, 900))
         self.Show()
 
@@ -417,7 +417,7 @@ class Gui(wx.Frame):
         self.top = self.tree.AddRoot(title)
         return self.top
 
-    def add_node_to_parent(self, parent, pos= -1):
+    def add_node_to_parent(self, parent, pos=-1):
         "add a new descendant to an element at the given position and return it"
         if pos == -1:
             node = self.tree.AppendItem(parent, '')
@@ -438,7 +438,7 @@ class Gui(wx.Frame):
             if tag == node:
                 break
             pos += 1
-            tag, c = self.tree.GetNextChild(rt, c)
+            tag, c = self.tree.GetNextChild(node, c)
         if pos >= self.tree.GetChildrenCount(parent):
             pos = -1
         return parent, pos
@@ -512,7 +512,7 @@ class Gui(wx.Frame):
             if text.startswith(ELSTART):
                 subel, whereami = self.tree.GetFirstChild(el)
                 while subel.IsOk():
-                    temp = push_el(subel, children)
+                    _ = push_el(subel, children)
                     subel, whereami = self.tree.GetNextChild(el, whereami)
             # print "after  looping over contents: ",text,y
             result.append((text, data, children))
@@ -520,10 +520,10 @@ class Gui(wx.Frame):
             return result
         if not self.checkselection():
             return
-        # text = self.tree.GetItemText(self.item)
-        # data = self.tree.GetItemData(self.item)
+        text = self.tree.GetItemText(self.item)
+        data = self.tree.GetItemData(self.item)
         # txt = AxeMixin.copy(self, cut, retain)
-        txt = self.editor.getcopytext(cut, retain)
+        txt = self.editor.get_copytext(cut, retain)
         if self.tree.GetItemParent(self.item) == self.top:
             self.meldfout("Can't %s the root" % txt)
             return
@@ -538,7 +538,7 @@ class Gui(wx.Frame):
             else:
                 self.cut_el = None
                 self.cut_att = data
-            self.editor.enable_pasteitems(True)
+            self.enable_pasteitems(True)
         if cut:
             prev = self.tree.GetPrevSibling(self.item)
             if not prev.IsOk():
@@ -579,7 +579,7 @@ class Gui(wx.Frame):
                     if x == self.item:
                         if not before:
                             i += 1
-                        node = self.tree.InsertItemBefore(add_to, i, item)
+                        node = self.tree.InsertItem(add_to, i, item)
                         self.tree.SetItemData(node, data)
                         added = True
                         break
@@ -627,9 +627,14 @@ class Gui(wx.Frame):
             test = edt.ShowModal()
             if test == wx.ID_SAVE:
                 data = (self.data["name"], self.data["value"])
-                text = self.editor.getshortname((data, [], []))
-                rt = self.tree.AppendItem(self.item, text, attr=True)
+                text = self.editor.getshortname(data, attr=True)  # (data, [], []))
+                rt = self.tree.AppendItem(self.item, text)  # , attr=True)
                 self.tree.SetItemData(rt, data)
+                # helaas, de editor routine is geschreven op de qt versie
+                # self.added = self.editor.add_item(self.item, self.data["name"], self.data["value"],
+                #                                   attr=True)
+                if not self.tree.IsExpanded(self.item):
+                    self.tree.Expand(self.item)
                 self.editor.mark_dirty(True)
 
     def insert(self, before=True, below=False):
@@ -639,10 +644,12 @@ class Gui(wx.Frame):
         with ElementDialog(self, title="New element") as edt:
             if edt.ShowModal() == wx.ID_SAVE:
                 data = self.data['tag'], self.data['text']
-                text = self.editor.getshortname((data, [], []))
+                text = self.editor.getshortname(data)  # (data, [], []))
                 if below:
                     rt = self.tree.AppendItem(self.item, text)
                     self.tree.SetItemData(rt, data)
+                    if not self.tree.IsExpanded(self.item):
+                        self.tree.Expand(self.item)
                 else:
                     parent = self.tree.GetItemParent(self.item)
                     if before:
@@ -651,6 +658,9 @@ class Gui(wx.Frame):
                         item = self.item
                     node = self.tree.InsertItem(parent, item, text)
                     self.tree.SetItemData(node, data)
+                # helaas, de editor routine is geschreven op de qt versie
+                # self.added = self.editor.add_item(self.item, self.data["tag"], self.data["text"],
+                #                                   before=before, below=below)
                 self.editor.mark_dirty(True)
 
     # internals
@@ -675,7 +685,7 @@ class Gui(wx.Frame):
 
         ## self.helpmenu.append('About', callback = self.about)
 
-        self.tree = wx.TreeCtrl(self, size=(620, 808))
+        self.tree = wx.TreeCtrl(self, size=(820, 808))  # size=(620, 808))
         self.tree.Bind(wx.EVT_LEFT_DCLICK, self.on_doubleclick)
         self.tree.Bind(wx.EVT_RIGHT_DOWN, self.on_rightdown)
         self.tree.Bind(wx.EVT_KEY_UP, self.on_keyup)
@@ -716,7 +726,7 @@ class Gui(wx.Frame):
             editmenu = wx.Menu()
             searchmenu = wx.Menu()
         disable_menu = True if not self.editor.cut_el and not self.editor.cut_att else False
-        add_menuitem = True if not popup or not disable_menu else False
+        # add_menuitem = True if not popup or not disable_menu else False
 
         for ix, menudata in enumerate(self.editor.get_menu_data()):
             for ix2, data in enumerate(menudata):
@@ -761,7 +771,6 @@ class Gui(wx.Frame):
                         if accel.FromString(item):
                             accels.append(accel)
                 self.SetAcceleratorTable(wx.AcceleratorTable(accels))
-
 
         if disable_menu:
             self.pastebefore_item.SetItemLabel("Nothing to Paste")
@@ -877,7 +886,7 @@ class Gui(wx.Frame):
                 ok = edt.ShowModal()
                 if ok == wx.ID_SAVE:
                     if self.editor.search_args:
-                       break
+                        break
                 else:
                     send = False
         print(send)
