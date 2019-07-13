@@ -8,7 +8,6 @@ import pathlib
 ## import sys
 # import shutil
 ## import copy
-import xml.etree.ElementTree as et
 import logging
 
 # from axe.gui import Gui

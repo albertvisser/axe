@@ -7,7 +7,6 @@ import os
 # import pathlib
 ## import sys
 import shutil
-## import copy
 import xml.etree.ElementTree as et
 # import logging
 
@@ -89,8 +88,7 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
             break
     if itemfound:
         return itemfound, is_attr
-    else:
-        return None, False
+    return None, False
 
 
 def parse_nsmap(file):
@@ -156,7 +154,7 @@ class Editor():
             except (IOError, et.ParseError) as err:
                 self.gui.meldfout(str(err), abort=True)
                 self.gui.init_tree(None)
-                return None
+                return  # None
             else:
                 self.init_tree(tree.getroot(), prefixes, uris)
         self.gui.go()
@@ -251,7 +249,7 @@ class Editor():
                 # ns_root = qtw.QTreeWidgetItem(['namespaces'])
                 namespaces = True
             ns_item = self.gui.add_node_to_parent(ns_root)
-            self.gui.set_node_title('{}: {}'.format(prf, self.ns_uris[ix]))
+            self.gui.set_node_title(ns_item, '{}: {}'.format(prf, self.ns_uris[ix]))
         rt = self.add_item(self.top, self.rt.tag, self.rt.text)
         for attr in self.rt.keys():
             h = self.rt.get(attr)
@@ -290,8 +288,7 @@ class Editor():
             return " = ".join((fullname, text))
         elif text:
             return ": ".join((strt, text))
-        else:
-            return strt
+        return strt
 
     def add_item(self, to_item, name, value, before=False, below=True, attr=False):
         """execute adding of item"""
@@ -427,9 +424,9 @@ class Editor():
                     tree, prefixes, uris = parse_nsmap(fname)
                 except et.ParseError as e:
                     self.gui.meldfout(str(e))
-                    return False
-                self.xmlfn = fname
-                self.init_tree(tree.getroot(), prefixes, uris)
+                else:
+                    self.xmlfn = fname
+                    self.init_tree(tree.getroot(), prefixes, uris)
 
     def savexml(self, event=None):
         "(re)save XML; ask for filename if unknown"

@@ -529,7 +529,7 @@ class PasteElementCommand(qtw.QUndoCommand):
     def undo(self):
         "Undo add element"
         # essentially 'cut' Command
-        log('In paste element undo for added'.format(self.added))
+        log('In paste element undo for added: {}'.format(self.added))
         self.replaced = self.added   # remember original item in case redo replaces it
         item = CopyElementCommand(self.win, self.added, cut=True, retain=False,
                                   description=__doc__)
@@ -769,6 +769,7 @@ class Gui(qtw.QMainWindow):
             event.ignore()
 
     # helper methods for getting/setting data in visual tree
+    # self is passed in for compatibility with similar methods for e.g. wx version
     def get_node_children(self, node):
         "return descendants of the given node"
         return [node.child(i) for i in range(node.childCount())]
@@ -881,8 +882,7 @@ class Gui(qtw.QMainWindow):
             data = {'item': self.item, 'name': nam, 'value': val}
             edt = AttributeDialog(self, title='Edit an attribute', item=data).exec_()
             if edt == qtw.QDialog.Accepted:
-                name = self.editor.getshortname((self.data["name"], self.data["value"]),
-                                                    attr=True)
+                name = self.editor.getshortname((self.data["name"], self.data["value"]), attr=True)
                 new_state = name, self.data["name"], self.data["value"]
                 log('calling editcommand for attribute')
                 command = EditCommand(self, state, new_state, "Edit Attribute")
@@ -1025,7 +1025,7 @@ class Gui(qtw.QMainWindow):
                     elif ix == 3:
                         self.searchmenu_actions.append(act)
             act = qtw.QAction('&Unlimited Undo', self)
-            act.triggered.connect(self.limit_undo),
+            act.triggered.connect(self.limit_undo)
             self.filemenu_actions.insert(-1, act)
             self.undo_item, self.redo_item = self.editmenu_actions[0:2]
             self.pastebefore_item, self.pasteafter_item, \
@@ -1085,8 +1085,7 @@ class Gui(qtw.QMainWindow):
 
         if popup:
             return searchmenu
-        else:
-            return filemenu, viewmenu, editmenu
+        return filemenu, viewmenu, editmenu
 
     def meldinfo(self, text):
         """notify about some information"""
