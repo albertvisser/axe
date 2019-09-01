@@ -143,8 +143,8 @@ class Editor():
         self.title = "Albert's XML Editor"
         self.xmlfn = os.path.abspath(fname) if fname else ''
         self.gui = Gui(self, fname)
-        self.cut_att = None
-        self.cut_el = None
+        self.gui.cut_att = None
+        self.gui.cut_el = None
         self.search_args = []
         self.gui.init_gui()
         self.init_tree(et.Element('New'))

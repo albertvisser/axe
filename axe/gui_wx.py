@@ -2,7 +2,6 @@
 """wxPython versie van een op een treeview gebaseerde XML-editor
 """
 import os
-import sys
 import wx
 from .shared import ELSTART, axe_iconame, log
 if os.name == "nt":
@@ -344,7 +343,6 @@ class Gui(wx.Frame):
         self.app = wx.App()
         self.fn = fn
         super().__init__(parent=None, pos=(2, 2))  # , size=(620, 900))
-        # wx.Frame.__init__(self, parent, pos=(2, 2), size=(620, 900))
         self.Show()
 
     def go(self):
@@ -377,7 +375,6 @@ class Gui(wx.Frame):
             self.tree.SelectItem(item)
             menu = self.init_menus(popup=True)
             self.PopupMenu(menu)
-            ## print "klaar met menu"
             menu.Destroy()
 
     def afsl(self, ev=None):
@@ -527,11 +524,8 @@ class Gui(wx.Frame):
         if self.tree.GetItemParent(self.item) == self.top:
             self.meldfout("Can't %s the root" % txt)
             return
-        ## print "copy(): print text,data"
-        ## print text,data
         if retain:
             if text.startswith(ELSTART):
-                ## self.cut_el = self.item # hmmm... hier moet de aanroep van push_el komen
                 self.cut_el = []
                 self.cut_el = push_el(self.item, self.cut_el)
                 self.cut_att = None
@@ -563,8 +557,6 @@ class Gui(wx.Frame):
             else:
                 self.meldinfo("Pasting as first element below root")
                 pastebelow = True
-        print("paste(): print self.cut_el, self.cut_att")
-        print(self.cut_el, self.cut_att)
         if self.cut_att:
             item = self.editor.getshortname(self.cut_att, attr=True)
             data = self.cut_att
@@ -725,7 +717,7 @@ class Gui(wx.Frame):
         else:
             editmenu = wx.Menu()
             searchmenu = wx.Menu()
-        disable_menu = True if not self.editor.cut_el and not self.editor.cut_att else False
+        disable_menu = True if not self.cut_el and not self.cut_att else False
         # add_menuitem = True if not popup or not disable_menu else False
 
         for ix, menudata in enumerate(self.editor.get_menu_data()):
@@ -734,7 +726,7 @@ class Gui(wx.Frame):
                 if shortcuts:
                     shortcuts = shortcuts.split(',')
                     text = '\t'.join((text, shortcuts[0]))
-                    shortcuts = shortcuts[1:]  # TODO nog iets mee doen
+                    shortcuts = shortcuts[1:]
                 if ix == 0:
                     # if text.startswith('&Exit'):
                     #     filemenu.AppendSeparator()
@@ -754,11 +746,11 @@ class Gui(wx.Frame):
                         self.redo_item = mitem
                         editmenu.AppendSeparator()
                     elif ix2 == 6:
-                        self.pastebefore_item = mitem
+                        pastebefore_item = mitem
                     elif ix2 == 7:
-                        self.pasteafter_item = mitem
+                        pasteafter_item = mitem
                     elif ix2 == 8:
-                        self.pasteunder_item = mitem
+                        pasteunder_item = mitem
                         editmenu.AppendSeparator()
                 elif ix == 3:
                     if ix2 == 0:
@@ -773,13 +765,16 @@ class Gui(wx.Frame):
                 self.SetAcceleratorTable(wx.AcceleratorTable(accels))
 
         if disable_menu:
-            self.pastebefore_item.SetItemLabel("Nothing to Paste")
-            self.pastebefore_item.Enable(False)
-            self.pasteafter_item.Enable(False)
-            self.pasteunder_item.Enable(False)
+            pastebefore_item.SetItemLabel("Nothing to Paste")
+            pastebefore_item.Enable(False)
+            pasteafter_item.Enable(False)
+            pasteunder_item.Enable(False)
 
         if popup:
             return searchmenu
+        self.pastebefore_item = pastebefore_item
+        self.pasteafter_item = pasteafter_item
+        self.pasteunder_item = pasteunder_item
         return filemenu, viewmenu, editmenu, searchmenu
 
     def meldinfo(self, text):
@@ -827,10 +822,10 @@ class Gui(wx.Frame):
         """activeert of deactiveert de paste-entries in het menu
         afhankelijk van of er iets te pASTEN VALT
         """
-        # if active:
-        #     self.pastebefore_item.SetItemLabel("Paste Before")
-        # else:
-        #     self.pastebefore_item.SetItemLabel("Nothing to Paste")
+        if active:
+            self.pastebefore_item.SetItemLabel("Paste Before")
+        else:
+            self.pastebefore_item.SetItemLabel("Nothing to Paste")
         self.pastebefore_item.Enable(active)
         self.pasteafter_item.Enable(active)
         self.pasteunder_item.Enable(active)
