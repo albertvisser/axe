@@ -18,7 +18,7 @@ factories I think.
 Usage
 -----
 
-Call ``xmleditor.py`` from the top directory, if needed with a filename.
+Call ``xmleditor.py`` in the top directory, supply a filename if needed .
 
 I have configured my file manager to call this program on the file selected.
 
@@ -27,8 +27,7 @@ Requirements
 ------------
 
 - Python (with ElementTree)
-- PyQT4 for the current version
-- wxPython for the previous version,which doesn't work with Python 3
-- Tkinter and Gene Cash's Tree module (for the original PC version)
-- PocketPyGUI (for a PocketPC version)
+- PyQT or wxPhoenix  for the current version
+- Tkinter and Gene Cash's Tree module for the original PC version (unmaintained)
+- PocketPyGUI for a PocketPC version (unmaintained)
 
