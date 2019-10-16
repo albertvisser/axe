@@ -413,7 +413,6 @@ class UndoRedoStack(qtw.QUndoStack):
     """Undo stack subclass overriding some event handlers
     """
     def __init__(self, parent):
-        ## super().__init__(parent)
         super().__init__(parent)
         self.cleanChanged.connect(self.clean_changed)
         self.indexChanged.connect(self.index_changed)
@@ -1058,7 +1057,7 @@ class Gui(qtw.QMainWindow):
             if ix == 2:
                 editmenu.addSeparator()
 
-        disable_menu = True if not self.editor.cut_el and not self.editor.cut_att else False
+        disable_menu = True if not self.cut_el and not self.cut_att else False
         add_menuitem = True if not popup or not disable_menu else False
         if disable_menu:
             self.pastebefore_item.setText("Nothing to Paste")
