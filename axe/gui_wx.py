@@ -277,9 +277,9 @@ class SearchDialog(wx.Dialog):
         sizer.Add(self.sbsizer, 1, flag=wx.ALL, border=10)
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.btn_ok = wx.Button(self, id=wx.ID_SAVE)
+        self.btn_ok = wx.Button(self, id=wx.ID_OK)
         self.btn_ok.Bind(wx.EVT_BUTTON, self.on_ok)
-        self.SetAffirmativeId(wx.ID_SAVE)
+        # self.SetAffirmativeId(wx.ID_SAVE)
         hsizer.Add(self.btn_ok)
         self.btn_cancel = wx.Button(self, id=wx.ID_CANCEL)
         hsizer.Add(self.btn_cancel)
@@ -319,6 +319,8 @@ class SearchDialog(wx.Dialog):
         self.txt_attr_name.Clear()
         self.txt_attr_val.Clear()
         self.txt_text.Clear()
+        self.lbl_search.SetLabel('')
+        self.Fit()
 
     def on_ok(self, evt=None):
         """confirm dialog and pass changed data to parent"""
@@ -431,18 +433,18 @@ class Gui(wx.Frame):
         parent = self.tree.GetItemParent(node)
         pos = 0
         tag, c = self.tree.GetFirstChild(node)
-        while tag.IsOk():
-            if tag == node:
-                break
+        while tag.IsOk() and tag != node:
             pos += 1
             tag, c = self.tree.GetNextChild(node, c)
-        if pos >= self.tree.GetChildrenCount(parent):
-            pos = -1
         return parent, pos
 
     def set_node_data(self, node, name, value):
         "set the data (element name, text/CDATA) associated with the given node"
         self.tree.SetItemData(node, (name, value))
+
+    def get_selected_item(self):
+        "return the currently selected item"
+        return self.tree.Selection
 
     def set_selected_item(self, item):
         "set the currently selected item to the given item"
@@ -470,10 +472,9 @@ class Gui(wx.Frame):
         if item:
             self.tree.CollapseAllChildren(item)
 
-    def edit_item(self):
+    def edit_item(self, item):
         "edit an element or attribute"
-        if not self.checkselection():
-            return
+        self.item = item
         data = self.tree.GetItemText(self.item)  # self.item.get_text()
         if data.startswith(ELSTART):
             tag, text = self.tree.GetItemData(self.item)  # self.item.get_data()
@@ -497,7 +498,7 @@ class Gui(wx.Frame):
                     self.tree.SetItemData(self.item, h)
                     self.editor.mark_dirty(True)
 
-    def copy(self, cut=False, retain=True):  # retain is t.b.v. delete functie
+    def copy(self, item, cut=False, retain=True):  # retain is t.b.v. delete functie
         """execute cut/delete/copy action"""
         def push_el(el, result):
             "copy element data recursively"
@@ -515,15 +516,9 @@ class Gui(wx.Frame):
             result.append((text, data, children))
             # print "end:  ",result
             return result
-        if not self.checkselection():
-            return
+        self.item = item
         text = self.tree.GetItemText(self.item)
         data = self.tree.GetItemData(self.item)
-        # txt = AxeMixin.copy(self, cut, retain)
-        txt = self.editor.get_copytext(cut, retain)
-        if self.tree.GetItemParent(self.item) == self.top:
-            self.meldfout("Can't %s the root" % txt)
-            return
         if retain:
             if text.startswith(ELSTART):
                 self.cut_el = []
@@ -537,30 +532,19 @@ class Gui(wx.Frame):
             prev = self.tree.GetPrevSibling(self.item)
             if not prev.IsOk():
                 prev = self.tree.GetItemParent(self.item)
-                if prev == self.rt:
+                if prev == self.editor.rt:
                     prev = self.tree.GetNextSibling(self.item)
             self.tree.Delete(self.item)
             self.editor.mark_dirty(True)
             # self.tree.SelectItem(prev)
 
-    def paste(self, before=True, pastebelow=False):
+    def paste(self, item, before=True, below=False):
         """execute paste action"""
-        if not self.checkselection():
-            return
-        if pastebelow and not self.tree.GetItemText(self.item).startswith(ELSTART):
-            self.meldinfo("Can't paste below an attribute")
-            return
-        if self.tree.GetItemParent(self.item) == self.top:
-            if before:
-                self.meldinfo("Can't paste before the root")
-                return
-            else:
-                self.meldinfo("Pasting as first element below root")
-                pastebelow = True
+        self.item = item
         if self.cut_att:
             item = self.editor.getshortname(self.cut_att, attr=True)
             data = self.cut_att
-            if pastebelow:
+            if below:
                 node = self.tree.AppendItem(self.item, item)
                 self.tree.SetItemData(node, data)
             else:
@@ -590,7 +574,7 @@ class Gui(wx.Frame):
                     self.tree.SetItemData(subnode, el[1])
                 for x in el[2]:
                     zetzeronder(subnode, x)
-            if pastebelow:
+            if below:
                 node = self.item
                 i = -1
             else:
@@ -608,51 +592,29 @@ class Gui(wx.Frame):
             zetzeronder(node, self.cut_el[0], i)
         self.editor.mark_dirty(True)
 
-    def add_attribute(self):
+    def add_attribute(self, item):
         "ask for attibute, then start add action"
-        if not self.checkselection():
-            return
-        if not self.tree.GetItemText(self.item).startswith(ELSTART):
-            self.meldfout("Can't add attribute to attribute")
-            return
+        self.item = item
         with AttributeDialog(self, title="New attribute") as edt:
             test = edt.ShowModal()
             if test == wx.ID_SAVE:
-                data = (self.data["name"], self.data["value"])
-                text = self.editor.getshortname(data, attr=True)  # (data, [], []))
-                rt = self.tree.AppendItem(self.item, text)  # , attr=True)
-                self.tree.SetItemData(rt, data)
-                # helaas, de editor routine is geschreven op de qt versie
-                # self.added = self.editor.add_item(self.item, self.data["name"], self.data["value"],
-                #                                   attr=True)
-                if not self.tree.IsExpanded(self.item):
-                    self.tree.Expand(self.item)
+                node = self.editor.add_item(self.item, self.data["name"], self.data["value"],
+                                            attr=True)
+                item = self.tree.GetItemParent(node)
+                if not self.tree.IsExpanded(item):
+                    self.tree.Expand(item)
                 self.editor.mark_dirty(True)
 
-    def insert(self, before=True, below=False):
+    def insert(self, item, before=True, below=False):
         """execute insert action"""
-        if not self.checkselection():
-            return
+        self.item = item
         with ElementDialog(self, title="New element") as edt:
             if edt.ShowModal() == wx.ID_SAVE:
-                data = self.data['tag'], self.data['text']
-                text = self.editor.getshortname(data)  # (data, [], []))
-                if below:
-                    rt = self.tree.AppendItem(self.item, text)
-                    self.tree.SetItemData(rt, data)
-                    if not self.tree.IsExpanded(self.item):
-                        self.tree.Expand(self.item)
-                else:
-                    parent = self.tree.GetItemParent(self.item)
-                    if before:
-                        item = self.tree.GetPrevSibling(self.item)
-                    else:
-                        item = self.item
-                    node = self.tree.InsertItem(parent, item, text)
-                    self.tree.SetItemData(node, data)
-                # helaas, de editor routine is geschreven op de qt versie
-                # self.added = self.editor.add_item(self.item, self.data["tag"], self.data["text"],
-                #                                   before=before, below=below)
+                node = self.editor.add_item(self.item, self.data["tag"], self.data["text"],
+                                            before=before, below=below)
+                item = self.tree.GetItemParent(node)
+                if not self.tree.IsExpanded(item):
+                    self.tree.Expand(item)
                 self.editor.mark_dirty(True)
 
     # internals
@@ -718,7 +680,6 @@ class Gui(wx.Frame):
             editmenu = wx.Menu()
             searchmenu = wx.Menu()
         disable_menu = True if not self.cut_el and not self.cut_att else False
-        # add_menuitem = True if not popup or not disable_menu else False
 
         for ix, menudata in enumerate(self.editor.get_menu_data()):
             for ix2, data in enumerate(menudata):
@@ -746,11 +707,12 @@ class Gui(wx.Frame):
                         self.redo_item = mitem
                         editmenu.AppendSeparator()
                     elif ix2 == 6:
-                        pastebefore_item = mitem
+                        self.pastebefore_item = mitem
+                        self.pastebefore_text = text
                     elif ix2 == 7:
-                        pasteafter_item = mitem
+                        self.pasteafter_item = mitem
                     elif ix2 == 8:
-                        pasteunder_item = mitem
+                        self.pasteunder_item = mitem
                         editmenu.AppendSeparator()
                 elif ix == 3:
                     if ix2 == 0:
@@ -765,16 +727,10 @@ class Gui(wx.Frame):
                 self.SetAcceleratorTable(wx.AcceleratorTable(accels))
 
         if disable_menu:
-            pastebefore_item.SetItemLabel("Nothing to Paste")
-            pastebefore_item.Enable(False)
-            pasteafter_item.Enable(False)
-            pasteunder_item.Enable(False)
+            self.enable_pasteitems(False)
 
         if popup:
             return searchmenu
-        self.pastebefore_item = pastebefore_item
-        self.pasteafter_item = pasteafter_item
-        self.pasteunder_item = pasteunder_item
         return filemenu, viewmenu, editmenu, searchmenu
 
     def meldinfo(self, text):
@@ -791,13 +747,13 @@ class Gui(wx.Frame):
         """stelt een vraag en retourneert het antwoord
         1 = Yes, 0 = No, -1 = Cancel
         """
-        # retval = dict(zip((wx.YES, wx.NO, wx.CANCEL), (1, 0, -1)))
+        retval = dict(zip((wx.YES, wx.NO, wx.CANCEL), (1, 0, -1)))
         h = wx.MessageBox(prompt, self.editor.title, style=wx.YES_NO | wx.CANCEL)
-        return h
+        return retval[h]
 
-    def ask_for_text(self, prompt):
+    def ask_for_text(self, prompt, value=''):
         """vraagt om tekst en retourneert het antwoord"""
-        return wx.GetTextFromUser(prompt, self.editor.title)
+        return wx.GetTextFromUser(prompt, self.editor.title, value)
 
     def file_to_read(self):
         """ask for file to load"""
@@ -823,25 +779,12 @@ class Gui(wx.Frame):
         afhankelijk van of er iets te pASTEN VALT
         """
         if active:
-            self.pastebefore_item.SetItemLabel("Paste Before")
+            self.pastebefore_item.SetItemLabel(self.pastebefore_text)
         else:
             self.pastebefore_item.SetItemLabel("Nothing to Paste")
         self.pastebefore_item.Enable(active)
         self.pasteafter_item.Enable(active)
         self.pasteunder_item.Enable(active)
-
-    def checkselection(self, message=True):
-        """get the currently selected item
-
-        if there is no selection or the file title is selected, display a message
-        (if requested). Also return False in that case
-        """
-        sel = True
-        self.item = self.tree.Selection
-        if message and (self.item is None or self.item == self.top):
-            self.meldinfo('You need to select an element or attribute first')
-            sel = False
-        return sel
 
     def popupmenu(self, item):
         """call up menu"""
@@ -879,7 +822,7 @@ class Gui(wx.Frame):
             send = True
             while send:
                 ok = edt.ShowModal()
-                if ok == wx.ID_SAVE:
+                if ok == wx.ID_OK:
                     if self.editor.search_args:
                         break
                 else:

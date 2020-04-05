@@ -10,8 +10,10 @@ import shutil
 import xml.etree.ElementTree as et
 # import logging
 
-from .shared import ELSTART, TITEL, log
+from .shared import ELSTART, log
 from .gui import Gui
+TITEL = "Albert's (Simple) XML editor"
+NEW_ROOT = '(new root)'
 
 
 def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
@@ -147,7 +149,7 @@ class Editor():
         self.gui.cut_el = None
         self.search_args = []
         self.gui.init_gui()
-        self.init_tree(et.Element('New'))
+        self.init_tree(et.Element(NEW_ROOT))
         if self.xmlfn:
             try:
                 tree, prefixes, uris = parse_nsmap(self.xmlfn)
@@ -187,6 +189,19 @@ class Editor():
             elif h == -1:
                 ok = False
         return ok
+
+    def checkselection(self, message=True):
+        """get the currently selected item
+
+        if there is no selection or the file title is selected, display a message
+        (if requested). Also return False in that case
+        """
+        sel = True
+        self.item = self.gui.get_selected_item()  # self.tree.Selection
+        if message and (self.item is None or self.item == self.top):
+            self.gui.meldinfo('You need to select an element or attribute first')
+            sel = False
+        return sel
 
     def writexml(self, oldfile=''):
         "(re)write tree to XML file; backup first"
@@ -309,8 +324,10 @@ class Editor():
                     insert = seq
         else:
             add_under, insert = self.gui.get_node_parentpos(to_item)
+            print('in base.add_item (not below), insert is', insert)
             if not before:
                 insert += 1
+            print('in base.add_item after correction, insert is', insert)
         item = self.gui.add_node_to_parent(add_under, insert)
         self.gui.set_node_title(item, itemtext)
         self.gui.set_node_data(item, name, value)
@@ -369,15 +386,21 @@ class Editor():
                 # attr_list.append((subel, *self.gui.get_node_data(subel)))
                 x, y = self.gui.get_node_data(subel)
                 attr_list.append((subel, x, y))
+        # for item in elem_list:
+        #     print(item)
         return elem_list
 
     def find_first(self, reverse=False):
         "start search after asking for options"
+        # from_contextmenu = self.checkselection(message=False)
         if self.gui.get_search_args():
-            loc = -1 if reverse else 0
-            # print('getting tree top:', self.gui.get_treetop(),
-            #       self.gui.get_node_title(self.gui.get_treetop()))
-            self._search_pos = self.gui.get_node_children(self.gui.get_treetop())[loc], None
+            # TODO: bij contextmenu rekening houden met positie huidige item
+            # if from_contextmenu:
+            if self.checkselection(message=False):
+                self._search_pos = self.item, None
+            else:
+                loc = -1 if reverse else 0
+                self._search_pos = self.gui.get_node_children(self.gui.get_treetop())[loc], None
             self.find_next(reverse)
 
     def find_next(self, reverse=False):
@@ -390,18 +413,6 @@ class Editor():
         else:
             self.gui.meldinfo('Niks (meer) gevonden')
 
-    @staticmethod
-    def get_copytext(cut, retain):
-        "get text with this action"
-        if cut:
-            if retain:
-                txt = 'cut'
-            else:
-                txt = 'delete'
-        else:
-            txt = 'copy'
-        return txt
-
     # user actions from application menu
     def newxml(self, event=None):
         """nieuwe xml boom initialiseren
@@ -409,9 +420,9 @@ class Editor():
         de underscore methode moet in de gui module zijn gedefinieerd
         """
         if self.check_tree():
-            h = self.gui.ask_for_text("Enter a name (tag) for the root element")
+            h = self.gui.ask_for_text("Enter a name (tag) for the root element", NEW_ROOT)
             if not h:
-                h = "root"
+                h = NEW_ROOT
             self.xmlfn = ""
             self.init_tree(et.Element(h))
 
@@ -466,48 +477,88 @@ class Editor():
     def edit(self, event=None):
         """start dialog to edit the current element
         """
-        self.gui.edit_item()
+        if not self.checkselection():
+            return
+        self.gui.edit_item(self.item)
 
     def cut(self, event=None):
         "cut is copy with remove and retain"
-        self.gui.copy(cut=True)
+        self.copy(cut=True)
 
     def delete(self, event=None):
         "delete is copy with remove and without retain"
-        self.gui.copy(cut=True, retain=False)
+        self.copy(cut=True, retain=False)
 
-    def copy(self, event=None):
+    def get_copy_text(self, cut, retain):
+        "geef keyword voor copy actie terug"
+        return 'copy' if not cut else 'delete' if not retain else 'cut'
+
+    def copy(self, event=None, cut=False, retain=True):
         "standard copy"
-        self.gui.copy()
+        if not self.checkselection():
+            return
+        txt = self.get_copy_text(cut, retain)
+        if self.gui.get_node_parentpos(self.item)[0] == self.gui.top:
+            self.gui.meldfout("Can't %s the root" % txt)
+            return
+        self.gui.copy(self.item, cut=cut, retain=retain)
 
     def paste_after(self, event=None):
         "paste after instead of before"
-        self.gui.paste(before=False)
+        print('in paste_after')
+        self.paste(before=False)
 
     def paste_under(self, event=None):
         "paste under instead of after"
-        self.gui.paste(pastebelow=True)
+        print('in paste_under')
+        self.paste(below=True)
 
-    def paste(self, event=None):
+    def paste(self, event=None, before=True, below=False):
         "paste after"
-        self.gui.paste()
+        print('in paste_before')
+        if not self.checkselection():
+            return
+        if self.gui.get_node_parentpos(self.item)[0] == self.gui.top and not below:
+            if before:
+                self.gui.meldinfo("Can't paste before the root")
+                return
+            else:
+                self.gui.meldinfo("Pasting as first element below root")
+                below = True
+        if below and not self.gui.get_node_title(self.item).startswith(ELSTART):
+            self.gui.meldinfo("Can't paste below an attribute")
+            return
+        self.gui.paste(self.item, before=before, below=below)
 
     def add_attr(self, event=None):
         """start dialog to add a new attribute to the element
         """
-        self.gui.add_attribute()
+        if not self.checkselection():
+            return
+        if not self.gui.get_node_title(self.item).startswith(ELSTART):
+            self.gui.meldfout("Can't add attribute to attribute")
+            return
+        self.gui.add_attribute(self.item)
 
     def insert_after(self, event=None):
         "insert after instead of before"
-        self.gui.insert(before=False)
+        self.insert(before=False)
 
     def insert_child(self, event=None):
         "insert under instead of before"
-        self.gui.insert(below=True)
+        self.insert(below=True)
 
-    def insert(self, event=None):
+    def insert(self, event=None, before=True, below=False):
         "placeholder for insert before"
-        self.gui.insert()
+        if not self.checkselection():
+            return
+        if self.gui.get_node_parentpos(self.item)[0] == self.gui.top and not below:
+            self.gui.meldinfo("Can't insert before or after the root")
+            return
+        if below and not self.gui.get_node_title(self.item).startswith(ELSTART):
+            self.gui.meldfout("Can't insert below an attribute")
+            return
+        self.gui.insert(self.item, before=before, below=below)
 
     def search(self, event=None):
         "start forward search"
@@ -529,7 +580,7 @@ class Editor():
     def get_search_text(ele, attr_name, attr_val, text):
         "build text describing search arguments"
         attr = attr_name or attr_val
-        out = ['search for']
+        out = ['search for'] if any((ele, attr, text)) else ['']
         has_text = ' that has'
         name_text = ' a name'
         value_text = ' a value'

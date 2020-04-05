@@ -308,6 +308,7 @@ class SearchDialog(qtw.QDialog):
         self.lbl_search = qtw.QLabel('', self)
         hsizer.addWidget(self.lbl_search)
         sizer.addLayout(hsizer)
+        self.lblsizer = hsizer
 
         hsizer = qtw.QHBoxLayout()
         hsizer.addStretch()
@@ -323,6 +324,7 @@ class SearchDialog(qtw.QDialog):
         hsizer.addWidget(self.btn_clear)
         hsizer.addStretch()
         sizer.addLayout(hsizer)
+        self.sizer = sizer
 
         self.setLayout(sizer)
 
@@ -344,6 +346,7 @@ class SearchDialog(qtw.QDialog):
         text = self.txt_text.text()
         out = self._parent.editor.get_search_text(ele, attr_name, attr_val, text)
         self.lbl_search.setText('\n'.join(out))
+        # self.layout()
 
     def clear_values(self):
         "set empty search values"
@@ -351,6 +354,11 @@ class SearchDialog(qtw.QDialog):
         self.txt_attr_name.clear()
         self.txt_attr_val.clear()
         self.txt_text.clear()
+        self.lbl_search.setText('')
+        self.lblsizer.update()  # is bedoeld om de dialoog te laten krimpen, maar werkt niet
+        self.sizer.update()
+        self.update()
+        # self.adjustSize()
 
     def accept(self):
         """confirm dialog and pass changed data to parent"""
@@ -363,6 +371,7 @@ class SearchDialog(qtw.QDialog):
             self.txt_element.setFocus()
             return
 
+        self._parent.in_dialog = True
         self._parent.editor.search_args = (ele, attr_name, attr_val, text)
         super().accept()
 
@@ -822,6 +831,10 @@ class Gui(qtw.QMainWindow):
         node.setText(1, name)
         node.setText(2, value)
 
+    def get_selected_item(self):
+        "return the currently selected item"
+        return self.tree.currentItem()
+
     def set_selected_item(self, item):
         "set the currently selected item to the given item"
         self.tree.setCurrentItem(item)
@@ -855,10 +868,9 @@ class Gui(qtw.QMainWindow):
             self.tree.collapseItem(item)    # mag eventueel recursief in overeenstemming met vorige
             self.tree.resizeColumnToContents(0)
 
-    def edit_item(self):
+    def edit_item(self, item):
         "edit an element or attribute"
-        if not self.checkselection():
-            return
+        self.item = item
         data = str(self.item.text(0))  # self.item.get_text()
         if data.startswith(ELSTART):
             tag, text = str(self.item.text(1)), str(self.item.text(2))
@@ -888,39 +900,22 @@ class Gui(qtw.QMainWindow):
                 self.undo_stack.push(command)
                 self.editor.mark_dirty(True)
 
-    def copy(self, cut=False, retain=True):
+    def copy(self, item, cut=False, retain=True):
         """execute cut/delete/copy action"""
-        if not self.checkselection():
-            return
-        txt = self.editor.get_copytext(cut, retain)
-        if self.item.parent() == self.top:  # self.is_node_root():
-            self.meldfout("Can't %s the root" % txt)
-            return
+        self.item = item
+        txt = self.editor.get_copy_text(cut, retain)
         if self.item.text(0).startswith(ELSTART):
-            command = CopyElementCommand(self, self.item, cut, retain,
-                                         "{} Element".format(txt))
+            command = CopyElementCommand(self, self.item, cut, retain, "{} Element".format(txt))
         else:
-            command = CopyAttributeCommand(self, self.item, cut, retain,
-                                           "{} Attribute".format(txt))
+            command = CopyAttributeCommand(self, self.item, cut, retain, "{} Attribute".format(txt))
         self.undo_stack.push(command)
         if cut:
             self.editor.mark_dirty(True)
             ## self.tree.setCurrentItem(prev)
 
-    def paste(self, before=True, pastebelow=False):
+    def paste(self, item, before=True, below=False):
         """execute paste action"""
-        if not self.checkselection():
-            return
-        if self.item.parent() == self.top and not pastebelow:
-            self.meldinfo("Can't paste before or after the root")
-            return
-        ## data = (str(self.item.text(1)), str(self.item.text(2)))
-        log('{} {} {}'.format(pastebelow, str(self.item.text(0)), self.cut_att))
-        if not str(self.item.text(0)).startswith(ELSTART) and (pastebelow or
-                                                               self.cut_att):
-            self.meldinfo("Can't paste below an attribute")
-            log(self.in_dialog)
-            return
+        self.item = item
         if self.cut_att:
             name, value = self.cut_att
             command = PasteAttributeCommand(self, name, value, self.item,
@@ -929,19 +924,15 @@ class Gui(qtw.QMainWindow):
         elif self.cut_el:
             tag, text = self.cut_el[0][1]
             command = PasteElementCommand(self, tag, text,
-                                          before=before, below=pastebelow, where=self.item,
+                                          before=before, below=below, where=self.item,
                                           description="Paste Element",
                                           data=self.cut_el)
             self.undo_stack.push(command)
         self.editor.mark_dirty(True)
 
-    def add_attribute(self):
+    def add_attribute(self, item):
         "ask for attibute, then start add action"
-        if not self.checkselection():
-            return
-        if not str(self.item.text(0)).startswith(ELSTART):
-            self.meldfout("Can't add attribute to attribute")
-            return
+        self.item = item
         edt = AttributeDialog(self, title="New attribute").exec_()
         if edt == qtw.QDialog.Accepted:
             command = PasteAttributeCommand(self, self.data["name"], self.data["value"],
@@ -949,18 +940,9 @@ class Gui(qtw.QMainWindow):
             self.undo_stack.push(command)
             self.editor.mark_dirty(True)
 
-    def insert(self, before=True, below=False):
+    def insert(self, item, before=True, below=False):
         """execute insert action"""
-        if not self.checkselection():
-            return
-        if str(self.item.text(0)).startswith(ELSTART) or (not before and not below):
-            pass
-        else:
-            self.meldfout("Can't add element to attribute")
-            return
-        if self.item.parent() == self.top and not below:
-            self._meldinfo("Can't insert before or after the root")
-            return
+        self.item = item
         edt = ElementDialog(self, title="New element").exec_()
         if edt == qtw.QDialog.Accepted:
             command = PasteElementCommand(self, self.data['tag'], self.data['text'],
@@ -1111,11 +1093,11 @@ class Gui(qtw.QMainWindow):
             defaultButton=qtw.QMessageBox.Yes)
         return retval[h]
 
-    def ask_for_text(self, prompt):
+    def ask_for_text(self, prompt, value=''):
         """vraagt om tekst en retourneert het antwoord"""
         self.in_dialog = True
         data, *_ = qtw.QInputDialog.getText(self, self.editor.title, prompt,
-                                            qtw.QLineEdit.Normal, "")
+                                            qtw.QLineEdit.Normal, value)
         return data
 
     def file_to_read(self):
@@ -1143,20 +1125,6 @@ class Gui(qtw.QMainWindow):
         self.pastebefore_item.setEnabled(active)
         self.pasteafter_item.setEnabled(active)
         self.pasteunder_item.setEnabled(active)
-
-    def checkselection(self, message=True):
-        """get the currently selected item
-
-        if there is no selection or the file title is selected, display a message
-        (if requested). Also return False in that case
-        """
-        sel = True
-        self.item = self.tree.currentItem()
-        log("in checkselection: self.item {}".format(self.item))
-        if message and (self.item is None or self.item == self.top):
-            self.meldinfo('You need to select an element or attribute first')
-            sel = False
-        return sel
 
     def limit_undo(self):
         "set undo limit"
