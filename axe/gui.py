@@ -1,2 +1,5 @@
-from axe.gui_qt import Gui
-# from axe.gui_wx import Gui
+from .toolkit import toolkit
+if toolkit == 'qt':
+    from .gui_qt import Gui
+elif toolkit == 'wx':
+    from .gui_wx import Gui
