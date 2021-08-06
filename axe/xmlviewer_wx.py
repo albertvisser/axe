@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """wxPython versie van een op een treeview gebaseerde XML-editor
 moet nog verder gestript net zoals dat bij de qt versie gedaan is
 """

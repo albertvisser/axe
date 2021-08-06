@@ -1,7 +1,6 @@
 """Voorstudie voor een DTD parser - not actively maintained
 """
-## from __future__ import with_statement
-## import os
+# import os
 import pprint
 
 PCD = '#PCDATA'
