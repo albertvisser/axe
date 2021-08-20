@@ -7,8 +7,7 @@ moet nog verder gestript net zoals dat bij de qt versie gedaan is
 import os
 import sys
 import wx
-from .axe_base import getshortname, XMLTree, AxeMixin
-from .axe_base import ELSTART, TITEL, axe_iconame
+from .axe_base import getshortname, find_next, ELSTART, TITEL, axe_iconame, AxeMixin
 TITEL = TITEL.replace('editor', 'viewer')
 if os.name == "nt":
     HMASK = "XML files (*.xml)|*.xml|All files (*.*)|*.*"
@@ -17,34 +16,46 @@ elif os.name == "posix":
 IMASK = "All files|*.*"
 
 
-def calculate_location(win, node):              # FIXME: qt -> wx
+def calculate_location(win, node):
     """attempt to calculate some kind of identification for a tree node
 
     this function returns a tuple of subsequent indices of a child under its parent.
     possibly this can be used in the replacements dictionary
     """
-    id_ = []
+    id_table = []
     while node != win.top:
-        idx = node.parent().indexOfChild(node)
-        id_.insert(0, idx)
+        # idx = node.parent().indexOfChild(node)
+        parent_node = win.tree.GetItemParent(node)
+        pos = 0
+        tag, c = win.tree.GetFirstChild(node)
+        while tag.IsOk() and tag != node:
+            pos += 1
+            tag, c = win.tree.GetNextChild(node, c)
+        id_table.insert(0, pos)
         node = node.parent()
-    return tuple(id_)
+        node = parent_node
+    return tuple(id_table)
 
 
-def flatten_tree(element):                      # FIXME: qt -> wx
+def flatten_tree(element):
     """return the tree's structure as a flat list
     probably nicer as a generator function
     """
-    itemdict = element.data(0, core.Qt.UserRole)
+    # itemdict = element.data(0, core.Qt.UserRole)
+    itemdict = win.tree.GetItemData(element)
     if itemdict:
         elem_list = [(element, itemdict['tag'], itemdict['text'] or '', itemdict['attrs'])]
     else:
         elem_list = [(element, '', '', [])]
     subel_list = []
-    for seq in range(element.childCount()):
-        subitem = element.child(seq)
-        subel_list = flatten_tree(subitem)
+    # for seq in range(element.childCount()):
+    tag, c = win.tree.GetFirstChild(element)
+    while tag.IsOk() and tag != element:
+        # subitem = element.child(seq)
+        # subel_list = flatten_tree(subitem)
+        subel_list = flatten_tree(tag)
         elem_list.extend(subel_list)
+        tag, c = win.tree.GetNextChild(element, c)
     return elem_list
 
 
@@ -55,96 +66,94 @@ class SearchDialog(wx.Dialog):
         super().__init__(parent, title=title)
         self._parent = parent
 
-        self.cb_element = wx.StaticText(self, 'Element')
-        lbl_element = wx.StaticText(self, "name:")
-        self.txt_element = wx.TextEdit(self)
+        self.cb_element = wx.StaticText(self, label='Element')
+        lbl_element = wx.StaticText(self, label="name:")
+        self.txt_element = wx.TextCtrl(self, size=(120, -1))
         self.txt_element.Bind(wx.EVT_TEXT, self.set_search)
 
-        self.cb_attr = wx.StaticText(self, 'Attribute')
-        lbl_attr_name = wx.StaticText(self, "name:")
-        self.txt_attr_name = wx.TextEdit(self)
+        self.cb_attr = wx.StaticText(self, label='Attribute')
+        lbl_attr_name = wx.StaticText(self, label="name:")
+        self.txt_attr_name = wx.TextCtrl(self, size=(120, -1))
         self.txt_attr_name.Bind(wx.EVT_TEXT, self.set_search)
-        lbl_attr_val = wx.StaticText(self, "value:")
-        self.txt_attr_val = wx.TextEdit(self)
+        lbl_attr_val = wx.StaticText(self, label="value:")
+        self.txt_attr_val = wx.TextCtrl(self, size=(120, -1))
         self.txt_attr_val.Bind(wx.EVT_TEXT, self.set_search)
 
-        self.cb_text = wx.StaticText(self, 'Text')
-        lbl_text = wx.StaticText(self, "value:")
-        self.txt_text = wx.TextEdit(self)
+        self.cb_text = wx.StaticText(self, label='Text')
+        lbl_text = wx.StaticText(self, label="value:")
+        self.txt_text = wx.TextCtrl(self, size=(120, -1))
         self.txt_text.Bind(wx.EVT_TEXT, self.set_search)
 
-        self.lbl_search = qtw.QLabel('')
+        self.lbl_search = wx.StaticText(self, label="")
 
-        self.btn_ok = wx.Button(self, id=wx.ID_OK)
+        # self.btn_ok = wx.Button(self, id=wx.ID_OK)
         # self.btn_ok.clicked.connect(self.accept)
         # self.btn_ok.setDefault(True)
-        self.btn_cancel = qtw.QPushButton(self, id=wx.ID_CANCEL)
+        # self.btn_cancel = wx.Button(self, id=wx.ID_CANCEL)
         # self.btn_cancel.clicked.connect(self.reject)
 
-        # sizer0 = wx.BoxSizer(wx.VERTICAL)
-        # sizer1 = wx.BoxSizer(wx.HORIZONTAL)
-        # sizer1.Add(self.tree, 1, wx.EXPAND)
-        # sizer0.Add(sizer1, 1, wx.EXPAND)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         gsizer = wx.GridBagSizer(4, 4)
 
-        gsizer.Add(self.cb_element, (0, 0))
+        gsizer.Add(self.cb_element, (0, 0), flag=wx.ALIGN_CENTER_VERTICAL)
         vsizer = wx.BoxSizer(wx.VERTICAL)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(lbl_element)
-        hsizer.Add(self.txt_element)
+        hsizer.Add(lbl_element, flag=wx.ALIGN_CENTER_VERTICAL)
+        hsizer.Add(self.txt_element, flag=wx.ALIGN_CENTER_VERTICAL)
         vsizer.Add(hsizer)
         gsizer.Add(vsizer, (0, 1))
 
-        vsizer = wx.BoxSizer(wx.VERTICAL)
+        # vsizer = wx.BoxSizer(wx.VERTICAL)
         # vsizer.addSpacing(5)
-        vsizer.Add(self.cb_attr)
+        # vsizer.Add(self.cb_attr)
         # vsizer.addStretch()
-        gsizer.Add(vsizer, (1, 0))
+        # gsizer.Add(vsizer, (1, 0))
+        gsizer.Add(self.cb_attr, (1, 0), flag=wx.ALIGN_CENTER_VERTICAL)
         vsizer = wx.BoxSizer(wx.VERTICAL)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(lbl_attr_name)
-        hsizer.Add(self.txt_attr_name)
-        vsizer.Add(hsizer)
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(lbl_attr_val)
-        hsizer.Add(self.txt_attr_val)
+        hsizer.Add(lbl_attr_name, flag=wx.ALIGN_CENTER_VERTICAL)
+        hsizer.Add(self.txt_attr_name, flag=wx.ALIGN_CENTER_VERTICAL)
         vsizer.Add(hsizer)
         gsizer.Add(vsizer, (1, 1))
-
-        gsizer.Add(self.cb_text, (2, 0))
+        vsizer = wx.BoxSizer(wx.VERTICAL)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(lbl_text)
-        hsizer.Add(self.txt_text)
-        gsizer.Add(hsizer, (2, 1))
-        sizer.Add(gsizer)
+        hsizer.Add(lbl_attr_val, flag=wx.ALIGN_CENTER_VERTICAL)
+        hsizer.Add(self.txt_attr_val, flag=wx.ALIGN_CENTER_VERTICAL)
+        vsizer.Add(hsizer)
+        gsizer.Add(vsizer, (2, 1))
+
+        gsizer.Add(self.cb_text, (3, 0), flag=wx.ALIGN_CENTER_VERTICAL)
+        hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        hsizer.Add(lbl_text, flag=wx.ALIGN_CENTER_VERTICAL)
+        hsizer.Add(self.txt_text, flag=wx.ALIGN_CENTER_VERTICAL)
+        gsizer.Add(hsizer, (3, 1))
+        sizer.Add(gsizer, 0, wx.ALL, 4)
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer.Add(self.lbl_search)
-        sizer.Add(hsizer)
+        hsizer.Add(self.lbl_search, 0, wx.LEFT | wx.RIGHT, 4)
+        sizer.Add(hsizer, 0, wx.BOTTOM, 4)
 
-        hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        # hsizer.addStretch()
-        hsizer.Add(self.btn_ok)
-        hsizer.Add(self.btn_cancel)
-        # hsizer.addStretch()
-        sizer.Add(hsizer)
+        # hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        # hsizer.Add(self.btn_ok)
+        # hsizer.Add(self.btn_cancel)
+        # sizer.Add(hsizer, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        buttons = self.CreateButtonSizer(wx.OK | wx.CANCEL)
+        sizer.Add(buttons)
 
         self.SetSizer(sizer)
         self.SetAutoLayout(True)
-        sizer.Fit(self.pnl)
-        sizer.SetSizeHints(self.pnl)
+        sizer.Fit(self)
+        sizer.SetSizeHints(self)
         self.Layout()
-        self.Show(True)
 
-    def set_search(self):
+    def set_search(self, event):
         """build text describing search action"""
         out = ''
         ele = self.txt_element.GetValue()
         attr_name = self.txt_attr_name.GetValue()
         attr_val = self.txt_attr_val.GetValue()
-        GetValue = self.txt_text.text()
+        text = self.txt_text.GetValue()
         attr = ''
         if ele:
             ele = ' an element named `{}`'.format(ele)
@@ -170,10 +179,11 @@ class SearchDialog(wx.Dialog):
                 out += attr
         elif attr:
             out = 'search for' + attr
-        self.lbl_search.SetValue(out)
+        self.lbl_search.SetLabel(out)
 
     def accept(self):
         """confirm dialog and pass changed data to parent"""
+        print('in accept')
         ele = str(self.txt_element.text())
         attr_name = str(self.txt_attr_name.text())
         attr_val = str(self.txt_attr_val.text())
@@ -184,7 +194,6 @@ class SearchDialog(wx.Dialog):
             return
 
         self._parent.search_args = (ele, attr_name, attr_val, text)
-        super().accept()
 
 
 class MainFrame(wx.Frame, AxeMixin):
@@ -233,7 +242,7 @@ class MainFrame(wx.Frame, AxeMixin):
                 self.openxml()
             elif ky == ord('Q'):
                 self.quit()
-        item = self.tree.Selection
+        # item = self.tree.Selection
         # if ky == ord('F'):
         # elif ky == wx.WXK_F3:
         ev.Skip()
@@ -317,19 +326,19 @@ class MainFrame(wx.Frame, AxeMixin):
             viewmenu = wx.Menu()
         else:
             filemenu = wx.Menu()
-            mitem = wx.MenuItem(filemenu, -1, "&Open")
+            mitem = wx.MenuItem(filemenu, -1, "&Open\tCtrl+O")
             self.Bind(wx.EVT_MENU, self.openxml, mitem)
             filemenu.Append(mitem)
-            mitem = wx.MenuItem(filemenu, -1, 'E&xit')
+            mitem = wx.MenuItem(filemenu, -1, 'E&xit\tCtrl+Q')
             self.Bind(wx.EVT_MENU, self.quit, mitem)
             filemenu.Append(mitem)
             # accels.append(wx.AcceleratorEntry(wx.ACCEL_CTRL, ord('Q'), 0, mitem))
             viewmenu = wx.Menu()
 
-        mitem = wx.MenuItem(viewmenu, -1, "&Expand All (sub)Levels")
+        mitem = wx.MenuItem(viewmenu, -1, "&Expand All (sub)Levels\tCtrl++")
         self.Bind(wx.EVT_MENU, self.expand, mitem)
         viewmenu.Append(mitem)
-        mitem = wx.MenuItem(viewmenu, -1, "&Collapse All (sub)Levels")
+        mitem = wx.MenuItem(viewmenu, -1, "&Collapse All (sub)Levels\tCtrl+-")
         self.Bind(wx.EVT_MENU, self.collapse, mitem)
         viewmenu.Append(mitem)
 
@@ -339,16 +348,16 @@ class MainFrame(wx.Frame, AxeMixin):
         else:
             searchmenu = wx.Menu()
 
-        mitem = wx.MenuItem(searchmenu, -1, "&Find")
+        mitem = wx.MenuItem(searchmenu, -1, "&Find\tCtrl+F")
         self.Bind(wx.EVT_MENU, self.search, mitem)
         searchmenu.Append(mitem)
-        mitem = wx.MenuItem(searchmenu, -1, "Find &Last")
+        mitem = wx.MenuItem(searchmenu, -1, "Find &Last\tShift+Ctrl+F")
         self.Bind(wx.EVT_MENU, self.search_last, mitem)
         searchmenu.Append(mitem)
-        mitem = wx.MenuItem(searchmenu, -1, "Find &Next")
+        mitem = wx.MenuItem(searchmenu, -1, "Find &Next\tF3")
         self.Bind(wx.EVT_MENU, self.search_next, mitem)
         searchmenu.Append(mitem)
-        mitem = wx.MenuItem(searchmenu, -1, "Find &Previous")
+        mitem = wx.MenuItem(searchmenu, -1, "Find &Previous\tShift+F3")
         self.Bind(wx.EVT_MENU, self.search_prev, mitem)
         searchmenu.Append(mitem)
         # accel = wx.AcceleratorTable(accels)
@@ -424,7 +433,9 @@ class MainFrame(wx.Frame, AxeMixin):
         "start search after asking for options"
         self._search_pos = None
         with SearchDialog(self, title='Search options') as edt:
+            edt.ShowModal()
             if edt == wx.ID_OK:
+                edt.accept()
                 self.search_next(reverse)
                 ## found, is_attr = find_next(flatten_tree(self.top), self.search_args,
                     ## reversed) # self.tree.top.child(0)
@@ -451,15 +462,14 @@ class MainFrame(wx.Frame, AxeMixin):
         self.search_next(reverse=True)
 
 
-
 def axe_gui(args):
     "start up the editor"
     app = wx.App(redirect=False)  # True, filename="/home/albert/xmledit/axe/axe_wx.log")
     print("----")
     if len(args) > 1:
-        frm = MainFrame(None, -1, fn=" ".join(args[1:]))
+        MainFrame(None, -1, fn=" ".join(args[1:]))
     else:
-        frm = MainFrame(None, -1)
+        MainFrame(None, -1)
     app.MainLoop()
 
 
