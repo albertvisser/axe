@@ -7,8 +7,7 @@ import sys
 import PyQt5.QtWidgets as qtw
 import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
-from .axe_base import getshortname, find_next, log
-from .axe_base import TITEL, axe_iconame, AxeMixin
+from .axe_base import getshortname, find_next, log, TITEL, axe_iconame, AxeMixin
 TITEL = TITEL.replace('editor', 'viewer')
 if os.name == "nt":
     HMASK = "XML files (*.xml);;All files (*.*)"
@@ -20,8 +19,7 @@ IMASK = "All files (*.*)"
 def calculate_location(win, node):
     """attempt to calculate some kind of identification for a tree node
 
-    this function returns a tuple of subsequent indices of a child under its
-    parent.
+    this function returns a tuple of subsequent indices of a child under its parent.
     possibly this can be used in the replacements dictionary
     """
     id_ = []
@@ -519,10 +517,11 @@ def axe_gui(args):
     "start up the editor"
     app = qtw.QApplication(sys.argv)
     if len(args) > 1:
-        frm = MainFrame(fn=" ".join(args[1:]))
+        MainFrame(fn=" ".join(args[1:]))
     else:
-        frm = MainFrame()
+        MainFrame()
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     axe_gui(sys.argv)
