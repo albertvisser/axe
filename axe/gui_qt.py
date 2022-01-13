@@ -399,7 +399,7 @@ class VisualTree(qtw.QTreeWidget):
                     ## if item.childCount() > 0:
                         ## edit = False
         if edit:
-            self.parent.edit()
+            self.parent.edit_item(item)
         else:
             event.ignore()
 
