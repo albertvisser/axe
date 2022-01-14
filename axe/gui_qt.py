@@ -411,8 +411,8 @@ class VisualTree(qtw.QTreeWidget):
             if item and item != self.parent.top:
                 ## self.parent.setCurrentItem(item)
                 menu = self.parent.init_menus(popup=True)
-                menu.exec_(core.QPoint(xc, yc))
-        else: #left click
+                menu.exec_(self.mapToGlobal(event.pos()))
+        else:
             self.parent.set_selected_item(item)
         
         event.ignore()

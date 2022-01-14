@@ -149,6 +149,7 @@ class Editor():
         self.search_args = []
         self.gui.init_gui()
         self.init_tree(et.Element(NEW_ROOT))
+        self._search_pos = None
         if self.xmlfn:
             try:
                 tree, prefixes, uris = parse_nsmap(self.xmlfn)
@@ -359,7 +360,8 @@ class Editor():
                  ("Find &Last", self.search_last, 'Shift+Ctrl+F'),
                  ("Find &Next", self.search_next, 'F3'),
                  ("Find &Previous", self.search_prev, 'Shift+F3'),
-                 ("&Replace", self.replace, 'Ctrl+H'), ))
+                 #("&Replace", self.replace, 'Ctrl+H'),
+                 ))
 
     def flatten_tree(self, element):
         """return the tree's structure as a flat list
@@ -404,13 +406,17 @@ class Editor():
 
     def find_next(self, reverse=False):
         "find (default is forward)"
-        found, is_attr = find_in_flattened_tree(self.flatten_tree(self.top), self.search_args,
-                                                reverse, self._search_pos)
-        if found:
-            self.gui.set_selected_item(found)
-            self._search_pos = (found, is_attr)
+        if self._search_pos is not None:
+            found, is_attr = find_in_flattened_tree(self.flatten_tree(self.top), self.search_args,
+                                                    reverse, self._search_pos)
+            if found:
+                self.gui.set_selected_item(found)
+                self._search_pos = (found, is_attr)
+            else:
+                self.gui.meldinfo('Nothing (more) found ')
         else:
-            self.gui.meldinfo('Niks (meer) gevonden')
+            self.gui.meldinfo('Search for an item first')
+
 
     # user actions from application menu
     def newxml(self, event=None):
