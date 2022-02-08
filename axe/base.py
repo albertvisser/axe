@@ -147,6 +147,7 @@ class Editor():
         self.gui.cut_att = None
         self.gui.cut_el = None
         self.search_args = []
+        self._search_pos = None
         self.gui.init_gui()
         self.init_tree(et.Element(NEW_ROOT))
         if self.xmlfn:
@@ -404,6 +405,9 @@ class Editor():
 
     def find_next(self, reverse=False):
         "find (default is forward)"
+        if self._search_pos is None:
+            self.gui.meldinfo('You need to "Find" something first')
+            return
         found, is_attr = find_in_flattened_tree(self.flatten_tree(self.top), self.search_args,
                                                 reverse, self._search_pos)
         if found:
