@@ -359,8 +359,8 @@ class Editor():
                 (("&Find", self.search, 'Ctrl+F'),
                  ("Find &Last", self.search_last, 'Shift+Ctrl+F'),
                  ("Find &Next", self.search_next, 'F3'),
-                 ("Find &Previous", self.search_prev, 'Shift+F3'),
-                 ("&Replace", self.replace, 'Ctrl+H'), ))
+                 ("Find &Previous", self.search_prev, 'Shift+F3')))  #  ,
+                 # ("&Replace", self.replace, 'Ctrl+H'), ))
 
     def flatten_tree(self, element):
         """return the tree's structure as a flat list
