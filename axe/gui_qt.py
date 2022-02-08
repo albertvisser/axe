@@ -405,16 +405,17 @@ class VisualTree(qtw.QTreeWidget):
 
     def mouseReleaseEvent(self, event):
         "reimplemented to show popup menu when applicable"
-        xc, yc = event.x(), event.y()
-        item = self.itemAt(xc, yc)
+        # xc, yc = event.x(), event.y()
+        # item = self.itemAt(xc, yc)
+        item = self.itemAt(event.pos())
         if event.button() == core.Qt.RightButton:
             if item and item != self.parent.top:
                 ## self.parent.setCurrentItem(item)
                 menu = self.parent.init_menus(popup=True)
-                menu.exec_(core.QPoint(xc, yc))
-        else: #left click
+                # menu.exec_(core.QPoint(xc, yc))
+                menu.exec_(self.mapToGlobal(event.pos()))
+        else:  # left click
             self.parent.set_selected_item(item)
-        
         event.ignore()
 
 
