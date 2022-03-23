@@ -339,10 +339,11 @@ class SearchDialog(wx.Dialog):
 
 class Gui(wx.Frame):
     "Main application window"
-    def __init__(self, parent=None, fn=''):
+    def __init__(self, parent=None, fn='', readonly=False):
         self.editor = parent
         self.app = wx.App()
         self.fn = fn
+        self.editable = not readonly
         super().__init__(parent=None, pos=(2, 2))  # , size=(620, 900))
         self.Show()
 
@@ -632,7 +633,8 @@ class Gui(wx.Frame):
         filemenu, viewmenu, editmenu, searchmenu = self.init_menus()
         menu_bar.Append(filemenu, "&File")
         menu_bar.Append(viewmenu, "&View")
-        menu_bar.Append(editmenu, "&Edit")
+        if self.editable:
+            menu_bar.Append(editmenu, "&Edit")
         menu_bar.Append(searchmenu, "&Search")
         self.SetMenuBar(menu_bar)
 
@@ -654,8 +656,9 @@ class Gui(wx.Frame):
         # self.Show(True)
         self.tree.SetFocus()
 
-        self.enable_pasteitems(False)
-        self.editor.mark_dirty(False)
+        if self.editable:
+            self.enable_pasteitems(False)
+            self.editor.mark_dirty(False)
 
     def set_windowtitle(self, text):
         """set screen title
@@ -676,9 +679,10 @@ class Gui(wx.Frame):
             editmenu = viewmenu
             searchmenu = editmenu
         else:
-            editmenu = wx.Menu()
+            editmenu = wx.Menu() if self.editable else None
             searchmenu = wx.Menu()
-        disable_menu = True if not self.cut_el and not self.cut_att else False
+        if self.editable:
+            disable_menu = True if not self.cut_el and not self.cut_att else False
 
         for ix, menudata in enumerate(self.editor.get_menu_data()):
             for ix2, data in enumerate(menudata):
@@ -696,7 +700,7 @@ class Gui(wx.Frame):
                     mitem = filemenu.Append(-1, text)
                 elif ix == 1:
                     mitem = viewmenu.Append(-1, text)
-                elif ix == 2:
+                elif ix == 2 and self.editable:
                     if ix2 == 0:
                         editmenu.AppendSeparator()
                     mitem = editmenu.Append(-1, text)
@@ -713,7 +717,7 @@ class Gui(wx.Frame):
                     elif ix2 == 8:
                         self.pasteunder_item = mitem
                         editmenu.AppendSeparator()
-                elif ix == 3:
+                elif (ix == 2 and not self.editable) or ix == 3:
                     if ix2 == 0:
                         searchmenu.AppendSeparator()
                     mitem = searchmenu.Append(-1, text)
@@ -725,7 +729,7 @@ class Gui(wx.Frame):
                             accels.append(accel)
                 self.SetAcceleratorTable(wx.AcceleratorTable(accels))
 
-        if disable_menu:
+        if self.editable and disable_menu:
             self.enable_pasteitems(False)
 
         if popup:

@@ -751,10 +751,11 @@ class Gui(qtw.QMainWindow):
     out yet.
     """
 
-    def __init__(self, parent=None, fn=''):
+    def __init__(self, parent=None, fn='', readonly=False):
         self.editor = parent
         self.app = qtw.QApplication(sys.argv)
         self.fn = fn
+        self.editable = not readonly
         super().__init__()
         self.show()
 
@@ -802,7 +803,8 @@ class Gui(qtw.QMainWindow):
     def setup_new_tree(self, title):
         "build new visual tree and return its root element"
         self.tree.clear()  # DeleteAllItems()
-        self.undo_stack.clear()
+        if self.editable:
+            self.undo_stack.clear()
         self.top = qtw.QTreeWidgetItem()
         self.top.setText(0, title)
         self.tree.addTopLevelItem(self.top)  # AddRoot(titel)
@@ -970,9 +972,10 @@ class Gui(qtw.QMainWindow):
         self.tree = VisualTree(self)
         self.tree.headerItem().setHidden(True)
         self.setCentralWidget(self.tree)
-        self.enable_pasteitems(False)
-        self.undo_stack = UndoRedoStack(self)
-        self.editor.mark_dirty(False)
+        if self.editable:
+            self.enable_pasteitems(False)
+            self.undo_stack = UndoRedoStack(self)
+            self.editor.mark_dirty(False)
         self.in_dialog = False
 
     def set_windowtitle(self, text):
@@ -987,6 +990,7 @@ class Gui(qtw.QMainWindow):
 
     def init_menus(self, popup=False):
         """setup application menu"""
+        filemenu = viewmenu = editmenu = None
         if popup:
             viewmenu = qtw.QMenu("&View")
         else:
@@ -999,65 +1003,69 @@ class Gui(qtw.QMainWindow):
                     if shortcuts:
                         act.setShortcuts([x for x in shortcuts.split(',')])
                     if ix == 0:
-                        self.filemenu_actions.append(act)
+                        actions = self.filemenu_actions
                     elif ix == 1:
-                        self.viewmenu_actions.append(act)
+                        actions = self.viewmenu_actions
                     elif ix == 2:
-                        self.editmenu_actions.append(act)
+                        actions = self.editmenu_actions if self.editable else self.searchmenu_actions
                     elif ix == 3:
-                        self.searchmenu_actions.append(act)
-            act = qtw.QAction('&Unlimited Undo', self)
-            act.triggered.connect(self.limit_undo)
-            self.filemenu_actions.insert(-1, act)
-            self.undo_item, self.redo_item = self.editmenu_actions[0:2]
-            self.pastebefore_item, self.pasteafter_item, \
-                self.pasteunder_item = self.editmenu_actions[6:9]
-            self.setundo_action = self.filemenu_actions[-2]
-            self.setundo_action.setCheckable(True)
-            self.setundo_action.setChecked(False)
+                        actions = self.searchmenu_actions
+                    actions.append(act)
+            if self.editable:
+                act = qtw.QAction('&Unlimited Undo', self)
+                act.triggered.connect(self.limit_undo)
+                self.filemenu_actions.insert(-1, act)
+                self.undo_item, self.redo_item = self.editmenu_actions[0:2]
+                self.pastebefore_item, self.pasteafter_item = self.editmenu_actions[6:8]
+                self.pasteunder_item = self.editmenu_actions[8]
+                self.setundo_action = self.filemenu_actions[-2]
+                self.setundo_action.setCheckable(True)
+                self.setundo_action.setChecked(False)
 
             menubar = self.menuBar()
             filemenu = menubar.addMenu("&File")
             for act in self.filemenu_actions[:4]:
                 filemenu.addAction(act)
-            filemenu.addSeparator()
-            filemenu.addAction(self.setundo_action)
-            filemenu.addSeparator()
-            filemenu.addAction(self.filemenu_actions[-1])
+            if self.editable:
+                filemenu.addSeparator()
+                filemenu.addAction(self.setundo_action)
+                filemenu.addSeparator()
+                filemenu.addAction(self.filemenu_actions[-1])
             viewmenu = menubar.addMenu("&View")
         for act in self.viewmenu_actions:
             viewmenu.addAction(act)
 
-        if popup:
-            editmenu = viewmenu
-            editmenu.setTitle("View/Edit")
-            editmenu.addSeparator()
-        else:
-            editmenu = menubar.addMenu("&Edit")
-
-        for ix, act in enumerate(self.editmenu_actions[:6]):
-            editmenu.addAction(act)
-            if ix == 2:
+        if self.editable:
+            if popup:
+                editmenu = viewmenu
+                editmenu.setTitle("View/Edit")
                 editmenu.addSeparator()
+            else:
+                editmenu = menubar.addMenu("&Edit")
 
-        disable_menu = True if not self.cut_el and not self.cut_att else False
-        add_menuitem = True if not popup or not disable_menu else False
-        if disable_menu:
-            self.pastebefore_item.setText("Nothing to Paste")
-            self.pastebefore_item.setEnabled(False)
-            self.pasteafter_item.setEnabled(False)
-            self.pasteunder_item.setEnabled(False)
-        if add_menuitem:
-            editmenu.addAction(self.pastebefore_item)
-            editmenu.addAction(self.pasteafter_item)
-            editmenu.addAction(self.pasteunder_item)
+            for ix, act in enumerate(self.editmenu_actions[:6]):
+                editmenu.addAction(act)
+                if ix == 2:
+                    editmenu.addSeparator()
 
-        editmenu.addSeparator()
-        for act in self.editmenu_actions[9:]:
-            editmenu.addAction(act)
+            disable_menu = True if not self.cut_el and not self.cut_att else False
+            add_menuitem = True if not popup or not disable_menu else False
+            if disable_menu:
+                self.pastebefore_item.setText("Nothing to Paste")
+                self.pastebefore_item.setEnabled(False)
+                self.pasteafter_item.setEnabled(False)
+                self.pasteunder_item.setEnabled(False)
+            if add_menuitem:
+                editmenu.addAction(self.pastebefore_item)
+                editmenu.addAction(self.pasteafter_item)
+                editmenu.addAction(self.pasteunder_item)
+
+            editmenu.addSeparator()
+            for act in self.editmenu_actions[9:]:
+                editmenu.addAction(act)
 
         if popup:
-            searchmenu = editmenu
+            searchmenu = editmenu if build_editmenu else viewmenu
             searchmenu.addSeparator()
         else:
             searchmenu = menubar.addMenu("&Search")
