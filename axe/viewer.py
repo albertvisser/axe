@@ -37,7 +37,9 @@ class Viewer():
         self.gui.go()
 
     def check_tree(self):
+        "nodig omdat de gui module deze aanroept"
         return True
+
 
     def get_menu_data(self):
         """return menu structure for GUI (title, callback, keyboard shortcut(s))
@@ -188,11 +190,8 @@ class Viewer():
         if self.gui.get_search_args():
             # TODO: bij contextmenu rekening houden met positie huidige item
             # if from_contextmenu:
-            if self.checkselection(message=False):
-                self._search_pos = self.item, None
-            else:
-                loc = -1 if reverse else 0
-                self._search_pos = self.gui.get_node_children(self.gui.get_treetop())[loc], None
+            self.item = self.gui.get_selected_item()  # self.tree.Selection
+            self._search_pos = self.item, None
             self.find_next(reverse)
 
     def find_next(self, reverse=False):
