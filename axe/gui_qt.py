@@ -991,6 +991,7 @@ class Gui(qtw.QMainWindow):
     def init_menus(self, popup=False):
         """setup application menu"""
         filemenu = viewmenu = editmenu = None
+        build_editmenu = False
         if popup:
             viewmenu = qtw.QMenu("&View")
         else:
@@ -1040,6 +1041,7 @@ class Gui(qtw.QMainWindow):
                 editmenu = viewmenu
                 editmenu.setTitle("View/Edit")
                 editmenu.addSeparator()
+                build_editmenu = True
             else:
                 editmenu = menubar.addMenu("&Edit")
 

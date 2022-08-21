@@ -40,7 +40,6 @@ class Viewer():
         "nodig omdat de gui module deze aanroept"
         return True
 
-
     def get_menu_data(self):
         """return menu structure for GUI (title, callback, keyboard shortcut(s))
         """
