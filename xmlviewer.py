@@ -1,10 +1,10 @@
 #! /usr/bin/env python3
-"""Startup script for XML Editor
+"""Startup script for XML Viewer
 """
 import sys
-from axe.viewer import Viewer
+from axe.base import Editor
 
 if len(sys.argv) > 1:
-    Viewer(sys.argv[1])
+    Editor(sys.argv[1], readonly=True)
 else:
-    Viewer('')
+    Editor('', readonly=True)
