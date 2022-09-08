@@ -1,5 +1,7 @@
 """
 XMLEdit GUI-onafhankelijke code
+
+poging om de editor en de viewer code in één module te houden
 """
 
 import os
@@ -11,7 +13,6 @@ import xml.etree.ElementTree as et
 
 from .shared import ELSTART, log
 from .gui import Gui
-TITEL = "Albert's (Simple) XML editor"
 NEW_ROOT = '(new root)'
 
 
@@ -137,19 +138,22 @@ class XMLTree():
         tree.write(fn, encoding="utf-8", xml_declaration=True)
 
 
-## class AxeMixin():
 class Editor():
     "Applicatievenster zonder GUI-specifieke methoden"
-    def __init__(self, fname):
-        self.title = "Albert's XML Editor"
+    def __init__(self, fname, readonly=False):
+        text = 'Viewer' if readonly else 'Editor'
+        self.title = "Albert's (Simple) XML " + text
         self.xmlfn = os.path.abspath(fname) if fname else ''
-        self.gui = Gui(self, fname)
-        self.gui.cut_att = None
-        self.gui.cut_el = None
+        self.readonly = readonly
+        self.gui = Gui(self, fname, readonly=readonly)
+        if not readonly:
+            self.gui.cut_att = None
+            self.gui.cut_el = None
         self.search_args = []
         self._search_pos = None
         self.gui.init_gui()
-        self.init_tree(et.Element(NEW_ROOT))
+        if not readonly:
+            self.init_tree(et.Element(NEW_ROOT))
         if self.xmlfn:
             try:
                 tree, prefixes, uris = parse_nsmap(self.xmlfn)
@@ -166,7 +170,9 @@ class Editor():
         en retourneert de overeenkomstig gewijzigde tekst voor de titel
         """
         self.tree_dirty = state
-        test = ' - ' + TITEL
+        if self.readonly:
+            return
+        test = ' - ' + self.title
         test2 = '*' + test
         title = self.gui.get_windowtitle()
         has_test2 = test2 in title
@@ -198,6 +204,8 @@ class Editor():
         """
         sel = True
         self.item = self.gui.get_selected_item()  # self.tree.Selection
+        if self.readonly:
+            return sel
         if message and (self.item is None or self.item == self.top):
             self.gui.meldinfo('You need to select an element or attribute first')
             sel = False
@@ -252,7 +260,7 @@ class Editor():
         self.rt = root
         self.ns_prefixes = prefixes or []
         self.ns_uris = uris or []
-        self.gui.set_windowtitle(" - ".join((os.path.basename(titel), TITEL)))
+        self.gui.set_windowtitle(" - ".join((os.path.basename(titel), self.title)))
         if root is None:  # explicit test needed, empty root element is falsey
             return
         # eventuele namespaces toevoegen
@@ -336,13 +344,13 @@ class Editor():
     def get_menu_data(self):
         """return menu structure for GUI (title, callback, keyboard shortcut(s))
         """
-        return ((("&New", self.newxml, 'Ctrl+N'),
+        data = [[("&New", self.newxml, 'Ctrl+N'),
                  ("&Open", self.openxml, 'Ctrl+O'),
                  ('&Save', self.savexml, 'Ctrl+S'),
                  ('Save &As', self.savexmlas, 'Shift+Ctrl+S'),
-                 ('E&xit', self.gui.quit, 'Ctrl+Q'), ),
+                 ('E&xit', self.gui.quit, 'Ctrl+Q')],
                 (("&Expand All (sub)Levels", self.expand, 'Ctrl++'),
-                 ("&Collapse All (sub)Levels", self.collapse, 'Ctrl+-'), ),
+                 ("&Collapse All (sub)Levels", self.collapse, 'Ctrl+-')),
                 (("Nothing to &Undo", self.undo, 'Ctrl+Z'),
                  ("Nothing to &Redo", self.redo, 'Ctrl+Y'),
                  ("&Edit", self.edit, 'Ctrl+E,F2'),
@@ -355,12 +363,19 @@ class Editor():
                  ("Insert Attribute", self.add_attr, 'Shift+Insert'),
                  ('Insert Element Before', self.insert, 'Ctrl+Insert'),
                  ('Insert Element After', self.insert_after, 'Alt+Insert'),
-                 ('Insert Element Under', self.insert_child, 'Insert'), ),
+                 ('Insert Element Under', self.insert_child, 'Insert')),
                 (("&Find", self.search, 'Ctrl+F'),
                  ("Find &Last", self.search_last, 'Shift+Ctrl+F'),
                  ("Find &Next", self.search_next, 'F3'),
-                 ("Find &Previous", self.search_prev, 'Shift+F3')))  #  ,
-                 # ("&Replace", self.replace, 'Ctrl+H'), ))
+                 ("Find &Previous", self.search_prev, 'Shift+F3'))]
+                 # ("&Replace", self.replace, 'Ctrl+H'))]
+        if self.readonly:
+            data.pop(2)
+            # data[0][2:] = data[0][-1]
+            data[0].pop(3)
+            data[0].pop(2)
+            data[0].pop(0)
+        return data
 
     def flatten_tree(self, element):
         """return the tree's structure as a flat list
@@ -394,8 +409,6 @@ class Editor():
         "start search after asking for options"
         # from_contextmenu = self.checkselection(message=False)
         if self.gui.get_search_args():
-            # TODO: bij contextmenu rekening houden met positie huidige item
-            # if from_contextmenu:
             if self.checkselection(message=False):
                 self._search_pos = self.item, None
             else:
