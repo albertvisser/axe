@@ -1,0 +1,12 @@
+[testdir]
+unittests
+
+[testscripts]
+main: test_base.py
+#qt: test_qtgui.py.py
+#wx: test_wxgui.py.py
+
+[testees]
+main: axe/base.py
+#qt: axe/gui_qt.py
+#wx: axe/gui_wx.py
