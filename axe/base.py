@@ -14,6 +14,8 @@ import xml.etree.ElementTree as et
 from .shared import ELSTART, log
 from .gui import Gui
 NEW_ROOT = '(new root)'
+TITLESTART = "Albert's (Simple) XML"
+ASKTOSAVE = "XML data has been modified - " "save before continuing?"
 
 
 def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
@@ -142,7 +144,7 @@ class Editor():
     "Applicatievenster zonder GUI-specifieke methoden"
     def __init__(self, fname, readonly=False):
         text = 'Viewer' if readonly else 'Editor'
-        self.title = "Albert's (Simple) XML " + text
+        self.title = f'{TITLESTART} {text}'
         self.xmlfn = os.path.abspath(fname) if fname else ''
         self.readonly = readonly
         self.gui = Gui(self, fname, readonly=readonly)
@@ -188,8 +190,7 @@ class Editor():
         """
         ok = True
         if self.tree_dirty:
-            h = self.gui.ask_yesnocancel("XML data has been modified - "
-                                         "save before continuing?")
+            h = self.gui.ask_yesnocancel(ASKTOSAVE)
             if h == 1:
                 self.savexml()
             elif h == -1:
