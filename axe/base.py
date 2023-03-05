@@ -529,17 +529,17 @@ class Editor():
 
     def paste(self, event=None, before=True, below=False):
         "paste after"
-        print('in paste_before')
+        # print('in paste_before')
         if not self.checkselection():
             return
         if self.gui.get_node_parentpos(self.item)[0] == self.gui.top and not below:
             if before:
-                self.gui.meldinfo("Can't paste before the root")
+                self.gui.meldfout("Can't paste before the root")
                 return
             self.gui.meldinfo("Pasting as first element below root")
             below = True
         if below and not self.gui.get_node_title(self.item).startswith(ELSTART):
-            self.gui.meldinfo("Can't paste below an attribute")
+            self.gui.meldfout("Can't paste below an attribute")
             return
         self.gui.paste(self.item, before=before, below=below)
 
