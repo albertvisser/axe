@@ -67,7 +67,7 @@ class ElementDialog(wx.Dialog):
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         vsizer = wx.BoxSizer(wx.VERTICAL)
         vsizer.Add(self.cb, 0, wx.ALIGN_CENTER_HORIZONTAL)  # ,wx.TOP, 3)
-        vsizer.Add(self.txt_data, 1, wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL)
+        vsizer.Add(self.txt_data, 1, wx.ALL | wx.ALIGN_CENTER_HORIZONTAL)
         hsizer.Add(vsizer, 1, wx.EXPAND | wx.ALL, 5)
         sizer.Add(hsizer, 1, wx.EXPAND | wx.ALL, 5)
 
@@ -91,11 +91,6 @@ class ElementDialog(wx.Dialog):
         # vbox.SetSizeHints(self)
 
         self.txt_tag.SetFocus()
-
-    def on_cancel(self, ev):
-        "dismiss dialog"
-        # TODO: make sure escape activates this too
-        self.end('cancel')
 
     def on_ok(self, ev):
         """final checks, send changed data to parent"""
