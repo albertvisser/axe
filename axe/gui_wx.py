@@ -812,7 +812,7 @@ class Gui(wx.Frame):
                 self.tree.SelectItem(self.tree.GetItemParent(item))
         ev.Skip()
 
-    def get_search_args(self):
+    def ask_for_search_args(self):
         """end dialog to get search argument(s)
         """
         # self._search_args = []

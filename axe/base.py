@@ -407,7 +407,7 @@ class Editor():
 
     def find_first(self, reverse=False):
         "start search after asking for options"
-        if self.gui.get_search_args():
+        if self.gui.ask_for_search_args():
             if self.checkselection(message=False):
                 self._search_pos = self.item, None
             else:

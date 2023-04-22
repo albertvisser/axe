@@ -1184,7 +1184,7 @@ class Gui(qtw.QMainWindow):
                 skip = True
         return skip
 
-    def get_search_args(self):
+    def ask_for_search_args(self):
         """send dialog to get search argument(s)
         """
         # self.search_args = []

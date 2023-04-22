@@ -147,8 +147,8 @@ class MockGui:
     def ask_for_text(self, *args):
         print('called Gui.ask_for_text with args', args)
         return ''
-    def get_search_args(self):
-        print('called Gui.get_search_args')
+    def ask_for_search_args(self):
+        print('called Gui.ask_for_search_args')
         return False
 
 
@@ -453,8 +453,8 @@ def test_editor_find_first(monkeypatch, capsys):
     testobj = testee.Editor('testfile')
     assert capsys.readouterr().out == 'called Editor.__init__\ncalled Gui.__init__\n'
     testobj.find_first()
-    assert capsys.readouterr().out == 'called Gui.get_search_args\n'
-    monkeypatch.setattr(testobj.gui, 'get_search_args', lambda *x: True)
+    assert capsys.readouterr().out == 'called Gui.ask_for_search_args\n'
+    monkeypatch.setattr(testobj.gui, 'ask_for_search_args', lambda *x: True)
     monkeypatch.setattr(testobj, 'checkselection', lambda *x, **y: True)
     testobj.item = 'item'
     testobj.find_first()
