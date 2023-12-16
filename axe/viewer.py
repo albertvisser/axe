@@ -5,7 +5,7 @@ XMLView GUI-onafhankelijke code
 import os
 # import pathlib
 ## import sys
-import shutil
+# import shutil
 import xml.etree.ElementTree as et
 # import logging
 
@@ -16,7 +16,7 @@ TITEL = "Albert's (Simple) XML viewer"
 # NEW_ROOT = '(new root)'
 
 
-class Viewer():
+class Viewer:
     "Applicatievenster zonder GUI-specifieke methoden"
     def __init__(self, fname):
         self.title = "Albert's XML Viewer"
@@ -28,7 +28,7 @@ class Viewer():
         if self.xmlfn:
             try:
                 tree, prefixes, uris = parse_nsmap(self.xmlfn)
-            except (IOError, et.ParseError) as err:
+            except (OSError, et.ParseError) as err:
                 self.gui.meldfout(str(err), abort=True)
                 self.init_tree(None)
                 return  # None
@@ -87,7 +87,7 @@ class Viewer():
                 # ns_root = qtw.QTreeWidgetItem(['namespaces'])
                 namespaces = True
             ns_item = self.gui.add_node_to_parent(ns_root)
-            self.gui.set_node_title(ns_item, '{}: {}'.format(prf, self.ns_uris[ix]))
+            self.gui.set_node_title(ns_item, '{prf}: {self.ns_uris[ix]}')
         rt = self.add_item(self.top, self.rt.tag, self.rt.text)
         for attr in self.rt.keys():
             h = self.rt.get(attr)
@@ -119,18 +119,17 @@ class Viewer():
                 if ns_uri == uri:
                     prefix = self.ns_prefixes[i]
                     break
-            fullname = ':'.join((prefix, localname))
-        strt = ' '.join((ELSTART, fullname))
+            fullname = f'{prefix}:{localname}'
+        strt = '{ELSTART} {fullname}'
         if attr:
-            return " = ".join((fullname, text))
+            return "{fullname} = {text}"
         elif text:
-            return ": ".join((strt, text))
+            return "{strt}: {text}"
         return strt
 
     def add_item(self, to_item, name, value, before=False, below=True, attr=False):
         """execute adding of item"""
-        log('in add_item for {} value {} to {} before is {} below is {}'.format(
-            name, value, to_item, before, below))
+        log(f'in add_item for {name=} {value=} {to_item=} {before=} {below=}')
         if value is None:
             value = ""
         itemtext = self.getshortname((name, value), attr)
@@ -270,7 +269,7 @@ class Viewer():
                 attr_out[0] = ' with' + attr_out[0]
         if text:
             out[0] += ' text'
-            out.append('   `{}`'.format(text))
+            out.append(f'   `{text}`')
             if ele:
                 ele_out[0] = ' under' + ele_out[0]
                 out += ele_out

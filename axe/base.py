@@ -39,9 +39,8 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
                         break
                 if found_attr:
                     break
-            else:
-                if item[0] == pos:
-                    break
+            elif item[0] == pos:
+                break
         if is_attr:
             data = data[ix:]
             id, name, text, attrs = data[0]
@@ -113,7 +112,7 @@ def parse_nsmap(file):
     return et.ElementTree(root), ns_prefixes, ns_uris
 
 
-class XMLTree():
+class XMLTree:
     """class to store XMLdata
     """
     def __init__(self, data):
@@ -139,7 +138,7 @@ class XMLTree():
         tree.write(fn, encoding="utf-8", xml_declaration=True)
 
 
-class Editor():
+class Editor:
     "Applicatievenster zonder GUI-specifieke methoden"
     def __init__(self, fname, readonly=False):
         text = 'Viewer' if readonly else 'Editor'
@@ -158,7 +157,7 @@ class Editor():
         if self.xmlfn:
             try:
                 tree, prefixes, uris = parse_nsmap(self.xmlfn)
-            except (IOError, et.ParseError) as err:
+            except (OSError, et.ParseError) as err:
                 self.gui.meldfout(str(err), abort=True)
                 self.gui.init_tree(None)
                 return
@@ -261,7 +260,7 @@ class Editor():
                 # ns_root = qtw.QTreeWidgetItem(['namespaces'])
                 namespaces = True
             ns_item = self.gui.add_node_to_parent(ns_root)
-            self.gui.set_node_title(ns_item, '{prf}: {self.ns_uris[ix]}')
+            self.gui.set_node_title(ns_item, f'{prf}: {self.ns_uris[ix]}')
         rt = self.add_item(self.top, self.rt.tag, self.rt.text)
         for attr in self.rt.keys():
             h = self.rt.get(attr)
@@ -306,12 +305,12 @@ class Editor():
                 if ns_uri == uri:
                     prefix = self.ns_prefixes[i]
                     break
-            fullname = ':'.join((prefix, localname))
-        strt = ' '.join((ELSTART, fullname))
+            fullname = f'{prefix}:{localname}'
+        strt = f'{ELSTART} {fullname}'
         if attr:
-            return " = ".join((fullname, text))
+            return f"{fullname} = {text}"
         if text:
-            return ": ".join((strt, text))
+            return f"{strt}: {text}"
         return strt
 
     def add_item(self, to_item, name, value, before=False, below=True, attr=False):
@@ -325,11 +324,15 @@ class Editor():
             insert = -1
             if not itemtext.startswith(ELSTART):
                 itemlist = self.gui.get_node_children(to_item)
+                # for seq, subitem in enumerate(itemlist):
+                #     if self.gui.get_node_title(subitem).startswith(ELSTART):
+                #         break
+                # if itemlist and seq < len(itemlist):
+                #     insert = seq
                 for seq, subitem in enumerate(itemlist):
                     if self.gui.get_node_title(subitem).startswith(ELSTART):
+                        insert = seq
                         break
-                if itemlist and seq < len(itemlist):
-                    insert = seq
         else:
             add_under, insert = self.gui.get_node_parentpos(to_item)
             print('in base.add_item (not below), insert is', insert)

@@ -1,2 +1,2 @@
 # voor nu: qt of wx
-toolkit = 'qt'
+toolkit = 'wx'

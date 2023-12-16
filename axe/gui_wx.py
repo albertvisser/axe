@@ -2,7 +2,7 @@
 """
 import os
 import wx
-from .shared import ELSTART, axe_iconame, log
+from .shared import ELSTART, axe_iconame  # , log
 if os.name == "nt":
     HMASK = "XML files (*.xml)|*.xml|All files (*.*)|*.*"
 elif os.name == "posix":
@@ -113,7 +113,7 @@ class ElementDialog(wx.Dialog):
                 self._parent.meldfout('Namespace must be selected if checked')
                 self.cb_ns.SetFocus()
                 return
-            tag = '{{{}}}{}'.format(self.cmb_ns.GetString(seq), tag)
+            tag = f'{{{self.cmb_ns.GetString(seq)}}}{tag}'
         self._parent.data["tag"] = tag
         self._parent.data["data"] = self.cb.IsChecked()
         self._parent.data["text"] = self.txt_data.GetValue()
@@ -205,7 +205,7 @@ class AttributeDialog(wx.Dialog):
                 self._parent.meldfout('Namespace must be selected if checked')
                 self.cb_ns.SetFocus()
                 return
-            nam = '{{{}}}{}'.format(self.cmb_ns.GetString(seq), nam)  # tag)
+            nam = f'{{{self.cmb_ns.GetString(seq)}}}{nam}' # tag)
         self._parent.data["name"] = nam
         self._parent.data["value"] = self.txt_value.GetValue()
         ev.Skip()
@@ -357,9 +357,8 @@ class Gui(wx.Frame):
             else:
                 data = self.tree.GetItemText(item)
                 edit = True
-                if data.startswith(ELSTART):
-                    if self.tree.GetChildrenCount(item):
-                        edit = False
+                if data.startswith(ELSTART) and self.tree.GetChildrenCount(item):
+                    edit = False
         if edit:
             self.edit()
         ev.Skip()
@@ -677,7 +676,7 @@ class Gui(wx.Frame):
             editmenu = wx.Menu() if self.editable else None
             searchmenu = wx.Menu()
         if self.editable:
-            disable_menu = True if not self.cut_el and not self.cut_att else False
+            disable_menu = not self.cut_el and not self.cut_att
 
         for ix, menudata in enumerate(self.editor.get_menu_data()):
             for ix2, data in enumerate(menudata):

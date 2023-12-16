@@ -159,7 +159,7 @@ def test_editor_init(monkeypatch, capsys):
         print(f'called parse_nsmap with arg {arg}')
         return types.SimpleNamespace(getroot=mock_getroot), ['ns_prefix'], ['ns_uri']
     def mock_parse_nsmap_2(arg):
-        raise IOError('got an IOError')
+        raise OSError('got an OSError')
     def mock_parse_nsmap_3(arg):
         raise testee.et.ParseError('got a ParseError')
     def mock_init_tree(self, *args):
@@ -198,7 +198,7 @@ def test_editor_init(monkeypatch, capsys):
     assert capsys.readouterr().out == ("called Gui.__init__\n"
                                        "called Gui.init_gui with args ()\n"
                                        "called Editor.init_tree with args ('(new root)',)\n"
-                                       "called Gui.meldfout with args ('got an IOError',)"
+                                       "called Gui.meldfout with args ('got an OSError',)"
                                        " {'abort': True}\n"
                                        "called Gui.init_tree with args (None,)\n")
     monkeypatch.setattr(testee, 'parse_nsmap', mock_parse_nsmap_3)
@@ -392,7 +392,7 @@ def test_editor_expandnode(monkeypatch, capsys):
 
 def _test_editor_init_tree(monkeypatch, capsys):
     monkeypatch.setattr(testee.Editor, '__init__', mock_editor_init)
-    testobj = testee.Editor('testfile')
+    testee.Editor('testfile')
     assert capsys.readouterr().out == 'called Editor.__init__\ncalled Gui.__init__\n'
 
 def test_editor_add_to_tree(monkeypatch, capsys):
@@ -427,22 +427,22 @@ def test_editor_add_to_tree(monkeypatch, capsys):
 
 def _test_editor_getshortname(monkeypatch, capsys):
     monkeypatch.setattr(testee.Editor, '__init__', mock_editor_init)
-    testobj = testee.Editor('testfile')
+    testee.Editor('testfile')
     assert capsys.readouterr().out == 'called Editor.__init__\ncalled Gui.__init__\n'
 
 def _test_editor_add_item(monkeypatch, capsys):
     monkeypatch.setattr(testee.Editor, '__init__', mock_editor_init)
-    testobj = testee.Editor('testfile')
+    testee.Editor('testfile')
     assert capsys.readouterr().out == 'called Editor.__init__\ncalled Gui.__init__\n'
 
 def _test_editor_get_menu_data(monkeypatch, capsys):
     monkeypatch.setattr(testee.Editor, '__init__', mock_editor_init)
-    testobj = testee.Editor('testfile')
+    testee.Editor('testfile')
     assert capsys.readouterr().out == 'called Editor.__init__\ncalled Gui.__init__\n'
 
 def _test_editor_flatten_tree(monkeypatch, capsys):
     monkeypatch.setattr(testee.Editor, '__init__', mock_editor_init)
-    testobj = testee.Editor('testfile')
+    testee.Editor('testfile')
     assert capsys.readouterr().out == 'called Editor.__init__\ncalled Gui.__init__\n'
 
 def test_editor_find_first(monkeypatch, capsys):
@@ -474,7 +474,7 @@ def test_editor_find_next(monkeypatch, capsys):
     def mock_flatten_tree(self, node):
         print(f'called Editor.flatten_tree with arg `{node}`')
     def mock_find_in_flattened_tree(*args):
-        print(f'called find_in_flattened_tree with args', args)
+        print('called find_in_flattened_tree with args', args)
         return 'itemfound', False
     monkeypatch.setattr(testee, 'find_in_flattened_tree', mock_find_in_flattened_tree)
     monkeypatch.setattr(testee.Editor, '__init__', mock_editor_init)
@@ -539,7 +539,7 @@ def test_editor_openxml(monkeypatch, capsys):
         def getroot(self):
             return 'element_root'
     def mock_init_tree(self, *args):
-        print(f'called Editor.init_tree with args', args)
+        print('called Editor.init_tree with args', args)
     def mock_parse_nsmap(fname):
         print(f'called parse_nsmap with arg `{fname}`')
         raise testee.et.ParseError('error')
@@ -850,7 +850,7 @@ def test_editor_search_prev(monkeypatch, capsys):
 
 def _test_editor_get_search_text(monkeypatch, capsys):
     monkeypatch.setattr(testee.Editor, '__init__', mock_editor_init)
-    testobj = testee.Editor('testfile')
+    testee.Editor('testfile')
     assert capsys.readouterr().out == 'called Editor.__init__\ncalled Gui.__init__\n'
 
 def test_editor_replace(monkeypatch, capsys):

@@ -130,7 +130,7 @@ class ElementDialog(qtw.QDialog):
                 self._parent.meldfout('Namespace must be selected if checked')
                 self.cb_ns.setFocus()
                 return
-            tag = '{{{}}}{}'.format(self.cmb_ns.itemText(seq), tag)
+            tag = f'{{{self.cmb_ns.itemText(seq)}}}{tag}'
         self._parent.data["tag"] = tag
         self._parent.data["data"] = self.cb.isChecked()
         self._parent.data["text"] = self.txt_data.toPlainText()
@@ -233,7 +233,7 @@ class AttributeDialog(qtw.QDialog):
                 self._parent.meldfout('Namespace must be selected if checked')
                 self.cb_ns.setFocus()
                 return
-            nam = '{{{}}}{}'.format(self.cmb_ns.itemText(seq), nam)
+            nam = f'{{{self.cmb_ns.itemText(seq)}}}{nam}'
         self._parent.data["name"] = nam
         self._parent.data["value"] = self.txt_value.text()
         super().accept()
@@ -390,14 +390,7 @@ class VisualTree(qtw.QTreeWidget):
         "reimplemented to reject when on root element"
         item = self.itemAt(event.x(), event.y())
         if item:
-            if item == self.parent.top:
-                edit = False
-            else:
-                ## data = str(item.text(0))
-                edit = True
-                ## if data.startswith(ELSTART):
-                    ## if item.childCount() > 0:
-                        ## edit = False
+            edit = item != self.parent.top
         if edit:
             self.parent.edit_item(item)
         else:
@@ -437,7 +430,7 @@ class UndoRedoStack(qtw.QUndoStack):
 
     def unset_undo_limit(self, state):
         """change undo limit"""
-        log('state is {}'.format(state))
+        log(f'state is {state}')
         if state:
             self.setUndoLimit(self.maxundo)
             nolim, yeslim = 'un', ''
@@ -445,8 +438,7 @@ class UndoRedoStack(qtw.QUndoStack):
             self.setUndoLimit(1)
             nolim, yeslim = '', ' to one'
         ## self.parent().setundo_action.setChecked(state)
-        self.parent().statusbar.showMessage('Undo level is now {}limited{}'.format(
-            nolim, yeslim))
+        self.parent().statusbar.showMessage(f'Undo level is now {nolim}limited{yeslim}')
 
     def clean_changed(self, state):
         """change text of undo/redo menuitems according to stack change"""
@@ -499,7 +491,7 @@ class PasteElementCommand(qtw.QUndoCommand):
             description += ' Before'
         else:
             description += ' After'
-        log("init {} {} {}".format(description, self.tag, self.data))  # , self.item)
+        log(f"init {description} {self.tag} {self.data}")  # , self.item)
         self.first_edit = not self.win.editor.tree_dirty
         super().__init__(description)
 
@@ -507,10 +499,10 @@ class PasteElementCommand(qtw.QUndoCommand):
         "((Re)Do add element"
         def zetzeronder(node, data, before=False, below=True):
             "add elements recursively"
-            log('zetzeronder voor node {} met data {}'.format(node, data))
+            log(f'zetzeronder voor node {node} met data {data}')
             text, data, children = data
             tag, value = data
-            is_attr = False if text.startswith(ELSTART) else True
+            is_attr = text.startswith(ELSTART)
             add_under = self.win.editor.add_item(node, tag, value, before=before, below=below,
                                                  attr=is_attr)
             below = True
@@ -523,29 +515,29 @@ class PasteElementCommand(qtw.QUndoCommand):
         print('    before is', self.before)
         print('    below is', self.below)
         print('    where is', self.where)
-        log('In paste element redo for tag {} data {}'.format(self.tag, self.data))
+        log(f'In paste element redo for tag {self.tag} data {self.data}')
         self.added = self.win.editor.add_item(self.where, self.tag, self.data, before=self.before,
                                               below=self.below)
-        log('newly added {} with children {}'.format(self.added, self.children))
+        log(f'newly added {self.added} with children {self.children}')
         if self.children is not None:
             for item in self.children[0][2]:
                 zetzeronder(self.added, item)
         ## if self.replaced:
             ## self.win.replaced[calculate_location(add_under)] = self.added
         self.win.tree.expandItem(self.added)
-        log("self.added after adding children: {}".format(self.added))
+        log(f"self.added after adding children: {self.added}")
 
     def undo(self):
         "Undo add element"
         # essentially 'cut' Command
-        log('In paste element undo for added: {}'.format(self.added))
+        log(f'In paste element undo for added: {self.added}')
         self.replaced = self.added   # remember original item in case redo replaces it
         item = CopyElementCommand(self.win, self.added, cut=True, retain=False,
                                   description=__doc__)
         item.redo()
         if self.first_edit:
             self.win.editor.mark_dirty(False)
-        self.win.statusbar.showMessage('{} undone'.format(self.text()))
+        self.win.statusbar.showMessage(f'{self.text()} undone')
 
 
 class PasteAttributeCommand(qtw.QUndoCommand):
@@ -556,16 +548,16 @@ class PasteAttributeCommand(qtw.QUndoCommand):
         self.item = item        # where we are now
         self.name = name        # attribute name
         self.value = value      # attribute value
-        log("init {} {} {} {}".format(description, self.name, self.value, self.item))
+        log(f"init {description} {self.name} {self.value} {self.item}")
         self.first_edit = not self.win.editor.tree_dirty
         super().__init__(description)
 
     def redo(self):
         "(Re)Do add attribute"
-        log('(redo) add attr {} {} {}'.format(self.name, self.value, self.item))
+        log(f'(redo) add attr {self.name} {self.value} {self.item}')
         self.added = self.win.editor.add_item(self.item, self.name, self.value, attr=True)
         self.win.tree.expandItem(self.added.parent())
-        log('Added {}'.format(self.added))
+        log(f'Added {self.added}')
 
     def undo(self):
         "Undo add attribute"
@@ -575,13 +567,13 @@ class PasteAttributeCommand(qtw.QUndoCommand):
         item.redo()
         if self.first_edit:
             self.win.editor.mark_dirty(False)
-        self.win.statusbar.showMessage('{} undone'.format(self.text()))
+        self.win.statusbar.showMessage(f'{self.text()} undone')
 
 
 class EditCommand(qtw.QUndoCommand):
     """subclass to make Undo/Redo possible"""
     def __init__(self, win, old_state, new_state, description=""):
-        log("building editcommand for {}".format(description))
+        log(f"building editcommand for {description}")
         super().__init__(description)
         self.win = win
         self.item = self.win.item
@@ -602,7 +594,7 @@ class EditCommand(qtw.QUndoCommand):
         self.item.setText(2, self.old_state[2])
         if self.first_edit:
             self.win.editor.mark_dirty(False)
-        self.win.statusbar.showMessage('{} undone'.format(self.text()))
+        self.win.statusbar.showMessage(f'{self.text()} undone')
 
 
 class CopyElementCommand(qtw.QUndoCommand):
@@ -614,7 +606,7 @@ class CopyElementCommand(qtw.QUndoCommand):
         self.item = item    # where we are now
         self.tag = str(self.item.text(1))
         self.data = str(self.item.text(2))  # name and text
-        log("init {} {} {} {}".format(description, self.tag, self.data, self.item))
+        log(f"init {description} {self.tag} {self.data} {self.item}")
         self.cut = cut
         self.retain = retain
         self.first_edit = not self.win.editor.tree_dirty
@@ -631,8 +623,7 @@ class CopyElementCommand(qtw.QUndoCommand):
                 push_el(subel, children)
             result.append((text, data, children))
             return result
-        log('In copy element redo for item {} with data {}'.format(self.item,
-                                                                   self.data))
+        log(f'In copy element redo for item {self.item} with data {self.data}')
         print("redo of ", self.item)
         if self.undodata is None:
             print('building reference data')
@@ -655,15 +646,14 @@ class CopyElementCommand(qtw.QUndoCommand):
             self.win.cut_att = None
             self.win.enable_pasteitems(True)
         if self.cut:
-            log('cutting item from parent {}'.format(self.parent))
+            log(f'cutting item from parent {self.parent}')
             self.parent.removeChild(self.item)
             self.item = self.prev
             self.win.tree.setCurrentItem(self.prev)
 
     def undo(self):
         "Undo Copy Element"
-        log('In copy element undo for tag {} data {} item {}'.format(self.tag, self.data,
-                                                                     self.item))
+        log(f'In copy element undo for tag {self.tag} data {self.data} item {self.item}')
         # self.cut_el = None
         if self.cut:
             print('undo of', self.item)
@@ -680,7 +670,7 @@ class CopyElementCommand(qtw.QUndoCommand):
             self.item = item.added
         if self.first_edit:
             self.win.editor.mark_dirty(False)
-        self.win.statusbar.showMessage('{} undone'.format(self.text()))
+        self.win.statusbar.showMessage(f'{self.text()} undone')
         ## self.win.tree.setCurrentItem(self.item)
 
 
@@ -692,14 +682,14 @@ class CopyAttributeCommand(qtw.QUndoCommand):
         self.item = item    # where we are now
         self.name = str(self.item.text(1))
         self.value = str(self.item.text(2))  # name and text
-        log("init {} {} {} {}".format(description, self.name, self.value, self.item))
+        log(f"init {description} {self.name} {self.value} {self.item}")
         self.cut = cut
         self.retain = retain
         self.first_edit = not self.win.editor.tree_dirty
 
     def redo(self):
         "(re)do copy attribute"
-        log('copying item {} with text {}'.format(self.item, self.value))
+        log(f'copying item {self.item} with text {self.value}')
         self.parent = self.item.parent()
         self.loc = self.parent.indexOfChild(self.item)
         if self.retain:
@@ -722,7 +712,7 @@ class CopyAttributeCommand(qtw.QUndoCommand):
 
     def undo(self):
         "Undo Copy attribute"
-        log('{} for {} {} {}'.format(__doc__, self.name, self.value, self.item))
+        log(f'{__doc__} for {self.name} {self.value} {self.item}')
         # self.win.cut_att = None
         if self.cut:
             item = PasteAttributeCommand(self.win, self.name, self.value, self.parent,
@@ -731,7 +721,7 @@ class CopyAttributeCommand(qtw.QUndoCommand):
             self.item = item.added
         if self.first_edit:
             self.win.editor.mark_dirty(False)
-        self.win.statusbar.showMessage('{} undone'.format(self.text()))
+        self.win.statusbar.showMessage(f'{self.text()} undone')
 
 
 ## class MainFrame(qtw.QMainWindow, AxeMixin):
@@ -908,9 +898,9 @@ class Gui(qtw.QMainWindow):
         self.item = item
         txt = self.editor.get_copy_text(cut, retain)
         if self.item.text(0).startswith(ELSTART):
-            command = CopyElementCommand(self, self.item, cut, retain, "{} Element".format(txt))
+            command = CopyElementCommand(self, self.item, cut, retain, f"{txt} Element")
         else:
-            command = CopyAttributeCommand(self, self.item, cut, retain, "{} Attribute".format(txt))
+            command = CopyAttributeCommand(self, self.item, cut, retain, f"{txt} Attribute")
         self.undo_stack.push(command)
         if cut:
             self.editor.mark_dirty(True)
@@ -1050,8 +1040,8 @@ class Gui(qtw.QMainWindow):
                 if ix == 2:
                     editmenu.addSeparator()
 
-            disable_menu = True if not self.cut_el and not self.cut_att else False
-            add_menuitem = True if not popup or not disable_menu else False
+            disable_menu = not self.cut_el and not self.cut_att
+            add_menuitem = not popup or not disable_menu
             if disable_menu:
                 self.pastebefore_item.setText("Nothing to Paste")
                 self.pastebefore_item.setEnabled(False)
@@ -1163,14 +1153,13 @@ class Gui(qtw.QMainWindow):
             if ky == core.Qt.Key_Return:
                 if self.in_dialog:
                     self.in_dialog = False
-                else:
-                    if item.childCount() > 0:
-                        if item.isExpanded():
-                            self.tree.collapseItem(item)
-                            self.tree.setCurrentItem(item.parent())
-                        else:
-                            self.tree.expandItem(item)
-                            self.tree.setCurrentItem(item.child(0))
+                elif item.childCount() > 0:
+                    if item.isExpanded():
+                        self.tree.collapseItem(item)
+                        self.tree.setCurrentItem(item.parent())
+                    else:
+                        self.tree.expandItem(item)
+                        self.tree.setCurrentItem(item.child(0))
                     ## else:
                         ## self.edit()
                 skip = True
