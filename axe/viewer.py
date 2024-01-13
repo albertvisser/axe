@@ -87,7 +87,7 @@ class Viewer:
                 # ns_root = qtw.QTreeWidgetItem(['namespaces'])
                 namespaces = True
             ns_item = self.gui.add_node_to_parent(ns_root)
-            self.gui.set_node_title(ns_item, '{prf}: {self.ns_uris[ix]}')
+            self.gui.set_node_title(ns_item, f'{prf}: {self.ns_uris[ix]}')
         rt = self.add_item(self.top, self.rt.tag, self.rt.text)
         for attr in self.rt.keys():
             h = self.rt.get(attr)
