@@ -1,7 +1,6 @@
 import os.path
 import types
 import textwrap
-import pytest
 import axe.base as testee
 
 def _test_find_in_flattened_tree():
