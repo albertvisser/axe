@@ -5,14 +5,14 @@ poging om de editor en de viewer code in één module te houden
 """
 
 import os
-# import pathlib
+import pathlib
 ## import sys
 import shutil
 import xml.etree.ElementTree as et
 # import logging
-
-from .shared import ELSTART, log
 from .gui import Gui
+ELSTART = '<>'
+axe_iconame = str(pathlib.Path(__file__).parent / "axe.ico")
 NEW_ROOT = '(new root)'
 TITLESTART = "Albert's (Simple) XML"
 ASKTOSAVE = "XML data has been modified - save before continuing?"
@@ -140,6 +140,9 @@ class XMLTree:
 
 class Editor:
     "Applicatievenster zonder GUI-specifieke methoden"
+    elstart = ELSTART
+    iconame = axe_iconame
+
     def __init__(self, fname, readonly=False):
         text = 'Viewer' if readonly else 'Editor'
         self.title = f'{TITLESTART} {text}'
@@ -315,7 +318,7 @@ class Editor:
 
     def add_item(self, to_item, name, value, before=False, below=True, attr=False):
         """execute adding of item"""
-        log(f'in add_item for {name} value {value} to {to_item} before is {before} below is {below}')
+        print(f'in add_item {name=} {value=} {to_item=} {before=} {below=}')
         if value is None:
             value = ""
         itemtext = self.getshortname((name, value), attr)

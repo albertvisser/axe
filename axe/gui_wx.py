@@ -2,7 +2,7 @@
 """
 import os
 import wx
-from .shared import ELSTART, axe_iconame  # , log
+# from .shared import ELSTART, axe_iconame  # , log
 if os.name == "nt":
     HMASK = "XML files (*.xml)|*.xml|All files (*.*)|*.*"
 elif os.name == "posix":
@@ -357,7 +357,7 @@ class Gui(wx.Frame):
             else:
                 data = self.tree.GetItemText(item)
                 edit = True
-                if data.startswith(ELSTART) and self.tree.GetChildrenCount(item):
+                if data.startswith(self.parent.elstart) and self.tree.GetChildrenCount(item):
                     edit = False
         if edit:
             self.edit()
@@ -470,7 +470,7 @@ class Gui(wx.Frame):
         "edit an element or attribute"
         self.item = item
         data = self.tree.GetItemText(self.item)  # self.item.get_text()
-        if data.startswith(ELSTART):
+        if data.startswith(self.parent.elstart):
             tag, text = self.tree.GetItemData(self.item)  # self.item.get_data()
             data = {'item': self.item, 'tag': tag}
             if text is not None:
@@ -501,7 +501,7 @@ class Gui(wx.Frame):
             data = self.tree.GetItemData(el)
             children = []
             # print "before looping over contents:",text,y
-            if text.startswith(ELSTART):
+            if text.startswith(self.parent.elstart):
                 subel, whereami = self.tree.GetFirstChild(el)
                 while subel.IsOk():
                     _ = push_el(subel, children)
@@ -514,7 +514,7 @@ class Gui(wx.Frame):
         text = self.tree.GetItemText(self.item)
         data = self.tree.GetItemData(self.item)
         if retain:
-            if text.startswith(ELSTART):
+            if text.startswith(self.parent.elstart):
                 self.cut_el = []
                 self.cut_el = push_el(self.item, self.cut_el)
                 self.cut_att = None
@@ -615,7 +615,7 @@ class Gui(wx.Frame):
     def init_gui(self):
         """Deze methode wordt aangeroepen door de __init__ van de mixin class
         """
-        self.SetIcon(wx.Icon(axe_iconame, wx.BITMAP_TYPE_ICO))
+        self.SetIcon(wx.Icon(self.parent.iconame, wx.BITMAP_TYPE_ICO))
         self.Bind(wx.EVT_CLOSE, self.afsl)
 
         # set up statusbar

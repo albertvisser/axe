@@ -6,7 +6,7 @@ import sys
 import PyQt5.QtWidgets as qtw
 import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
-from .shared import ELSTART, axe_iconame, log
+# from .shared import ELSTART, axe_iconame, log
 if os.name == "nt":
     HMASK = "XML files (*.xml);;All files (*.*)"
 elif os.name == "posix":
@@ -421,7 +421,7 @@ class UndoRedoStack(qtw.QUndoStack):
         self.indexChanged.connect(self.index_changed)
         self.maxundo = self.undoLimit()
         self.setUndoLimit(1)  # self.unset_undo_limit(False)
-        ## log('Undo limit {}'.format(self.undoLimit()))
+        # print('Undo limit {}'.format(self.undoLimit()))
         win = self.parent()
         win.undo_item.setText('Nothing to undo')
         win.redo_item.setText('Nothing to redo')
@@ -430,7 +430,7 @@ class UndoRedoStack(qtw.QUndoStack):
 
     def unset_undo_limit(self, state):
         """change undo limit"""
-        log(f'state is {state}')
+        # print(f'state is {state}')
         if state:
             self.setUndoLimit(self.maxundo)
             nolim, yeslim = 'un', ''
@@ -491,7 +491,7 @@ class PasteElementCommand(qtw.QUndoCommand):
             description += ' Before'
         else:
             description += ' After'
-        log(f"init {description} {self.tag} {self.data}")  # , self.item)
+        # print(f"init {description} {self.tag} {self.data}")  # , self.item)
         self.first_edit = not self.win.editor.tree_dirty
         super().__init__(description)
 
@@ -499,10 +499,10 @@ class PasteElementCommand(qtw.QUndoCommand):
         "((Re)Do add element"
         def zetzeronder(node, data, before=False, below=True):
             "add elements recursively"
-            log(f'zetzeronder voor node {node} met data {data}')
+            # print(f'zetzeronder voor node {node} met data {data}')
             text, data, children = data
             tag, value = data
-            is_attr = text.startswith(ELSTART)
+            is_attr = text.startswith(self.win.parent.elstart)
             add_under = self.win.editor.add_item(node, tag, value, before=before, below=below,
                                                  attr=is_attr)
             below = True
@@ -515,22 +515,22 @@ class PasteElementCommand(qtw.QUndoCommand):
         print('    before is', self.before)
         print('    below is', self.below)
         print('    where is', self.where)
-        log(f'In paste element redo for tag {self.tag} data {self.data}')
+        # print(f'In paste element redo for tag {self.tag} data {self.data}')
         self.added = self.win.editor.add_item(self.where, self.tag, self.data, before=self.before,
                                               below=self.below)
-        log(f'newly added {self.added} with children {self.children}')
+        # print(f'newly added {self.added} with children {self.children}')
         if self.children is not None:
             for item in self.children[0][2]:
                 zetzeronder(self.added, item)
         ## if self.replaced:
             ## self.win.replaced[calculate_location(add_under)] = self.added
         self.win.tree.expandItem(self.added)
-        log(f"self.added after adding children: {self.added}")
+        # print(f"self.added after adding children: {self.added}")
 
     def undo(self):
         "Undo add element"
         # essentially 'cut' Command
-        log(f'In paste element undo for added: {self.added}')
+        # print(f'In paste element undo for added: {self.added}')
         self.replaced = self.added   # remember original item in case redo replaces it
         item = CopyElementCommand(self.win, self.added, cut=True, retain=False,
                                   description=__doc__)
@@ -548,16 +548,16 @@ class PasteAttributeCommand(qtw.QUndoCommand):
         self.item = item        # where we are now
         self.name = name        # attribute name
         self.value = value      # attribute value
-        log(f"init {description} {self.name} {self.value} {self.item}")
+        # print(f"init {description} {self.name} {self.value} {self.item}")
         self.first_edit = not self.win.editor.tree_dirty
         super().__init__(description)
 
     def redo(self):
         "(Re)Do add attribute"
-        log(f'(redo) add attr {self.name} {self.value} {self.item}')
+        # print(f'(redo) add attr {self.name} {self.value} {self.item}')
         self.added = self.win.editor.add_item(self.item, self.name, self.value, attr=True)
         self.win.tree.expandItem(self.added.parent())
-        log(f'Added {self.added}')
+        # print(f'Added {self.added}')
 
     def undo(self):
         "Undo add attribute"
@@ -573,7 +573,7 @@ class PasteAttributeCommand(qtw.QUndoCommand):
 class EditCommand(qtw.QUndoCommand):
     """subclass to make Undo/Redo possible"""
     def __init__(self, win, old_state, new_state, description=""):
-        log(f"building editcommand for {description}")
+        # print(f"building editcommand for {description}")
         super().__init__(description)
         self.win = win
         self.item = self.win.item
@@ -606,7 +606,7 @@ class CopyElementCommand(qtw.QUndoCommand):
         self.item = item    # where we are now
         self.tag = str(self.item.text(1))
         self.data = str(self.item.text(2))  # name and text
-        log(f"init {description} {self.tag} {self.data} {self.item}")
+        # print(f"init {description} {self.tag} {self.data} {self.item}")
         self.cut = cut
         self.retain = retain
         self.first_edit = not self.win.editor.tree_dirty
@@ -623,7 +623,7 @@ class CopyElementCommand(qtw.QUndoCommand):
                 push_el(subel, children)
             result.append((text, data, children))
             return result
-        log(f'In copy element redo for item {self.item} with data {self.data}')
+        # print(f'In copy element redo for item {self.item} with data {self.data}')
         print("redo of ", self.item)
         if self.undodata is None:
             print('building reference data')
@@ -641,19 +641,19 @@ class CopyElementCommand(qtw.QUndoCommand):
             print('   undodata:', self.undodata)
             print('   pointer fallback:', self.prev)
         if self.retain:
-            log('Retaining item')
+            # print('Retaining item')
             self.win.cut_el = self.undodata
             self.win.cut_att = None
             self.win.enable_pasteitems(True)
         if self.cut:
-            log(f'cutting item from parent {self.parent}')
+            # print(f'cutting item from parent {self.parent}')
             self.parent.removeChild(self.item)
             self.item = self.prev
             self.win.tree.setCurrentItem(self.prev)
 
     def undo(self):
         "Undo Copy Element"
-        log(f'In copy element undo for tag {self.tag} data {self.data} item {self.item}')
+        # print(f'In copy element undo for tag {self.tag} data {self.data} item {self.item}')
         # self.cut_el = None
         if self.cut:
             print('undo of', self.item)
@@ -682,23 +682,23 @@ class CopyAttributeCommand(qtw.QUndoCommand):
         self.item = item    # where we are now
         self.name = str(self.item.text(1))
         self.value = str(self.item.text(2))  # name and text
-        log(f"init {description} {self.name} {self.value} {self.item}")
+        # print(f"init {description} {self.name} {self.value} {self.item}")
         self.cut = cut
         self.retain = retain
         self.first_edit = not self.win.editor.tree_dirty
 
     def redo(self):
         "(re)do copy attribute"
-        log(f'copying item {self.item} with text {self.value}')
+        # print(f'copying item {self.item} with text {self.value}')
         self.parent = self.item.parent()
         self.loc = self.parent.indexOfChild(self.item)
         if self.retain:
-            log('Retaining attribute')
+            # print('Retaining attribute')
             self.win.cut_el = None
             self.win.cut_att = (self.name, self.value)
             self.win.enable_pasteitems(True)
         if self.cut:
-            log('cutting attribute')
+            # print('cutting attribute')
             ix = self.loc
             if ix > 0:
                 prev = self.parent.child(ix - 1)
@@ -712,7 +712,7 @@ class CopyAttributeCommand(qtw.QUndoCommand):
 
     def undo(self):
         "Undo Copy attribute"
-        log(f'{__doc__} for {self.name} {self.value} {self.item}')
+        # print(f'{__doc__} for {self.name} {self.value} {self.item}')
         # self.win.cut_att = None
         if self.cut:
             item = PasteAttributeCommand(self.win, self.name, self.value, self.parent,
@@ -865,7 +865,7 @@ class Gui(qtw.QMainWindow):
         "edit an element or attribute"
         self.item = item
         data = str(self.item.text(0))  # self.item.get_text()
-        if data.startswith(ELSTART):
+        if data.startswith(self.parent.elstart):
             tag, text = str(self.item.text(1)), str(self.item.text(2))
             state = data, tag, text   # current values to be passed to UndoAction
             data = {'item': self.item, 'tag': tag}
@@ -876,7 +876,7 @@ class Gui(qtw.QMainWindow):
             if edt == qtw.QDialog.Accepted:
                 name = self.editor.getshortname((self.data["tag"], self.data["text"]))
                 new_state = name, self.data["tag"], self.data["text"]
-                log('calling editcommand for element')
+                # print('calling editcommand for element')
                 command = EditCommand(self, state, new_state, "Edit Element")
                 self.undo_stack.push(command)
                 self.editor.mark_dirty(True)
@@ -888,7 +888,7 @@ class Gui(qtw.QMainWindow):
             if edt == qtw.QDialog.Accepted:
                 name = self.editor.getshortname((self.data["name"], self.data["value"]), attr=True)
                 new_state = name, self.data["name"], self.data["value"]
-                log('calling editcommand for attribute')
+                # print('calling editcommand for attribute')
                 command = EditCommand(self, state, new_state, "Edit Attribute")
                 self.undo_stack.push(command)
                 self.editor.mark_dirty(True)
@@ -897,7 +897,7 @@ class Gui(qtw.QMainWindow):
         """execute cut/delete/copy action"""
         self.item = item
         txt = self.editor.get_copy_text(cut, retain)
-        if self.item.text(0).startswith(ELSTART):
+        if self.item.text(0).startswith(self.parent.elstart):
             command = CopyElementCommand(self, self.item, cut, retain, f"{txt} Element")
         else:
             command = CopyAttributeCommand(self, self.item, cut, retain, f"{txt} Attribute")
@@ -950,7 +950,7 @@ class Gui(qtw.QMainWindow):
         """
         ## self.parent = parent
         ## qtw.QMainWindow.__init__(self, parent) # aparte initialisatie net als voor mixin
-        self._icon = gui.QIcon(axe_iconame)
+        self._icon = gui.QIcon(self.parent.iconame)
         self.resize(620, 900)
         self.setWindowIcon(self._icon)
 
@@ -1136,7 +1136,7 @@ class Gui(qtw.QMainWindow):
 
     def popupmenu(self, item):
         """call up menu"""
-        log('self.popupmenu called')
+        # print('self.popupmenu called')
         menu = self.init_menus(popup=True)
         menu.exec_(self.tree.mapToGlobal(self.tree.visualItemRect(item).bottomRight()))
 
