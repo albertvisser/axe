@@ -3,10 +3,8 @@
 import os
 import wx
 # from .shared import ELSTART, axe_iconame  # , log
-if os.name == "nt":
-    HMASK = "XML files (*.xml)|*.xml|All files (*.*)|*.*"
-elif os.name == "posix":
-    HMASK = "XML files (*.xml, *.XML)|*.xml;*.XML|All files (*.*)|*.*"
+HMASK = {"nt": "XML files (*.xml)|*.xml|All files (*.*)|*.*",
+         "posix": "XML files (*.xml, *.XML)|*.xml;*.XML|All files (*.*)|*.*"}
 IMASK = "All files|*.*"
 
 
@@ -45,7 +43,7 @@ class ElementDialog(wx.Dialog):
                 txt = item["text"]
             if ns_uri:
                 self.cb_ns.SetValue(True)
-                for ix, uri in enumerate(self.parent.ns_uris):
+                for ix, uri in enumerate(self.parent.editor.ns_uris):
                     if uri == ns_uri:
                         self.cmb_ns.SetSelection(ix + 1)
         self.txt_tag.SetValue(tag)
@@ -151,7 +149,7 @@ class AttributeDialog(wx.Dialog):
                 nam = ns_nam
             if ns_uri:
                 self.cb_ns.SetValue(True)
-                for ix, uri in enumerate(self.parent.ns_uris):
+                for ix, uri in enumerate(self.parent.editor.ns_uris):
                     if uri == ns_uri:
                         self.cmb_ns.SetSelection(ix + 1)
             val = item["value"]
@@ -755,7 +753,7 @@ class Gui(wx.Frame):
     def file_to_read(self):
         """ask for file to load"""
         with wx.FileDialog(self, message="Choose a file", defaultDir=os.getcwd(),
-                           wildcard=HMASK, style=wx.FD_OPEN) as dlg:
+                           wildcard=HMASK[os.name], style=wx.FD_OPEN) as dlg:
             ret = dlg.ShowModal()
             ok = (ret == wx.ID_OK)
             fnaam = dlg.GetPath() if ok else ''
@@ -765,7 +763,7 @@ class Gui(wx.Frame):
         """ask for file to save"""
         d, f = os.path.split(self.editor.xmlfn)
         with wx.FileDialog(self, message="Save file as ...", defaultDir=d, defaultFile=f,
-                           wildcard=HMASK, style=wx.FD_SAVE) as dlg:
+                           wildcard=HMASK[os.name], style=wx.FD_SAVE) as dlg:
             ret = dlg.ShowModal()
             ok = (ret == wx.ID_OK)
             name = dlg.GetPath() if ok else ''

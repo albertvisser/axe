@@ -2,11 +2,12 @@
 unittests
 
 [testscripts]
-main: test_base.py
-#qt: test_qtgui.py.py
-#wx: test_wxgui.py.py
+main = test_base.py
+qtgui = test_qtgui.py
+wxgui = test_wxgui.py
 
 [testees]
-main: axe/base.py
-#qt: axe/gui_qt.py
-#wx: axe/gui_wx.py
+main = axe/base.py
+qtgui = axe/gui_qt.py
+wxgui = axe/gui_wx.py
+

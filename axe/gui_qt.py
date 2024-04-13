@@ -7,10 +7,8 @@ import PyQt5.QtWidgets as qtw
 import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
 # from .shared import ELSTART, axe_iconame, log
-if os.name == "nt":
-    HMASK = "XML files (*.xml);;All files (*.*)"
-elif os.name == "posix":
-    HMASK = "XML files (*.xml *.XML);;All files (*.*)"
+HMASK = {"nt": "XML files (*.xml);;All files (*.*)",
+         "posix": "XML files (*.xml *.XML);;All files (*.*)"}
 IMASK = "All files (*.*)"
 
 
@@ -23,9 +21,10 @@ def calculate_location(win, node):
     """
     id_ = []
     while node != win.top:
-        idx = node.parent().indexOfChild(node)
+        newnode = node.parent()
+        idx = newnode.indexOfChild(node)
         id_.insert(0, idx)
-        node = node.parent()
+        node = newnode
     return tuple(id_)
 
 
@@ -69,7 +68,7 @@ class ElementDialog(qtw.QDialog):
                 txt = item["text"]
             if ns_uri:
                 self.cb_ns.toggle()
-                for ix, uri in enumerate(self._parent.ns_uris):
+                for ix, uri in enumerate(self._parent.editor.ns_uris):
                     if uri == ns_uri:
                         self.cmb_ns.setCurrentIndex(ix + 1)
         self.txt_tag.setText(tag)
@@ -175,7 +174,7 @@ class AttributeDialog(qtw.QDialog):
                 nam = ns_nam
             if ns_uri:
                 self.cb_ns.toggle()
-                for ix, uri in enumerate(self._parent.ns_uris):
+                for ix, uri in enumerate(self._parent.editor.ns_uris):
                     if uri == ns_uri:
                         self.cmb_ns.setCurrentIndex(ix + 1)
             val = item["value"]
@@ -389,6 +388,7 @@ class VisualTree(qtw.QTreeWidget):
     def mouseDoubleClickEvent(self, event):
         "reimplemented to reject when on root element"
         item = self.itemAt(event.x(), event.y())
+        edit = False
         if item:
             edit = item != self.parent.top
         if edit:
@@ -422,11 +422,11 @@ class UndoRedoStack(qtw.QUndoStack):
         self.maxundo = self.undoLimit()
         self.setUndoLimit(1)  # self.unset_undo_limit(False)
         # print('Undo limit {}'.format(self.undoLimit()))
-        win = self.parent()
-        win.undo_item.setText('Nothing to undo')
-        win.redo_item.setText('Nothing to redo')
-        win.undo_item.setDisabled(True)
-        win.redo_item.setDisabled(True)
+        # win = parent  # self.parent()
+        parent.undo_item.setText('Nothing to undo')
+        parent.redo_item.setText('Nothing to redo')
+        parent.undo_item.setDisabled(True)
+        parent.redo_item.setDisabled(True)
 
     def unset_undo_limit(self, state):
         """change undo limit"""
@@ -477,7 +477,7 @@ class PasteElementCommand(qtw.QUndoCommand):
         "where we are" is optional because it can be determined from the current
         position but it should also be possible to provide it
         """
-        self.win = win          # treewidget
+        self.win = win          # main gui
         self.tag = tag          # element name
         self.data = text        # element text
         self.before = before    # switch
@@ -509,12 +509,12 @@ class PasteElementCommand(qtw.QUndoCommand):
             for item in children:
                 zetzeronder(add_under, item)
             return add_under
-        print('redo of add')
-        print('    tag is', self.tag)
-        print('    data is', self.data)
-        print('    before is', self.before)
-        print('    below is', self.below)
-        print('    where is', self.where)
+        # print('redo of add')
+        # print('    tag is', self.tag)
+        # print('    data is', self.data)
+        # print('    before is', self.before)
+        # print('    below is', self.below)
+        # print('    where is', self.where)
         # print(f'In paste element redo for tag {self.tag} data {self.data}')
         self.added = self.win.editor.add_item(self.where, self.tag, self.data, before=self.before,
                                               below=self.below)
@@ -544,7 +544,7 @@ class PasteAttributeCommand(qtw.QUndoCommand):
     """subclass to make Undo/Redo possible"""
     def __init__(self, win, name, value, item, description=""):
         super().__init__(description)
-        self.win = win          # treewidget
+        self.win = win          # main gui
         self.item = item        # where we are now
         self.name = name        # attribute name
         self.value = value      # attribute value
@@ -602,7 +602,7 @@ class CopyElementCommand(qtw.QUndoCommand):
     def __init__(self, win, item, cut, retain, description=""):
         super().__init__(description)
         self.undodata = None
-        self.win = win      # treewidget
+        self.win = win      # main gui
         self.item = item    # where we are now
         self.tag = str(self.item.text(1))
         self.data = str(self.item.text(2))  # name and text
@@ -678,7 +678,7 @@ class CopyAttributeCommand(qtw.QUndoCommand):
     """subclass to make Undo/Redo possible"""
     def __init__(self, win, item, cut, retain, description):
         super().__init__(description)
-        self.win = win      # treewidget
+        self.win = win      # main gui
         self.item = item    # where we are now
         self.name = str(self.item.text(1))
         self.value = str(self.item.text(2))  # name and text
@@ -1103,15 +1103,15 @@ class Gui(qtw.QMainWindow):
 
     def file_to_read(self):
         """ask for file to load"""
-        fnaam, *_ = qtw.QFileDialog.getOpenFileName(self, "Choose a file",
-                                                    os.getcwd(), HMASK)
+        fnaam, *_ = qtw.QFileDialog.getOpenFileName(self, "Choose a file", os.getcwd(),
+                                                    HMASK[os.name])
         ok = bool(fnaam)
         return ok, str(fnaam)
 
     def file_to_save(self):
         """ask for file to save"""
         name, *_ = qtw.QFileDialog.getSaveFileName(self, "Save file as ...", self.editor.xmlfn,
-                                                   HMASK)
+                                                   HMASK[os.name])
         ok = bool(name)
         return ok, str(name)
 
