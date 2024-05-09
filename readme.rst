@@ -20,6 +20,8 @@ Usage
 
 Call ``xmleditor.py`` in the top directory, supply a filename if needed .
 
+Use ``toolkit.py`` in the program directory (``axe``) to define which gui toolkit to use.
+
 I have configured my file manager to call this program on the file selected.
 
 
@@ -27,7 +29,5 @@ Requirements
 ------------
 
 - Python (with ElementTree)
-- PyQT or wxPhoenix  for the current version
-- Tkinter and Gene Cash's Tree module for the original PC version (unmaintained)
-- PocketPyGUI for a PocketPC version (unmaintained)
+- PyQt or wxPhoenix for the current version
 
