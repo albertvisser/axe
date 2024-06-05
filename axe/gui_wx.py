@@ -613,7 +613,7 @@ class Gui(wx.Frame):
     def init_gui(self):
         """Deze methode wordt aangeroepen door de __init__ van de mixin class
         """
-        self.SetIcon(wx.Icon(self.parent.iconame, wx.BITMAP_TYPE_ICO))
+        self.SetIcon(wx.Icon(self.editor.iconame, wx.BITMAP_TYPE_ICO))
         self.Bind(wx.EVT_CLOSE, self.afsl)
 
         # set up statusbar

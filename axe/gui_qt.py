@@ -500,9 +500,11 @@ class PasteElementCommand(qtw.QUndoCommand):
         def zetzeronder(node, data, before=False, below=True):
             "add elements recursively"
             # print(f'zetzeronder voor node {node} met data {data}')
-            text, data, children = data
-            tag, value = data
-            is_attr = text.startswith(self.win.parent.elstart)
+            # text, data, children = data
+            # tag, value = data
+            tag, value, children = data
+            # is_attr = text.startswith(self.win.parent.elstart)
+            is_attr = not tag.startswith(self.win.editor.elstart)
             add_under = self.win.editor.add_item(node, tag, value, before=before, below=below,
                                                  attr=is_attr)
             below = True
@@ -520,7 +522,7 @@ class PasteElementCommand(qtw.QUndoCommand):
                                               below=self.below)
         # print(f'newly added {self.added} with children {self.children}')
         if self.children is not None:
-            for item in self.children[0][2]:
+            for item in self.children[0][2]:   # begin je zo niet met de grandchildren?
                 zetzeronder(self.added, item)
         ## if self.replaced:
             ## self.win.replaced[calculate_location(add_under)] = self.added
@@ -550,7 +552,6 @@ class PasteAttributeCommand(qtw.QUndoCommand):
         self.value = value      # attribute value
         # print(f"init {description} {self.name} {self.value} {self.item}")
         self.first_edit = not self.win.editor.tree_dirty
-        super().__init__(description)
 
     def redo(self):
         "(Re)Do add attribute"
@@ -562,8 +563,8 @@ class PasteAttributeCommand(qtw.QUndoCommand):
     def undo(self):
         "Undo add attribute"
         # essentially 'cut' Command
-        item = CopyElementCommand(self.win, self.added, cut=True, retain=False,
-                                  description=__doc__)
+        item = CopyAttributeCommand(self.win, self.added, cut=True, retain=False,
+                                    description=__doc__)
         item.redo()
         if self.first_edit:
             self.win.editor.mark_dirty(False)
@@ -656,7 +657,7 @@ class CopyElementCommand(qtw.QUndoCommand):
         # print(f'In copy element undo for tag {self.tag} data {self.data} item {self.item}')
         # self.cut_el = None
         if self.cut:
-            print('undo of', self.item)
+            # print('undo of', self.item)
             if self.loc >= self.parent.childCount():
                 item = PasteElementCommand(self.win, self.tag, self.data,
                                            before=False, below=True, data=self.undodata,
@@ -897,7 +898,7 @@ class Gui(qtw.QMainWindow):
         """execute cut/delete/copy action"""
         self.item = item
         txt = self.editor.get_copy_text(cut, retain)
-        if self.item.text(0).startswith(self.parent.elstart):
+        if self.item.text(0).startswith(self.editor.elstart):
             command = CopyElementCommand(self, self.item, cut, retain, f"{txt} Element")
         else:
             command = CopyAttributeCommand(self, self.item, cut, retain, f"{txt} Attribute")
@@ -948,9 +949,7 @@ class Gui(qtw.QMainWindow):
     def init_gui(self):
         """Deze methode wordt aangeroepen door de __init__ van de mixin class
         """
-        ## self.parent = parent
-        ## qtw.QMainWindow.__init__(self, parent) # aparte initialisatie net als voor mixin
-        self._icon = gui.QIcon(self.parent.iconame)
+        self._icon = gui.QIcon(self.editor.iconame)
         self.resize(620, 900)
         self.setWindowIcon(self._icon)
 
@@ -1136,7 +1135,6 @@ class Gui(qtw.QMainWindow):
 
     def popupmenu(self, item):
         """call up menu"""
-        # print('self.popupmenu called')
         menu = self.init_menus(popup=True)
         menu.exec_(self.tree.mapToGlobal(self.tree.visualItemRect(item).bottomRight()))
 
@@ -1144,9 +1142,9 @@ class Gui(qtw.QMainWindow):
         "close the application"
         self.close()
 
-    def on_keyup(self, ev=None):
+    def on_keyup(self, event):
         "handle keyboard event"
-        ky = ev.key()
+        ky = event.key()
         item = self.tree.currentItem()
         skip = False
         if item and item != self.top:
@@ -1160,8 +1158,6 @@ class Gui(qtw.QMainWindow):
                     else:
                         self.tree.expandItem(item)
                         self.tree.setCurrentItem(item.child(0))
-                    ## else:
-                        ## self.edit()
                 skip = True
             elif ky == core.Qt.Key_Backspace:
                 if item.isExpanded():

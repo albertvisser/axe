@@ -204,7 +204,24 @@ called Action.setText with arg `Nothing to redo`
 called Action.setDisabled with arg `True`
 called Action.setDisabled with arg `True`
 """
-
+main = """\
+called Icon.__init__ with arg `icon-name`
+called MainWindow.resize with args (620, 900)
+called MainWindow.setWindowIcon
+called MainWindow.statusBar
+called StatusBar.__init__ with args ()
+called StatusBar.showMessage with arg `Ready`
+called Gui.init_menus
+called Tree.__init__
+called TreeItem.__init__ with args ()
+called TreeItem.setHidden with arg `True`
+called MainWidget.setCentralWindow with arg of type `<class 'axe.gui_qt.VisualTree'>`
+"""
+main_edit = """\
+called Gui.enable_pasteitems with arg False
+called UndoredoStack.__init__ with arg {testobj}
+called Editor.mark_dirty with arg False
+"""
 
 @pytest.fixture
 def expected_output():
@@ -215,18 +232,34 @@ def expected_output():
             'attrib2': attrdialog_start + attrdialog_middle_1 + attrdialog_end,
             'attrib3': attrdialog_start + attrdialog_middle_1 + attrdialog_middle_2
             + attrdialog_end,
-            'search': search, 'undostack': undostack}
+            'search': search, 'undostack': undostack,
+            'maingui': main, 'maingui2': main + main_edit}
 
 
 class MockEditor:
     def __init__(self):
         print('called Editor.__init__')
         self.ns_uris = {'ns1': 'namespace1', 'ns2': 'namespace'}
+        self._count = 0
+    def add_item(self, *args, **kwargs):
+        print('called Editor.add_item with args', args, kwargs)
+        self._count += 1
+        return f'added item #{self._count}'
+    def mark_dirty(self, value):
+        print(f'called Editor.mark_dirty with arg {value}')
+    def get_copy_text(self, *args):
+        print("called Editor.get_copy_text with args", args)
+        return 'copy'
 
 
-class MockTree:
+class MockTree:  # kan waarschijnlijk vervangen worden door mockqtw versie
     def __init__(self):
         print('called Tree.__init__')
+    def expandItem(self, arg):
+        print('called Tree.expandItem with arg', arg)
+    def setCurrentItem(self, arg):
+        print('called Tree.setCurrentItem with arg', arg)
+
 
 class MockGui:
     def __init__(self):
@@ -240,6 +273,19 @@ class MockGui:
         return mockqtw.MockMenu()
     def set_selected_item(self, item):
         print('called Gui.set_selected_item with arg', item)
+    def enable_pasteitems(self, value):
+        print('called Gui.enable_pasteitems with arg', value)
+
+
+def mock_and_create_nodes(monkeypatch, capsys, count):
+    monkeypatch.setattr(testee.qtw, 'QTreeWidgetItem', mockqtw.MockTreeItem)
+    result = []
+    while count > 0:
+        node = testee.qtw.QTreeWidgetItem()
+        assert capsys.readouterr().out == "called TreeItem.__init__ with args ()\n"
+        result.append(node)
+        count -= 1
+    return result
 
 
 # jammergenoeg komt deze maar op 2 uitgecommentaarde locaties voor
@@ -928,7 +974,12 @@ class TestPasteElementCommand:
             print('called PasteElementCommand.__init__ with args', args)
         monkeypatch.setattr(testee.PasteElementCommand, '__init__', mock_init)
         testobj = testee.PasteElementCommand()
-        assert capsys.readouterr().out == 'called PasteElementCommand.__init__ with args ()\n'
+        testobj.win = MockGui()
+        testobj.win.tree = MockTree()
+        assert capsys.readouterr().out == ('called PasteElementCommand.__init__ with args ()\n'
+                                           "called Gui.__init__\n"
+                                           "called Editor.__init__\n"
+                                           "called Tree.__init__\n")
         return testobj
 
     def test_init(self, monkeypatch, capsys):
@@ -984,19 +1035,67 @@ class TestPasteElementCommand:
         assert not testobj.first_edit
         assert capsys.readouterr().out == "called UndoCommand.__init__ with args ('xx Under',) {}\n"
 
-    def _test_redo(self, monkeypatch, capsys):
+    def test_redo(self, monkeypatch, capsys):
         """unittest for PasteElementCommand.redo
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.redo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.win.editor.elstart = '<> '
+        testobj.where = 'here'
+        testobj.tag = 'xx'
+        testobj.data = 'yyy'
+        testobj.before = True
+        testobj.below = False
+        testobj.children = None
+        testobj.redo()
+        assert testobj.added == 'added item #1'
+        assert capsys.readouterr().out == (
+                "called Editor.add_item with args ('here', 'xx', 'yyy')"
+                " {'before': True, 'below': False}\n"
+                "called Tree.expandItem with arg added item #1\n")
+        testobj.children = [('xx', 'yyy', [('<> a', 'bb', [('c', 'dd', [])])])]
+        # breakpoint()
+        testobj.redo()
+        assert testobj.added == 'added item #2'
+        assert capsys.readouterr().out == (
+                "called Editor.add_item with args ('here', 'xx', 'yyy')"
+                " {'before': True, 'below': False}\n"
+                "called Editor.add_item with args ('added item #2', '<> a', 'bb')"
+                " {'before': False, 'below': True, 'attr': False}\n"
+                "called Editor.add_item with args ('added item #3', 'c', 'dd')"
+                " {'before': False, 'below': True, 'attr': True}\n"
+                "called Tree.expandItem with arg added item #2\n")
 
-    def _test_undo(self, monkeypatch, capsys):
+    def test_undo(self, monkeypatch, capsys):
         """unittest for PasteElementCommand.undo
         """
+        class MockCopy:
+            def __init__(self, *args, **kwargs):
+                print('called CopyElementCommand with args', args, kwargs)
+            def redo(self):
+                print('called CopyElementCommand.redo')
+        monkeypatch.setattr(testee, 'CopyElementCommand', MockCopy)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.undo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.added = True
+        testobj.first_edit = True
+        testobj.text = lambda *x: 'text'
+        testobj.win.statusbar = mockqtw.MockStatusBar()
+        assert capsys.readouterr().out == "called StatusBar.__init__ with args ()\n"
+        testobj.undo()
+        assert capsys.readouterr().out == (
+                "called CopyElementCommand with args"
+                f" ({testobj.win}, True) {{'cut': True, 'retain': False,"
+                " 'description': 'PyQT5 versie van een op een treeview gebaseerde XML-editor\\n'}\n"
+                "called CopyElementCommand.redo\n"
+                "called Editor.mark_dirty with arg False\n"
+                "called StatusBar.showMessage with arg `text undone`\n")
+        testobj.first_edit = False
+        testobj.undo()
+        assert capsys.readouterr().out == (
+                "called CopyElementCommand with args"
+                f" ({testobj.win}, True) {{'cut': True, 'retain': False,"
+                " 'description': 'PyQT5 versie van een op een treeview gebaseerde XML-editor\\n'}\n"
+                "called CopyElementCommand.redo\n"
+                "called StatusBar.showMessage with arg `text undone`\n")
 
 
 class TestPasteAttributeCommand:
@@ -1015,28 +1114,86 @@ class TestPasteAttributeCommand:
             print('called PasteAttributeCommand.__init__ with args', args)
         monkeypatch.setattr(testee.PasteAttributeCommand, '__init__', mock_init)
         testobj = testee.PasteAttributeCommand()
-        assert capsys.readouterr().out == 'called PasteAttributeCommand.__init__ with args ()\n'
+        testobj.win = MockGui()
+        testobj.win.tree = MockTree()
+        assert capsys.readouterr().out == ('called PasteAttributeCommand.__init__ with args ()\n'
+                                           "called Gui.__init__\n"
+                                           "called Editor.__init__\n"
+                                           "called Tree.__init__\n")
         return testobj
 
-    def _test_init(self, monkeypatch, capsys):
+    def test_init(self, monkeypatch, capsys):
         """unittest for PasteAttributeCommand.__init__
         """
-        testobj = testee.PasteAttributeCommand(win, name, value, item, description="")
-        assert capsys.readouterr().out == ("")
+        win = MockGui()
+        win.editor.tree_dirty = False
+        assert capsys.readouterr().out == "called Gui.__init__\ncalled Editor.__init__\n"
+        monkeypatch.setattr(testee.qtw.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
+        testobj = testee.PasteAttributeCommand(win, 'name', 'value', 'item')
+        assert testobj.win == win
+        assert testobj.item == 'item'
+        assert testobj.name == 'name'
+        assert testobj.value == 'value'
+        assert testobj.first_edit
+        assert capsys.readouterr().out == "called UndoCommand.__init__ with args ('',) {}\n"
+        win.editor.tree_dirty = True
+        testobj = testee.PasteAttributeCommand(win, 'name', 'value', 'item', "xxx")
+        assert testobj.win == win
+        assert testobj.item == 'item'
+        assert testobj.name == 'name'
+        assert testobj.value == 'value'
+        assert not testobj.first_edit
+        assert capsys.readouterr().out == "called UndoCommand.__init__ with args ('xxx',) {}\n"
 
-    def _test_redo(self, monkeypatch, capsys):
+    def test_redo(self, monkeypatch, capsys):
         """unittest for PasteAttributeCommand.redo
         """
+        added_item = types.SimpleNamespace(parent=lambda *x: 'parent of added item')
+        def mock_add(*args, **kwargs):
+            print('called Editor.add_item with args', args, kwargs)
+            return added_item
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.redo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.item = 'item'
+        testobj.name = 'name'
+        testobj.value = 'value'
+        testobj.win.editor.add_item = mock_add
+        testobj.redo()
+        assert testobj.added == added_item
+        assert capsys.readouterr().out == (
+                "called Editor.add_item with args ('item', 'name', 'value') {'attr': True}\n"
+                "called Tree.expandItem with arg parent of added item\n")
 
-    def _test_undo(self, monkeypatch, capsys):
+    def test_undo(self, monkeypatch, capsys):
         """unittest for PasteAttributeCommand.undo
         """
+        class MockCopy:
+            def __init__(self, *args, **kwargs):
+                print('called CopyAttributeCommand with args', args, kwargs)
+            def redo(self):
+                print('called CopyAttributeCommand.redo')
+        monkeypatch.setattr(testee, 'CopyAttributeCommand', MockCopy)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.undo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.added = True
+        testobj.first_edit = True
+        testobj.text = lambda *x: 'text'
+        testobj.win.statusbar = mockqtw.MockStatusBar()
+        assert capsys.readouterr().out == "called StatusBar.__init__ with args ()\n"
+        testobj.undo()
+        assert capsys.readouterr().out == (
+                "called CopyAttributeCommand with args"
+                f" ({testobj.win}, True) {{'cut': True, 'retain': False,"
+                " 'description': 'PyQT5 versie van een op een treeview gebaseerde XML-editor\\n'}\n"
+                "called CopyAttributeCommand.redo\n"
+                "called Editor.mark_dirty with arg False\n"
+                "called StatusBar.showMessage with arg `text undone`\n")
+        testobj.first_edit = False
+        testobj.undo()
+        assert capsys.readouterr().out == (
+                "called CopyAttributeCommand with args"
+                f" ({testobj.win}, True) {{'cut': True, 'retain': False,"
+                " 'description': 'PyQT5 versie van een op een treeview gebaseerde XML-editor\\n'}\n"
+                "called CopyAttributeCommand.redo\n"
+                "called StatusBar.showMessage with arg `text undone`\n")
 
 
 class TestEditCommand:
@@ -1055,28 +1212,76 @@ class TestEditCommand:
             print('called EditCommand.__init__ with args', args)
         monkeypatch.setattr(testee.EditCommand, '__init__', mock_init)
         testobj = testee.EditCommand()
-        assert capsys.readouterr().out == 'called EditCommand.__init__ with args ()\n'
+        testobj.win = MockGui()
+        testobj.win.tree = MockTree()
+        assert capsys.readouterr().out == ('called EditCommand.__init__ with args ()\n'
+                                           "called Gui.__init__\n"
+                                           "called Editor.__init__\n"
+                                           "called Tree.__init__\n")
         return testobj
 
-    def _test_init(self, monkeypatch, capsys):
+    def test_init(self, monkeypatch, capsys):
         """unittest for EditCommand.__init__
         """
-        testobj = testee.EditCommand(win, old_state, new_state, description="")
-        assert capsys.readouterr().out == ("")
+        win = MockGui()
+        win.editor.tree_dirty = False
+        assert capsys.readouterr().out == "called Gui.__init__\ncalled Editor.__init__\n"
+        win.item = 'xxx'
+        monkeypatch.setattr(testee.qtw.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
+        testobj = testee.EditCommand(win, 'old_state', 'new_state')
+        assert testobj.win == win
+        assert testobj.item == 'xxx'
+        assert testobj.old_state == 'old_state'
+        assert testobj.new_state == 'new_state'
+        assert testobj.first_edit
+        assert capsys.readouterr().out == "called UndoCommand.__init__ with args ('',) {}\n"
+        win.editor.tree_dirty = True
+        testobj = testee.EditCommand(win, 'old_state', 'new_state', 'yyyyy')
+        assert testobj.win == win
+        assert testobj.item == 'xxx'
+        assert testobj.old_state == 'old_state'
+        assert testobj.new_state == 'new_state'
+        assert not testobj.first_edit
+        assert capsys.readouterr().out == "called UndoCommand.__init__ with args ('yyyyy',) {}\n"
 
-    def _test_redo(self, monkeypatch, capsys):
+    def test_redo(self, monkeypatch, capsys):
         """unittest for EditCommand.redo
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.redo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.item = mockqtw.MockTreeItem()
+        assert capsys.readouterr().out == "called TreeItem.__init__ with args ()\n"
+        testobj.old_state = ('xo', 'yo', 'zo')
+        testobj.new_state = ('xn', 'yn', 'zn')
+        testobj.redo()
+        assert capsys.readouterr().out == ("called TreeItem.setText with arg `xn` for col 0\n"
+                                           "called TreeItem.setText with arg `yn` for col 1\n"
+                                           "called TreeItem.setText with arg `zn` for col 2\n")
 
-    def _test_undo(self, monkeypatch, capsys):
+    def test_undo(self, monkeypatch, capsys):
         """unittest for EditCommand.undo
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.undo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.item = mockqtw.MockTreeItem()
+        testobj.win.statusbar = mockqtw.MockStatusBar()
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ()\n"
+                                           "called StatusBar.__init__ with args ()\n")
+        testobj.text = lambda *x: 'text'
+        testobj.old_state = ('xo', 'yo', 'zo')
+        testobj.new_state = ('xn', 'yn', 'zn')
+        testobj.first_edit = True
+        testobj.undo()
+        assert capsys.readouterr().out == ("called TreeItem.setText with arg `xo` for col 0\n"
+                                           "called TreeItem.setText with arg `yo` for col 1\n"
+                                           "called TreeItem.setText with arg `zo` for col 2\n"
+                                           "called Editor.mark_dirty with arg False\n"
+                                           "called StatusBar.showMessage with arg `text undone`\n")
+
+        testobj.first_edit = False
+        testobj.undo()
+        assert capsys.readouterr().out == ("called TreeItem.setText with arg `xo` for col 0\n"
+                                           "called TreeItem.setText with arg `yo` for col 1\n"
+                                           "called TreeItem.setText with arg `zo` for col 2\n"
+                                           "called StatusBar.showMessage with arg `text undone`\n")
 
 
 class TestCopyElementCommand:
@@ -1095,28 +1300,113 @@ class TestCopyElementCommand:
             print('called CopyElementCommand.__init__ with args', args)
         monkeypatch.setattr(testee.CopyElementCommand, '__init__', mock_init)
         testobj = testee.CopyElementCommand()
-        assert capsys.readouterr().out == 'called CopyElementCommand.__init__ with args ()\n'
+        testobj.win = MockGui()
+        testobj.win.tree = MockTree()
+        assert capsys.readouterr().out == ('called CopyElementCommand.__init__ with args ()\n'
+                                           "called Gui.__init__\n"
+                                           "called Editor.__init__\n"
+                                           "called Tree.__init__\n")
         return testobj
 
-    def _test_init(self, monkeypatch, capsys):
+    def test_init(self, monkeypatch, capsys):
         """unittest for CopyElementCommand.__init__
         """
-        testobj = testee.CopyElementCommand(win, item, cut, retain, description="")
-        assert capsys.readouterr().out == ("")
+        win = MockGui()
+        win.editor.tree_dirty = False
+        item = mockqtw.MockTreeItem('xx', 'a tag', 'a text')
+        assert capsys.readouterr().out == (
+                "called Gui.__init__\ncalled Editor.__init__\n"
+                "called TreeItem.__init__ with args ('xx', 'a tag', 'a text')\n")
+        monkeypatch.setattr(testee.qtw.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
+        testobj = testee.CopyElementCommand(win, item, True, False)
+        assert testobj.undodata is None
+        assert testobj.win == win
+        assert testobj.item == item
+        assert testobj.tag == 'a tag'
+        assert testobj.data == 'a text'
+        assert testobj.cut
+        assert not testobj.retain
+        assert testobj.first_edit
+        assert capsys.readouterr().out == ("called UndoCommand.__init__ with args ('',) {}\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n")
+        testobj = testee.CopyElementCommand(win, item, True, False, 'desc')
+        assert testobj.undodata is None
+        assert testobj.win == win
+        assert testobj.item == item
+        assert testobj.tag == 'a tag'
+        assert testobj.data == 'a text'
+        assert testobj.cut
+        assert not testobj.retain
+        assert testobj.first_edit
+        assert capsys.readouterr().out == ("called UndoCommand.__init__ with args ('desc',) {}\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n")
 
     def _test_redo(self, monkeypatch, capsys):
         """unittest for CopyElementCommand.redo
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.redo() == "expected_result"
+        testobj.redo()
         assert capsys.readouterr().out == ("")
 
-    def _test_undo(self, monkeypatch, capsys):
+    def test_undo(self, monkeypatch, capsys):
         """unittest for CopyElementCommand.undo
         """
+        class MockPaste:
+            def __init__(self, *args, **kwargs):
+                print('called PasteElementCommand with args', args, kwargs)
+                self.added = 'added item'
+            def redo(self):
+                print('called PasteElementCommand.redo')
+        monkeypatch.setattr(testee, 'PasteElementCommand', MockPaste)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.undo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.parent = mockqtw.MockTreeItem()
+        testobj.win.statusbar = mockqtw.MockStatusBar()
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ()\n"
+                                           "called StatusBar.__init__ with args ()\n")
+        testobj.text = lambda *x: 'text'
+        testobj.cut = False
+        testobj.first_edit = True
+        testobj.undo()
+        assert capsys.readouterr().out == ("called Editor.mark_dirty with arg False\n"
+                                           "called StatusBar.showMessage with arg `text undone`\n")
+        testobj.tag = 'tag'
+        testobj.data = 'data'
+        testobj.undodata = 'undodata'
+
+        testobj.cut = True
+        testobj.loc = 2
+        testobj.parent.addChild('xx')
+        # testobj.parent.childCount = lambda *x: 1
+        assert capsys.readouterr().out == "called TreeItem.addChild\n"
+        testobj.undo()
+        assert testobj.item == 'added item'
+        assert capsys.readouterr().out == (
+                f"called PasteElementCommand with args ({testobj.win}, 'tag', 'data')"
+                " {'before': False, 'below': True, 'data': 'undodata',"
+                " 'description': 'PyQT5 versie van een op een treeview gebaseerde XML-editor\\n',"
+                f" 'where': {testobj.parent}}}\n"
+                "called PasteElementCommand.redo\n"
+                "called Editor.mark_dirty with arg False\n"
+                "called StatusBar.showMessage with arg `text undone`\n")
+
+        testobj.loc = 1
+        # testobj.parent.addChild('xx')
+        testobj.parent.addChild('yy')
+        # testobj.parent.childCount = lambda *x: 2
+        assert capsys.readouterr().out == "called TreeItem.addChild\n"
+        testobj.undo()
+        assert testobj.item == 'added item'
+        assert capsys.readouterr().out == (
+                "called TreeItem.child with arg 1\n"
+                f"called PasteElementCommand with args ({testobj.win}, 'tag', 'data')"
+                " {'before': True, 'below': False, 'data': 'undodata',"
+                " 'description': 'PyQT5 versie van een op een treeview gebaseerde XML-editor\\n',"
+                " 'where': 'yy'}\n"
+                "called PasteElementCommand.redo\n"
+                "called Editor.mark_dirty with arg False\n"
+                "called StatusBar.showMessage with arg `text undone`\n")
 
 
 class TestCopyAttributeCommand:
@@ -1135,28 +1425,130 @@ class TestCopyAttributeCommand:
             print('called CopyAttributeCommand.__init__ with args', args)
         monkeypatch.setattr(testee.CopyAttributeCommand, '__init__', mock_init)
         testobj = testee.CopyAttributeCommand()
-        assert capsys.readouterr().out == 'called CopyAttributeCommand.__init__ with args ()\n'
+        testobj.win = MockGui()
+        testobj.win.tree = MockTree()
+        assert capsys.readouterr().out == ('called CopyAttributeCommand.__init__ with args ()\n'
+                                           "called Gui.__init__\n"
+                                           "called Editor.__init__\n"
+                                           "called Tree.__init__\n")
         return testobj
 
-    def _test_init(self, monkeypatch, capsys):
+    def test_init(self, monkeypatch, capsys):
         """unittest for CopyAttributeCommand.__init__
         """
-        testobj = testee.CopyAttributeCommand(win, item, cut, retain, description)
-        assert capsys.readouterr().out == ("")
+        win = MockGui()
+        win.editor.tree_dirty = False
+        item = mockqtw.MockTreeItem('xx', 'a name', 'a value')
+        assert capsys.readouterr().out == (
+                "called Gui.__init__\ncalled Editor.__init__\n"
+                "called TreeItem.__init__ with args ('xx', 'a name', 'a value')\n")
+        monkeypatch.setattr(testee.qtw.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
+        testobj = testee.CopyAttributeCommand(win, item, True, False, 'desc')
+        assert testobj.win == win
+        assert testobj.item == item
+        assert testobj.name == 'a name'
+        assert testobj.value == 'a value'
+        assert testobj.cut
+        assert not testobj.retain
+        assert testobj.first_edit
+        assert capsys.readouterr().out == ("called UndoCommand.__init__ with args ('desc',) {}\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n")
 
-    def _test_redo(self, monkeypatch, capsys):
+    def test_redo(self, monkeypatch, capsys):
         """unittest for CopyAttributeCommand.redo
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.redo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        root = mockqtw.MockTreeItem()
+        parent = mockqtw.MockTreeItem()
+        item = mockqtw.MockTreeItem()
+        parent.addChild(item)
+        item2 = mockqtw.MockTreeItem()
+        parent.addChild(item2)
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.addChild\n"
+                                           "called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.addChild\n")
+        testobj.item = item
+        testobj.name = 'a name'
+        testobj.value = 'a value'
+        testobj.retain = True
+        testobj.cut = False
+        testobj.redo()
+        assert testobj.parent == parent
+        assert testobj.loc == 0
+        assert capsys.readouterr().out == ("called TreeItem.parent\n"
+                                           "called Gui.enable_pasteitems with arg True\n")
+        testobj.retain = False
+        testobj.cut = True
+        testobj.win.editor.rt = root
+        testobj.redo()
+        assert capsys.readouterr().out == ("called TreeItem.parent\n"
+                                           "called TreeItem.removeChild\n"
+                                           f"called Tree.setCurrentItem with arg {parent}\n")
 
-    def _test_undo(self, monkeypatch, capsys):
+        testobj.item = item
+        testobj.retain = False
+        testobj.cut = True
+        testobj.win.editor.rt = parent
+        testobj.redo()
+        assert capsys.readouterr().out == ("called TreeItem.parent\n"
+                                           "called TreeItem.child with arg 1\n"
+                                           "called TreeItem.removeChild\n"
+                                           f"called Tree.setCurrentItem with arg {item2}\n")
+        testobj.item = item2
+        testobj.retain = False
+        testobj.cut = True
+        testobj.win.editor.rt = parent
+        testobj.redo()
+        assert capsys.readouterr().out == ("called TreeItem.parent\n"
+                                           "called TreeItem.child with arg 0\n"
+                                           "called TreeItem.removeChild\n"
+                                           f"called Tree.setCurrentItem with arg {item}\n")
+
+    def test_undo(self, monkeypatch, capsys):
         """unittest for CopyAttributeCommand.undo
         """
+        class MockPaste:
+            def __init__(self, *args, **kwargs):
+                print('called PasteAttributeCommand with args', args, kwargs)
+                self.added = 'added item'
+            def redo(self):
+                print('called PasteAttributeCommand.redo')
+        monkeypatch.setattr(testee, 'PasteAttributeCommand', MockPaste)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.undo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.item = mockqtw.MockTreeItem()
+        testobj.parent = mockqtw.MockTreeItem()
+        testobj.win.statusbar = mockqtw.MockStatusBar()
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.__init__ with args ()\n"
+                                           "called StatusBar.__init__ with args ()\n")
+        testobj.text = lambda *x: 'text'
+        testobj.cut = False
+        testobj.first_edit = True
+        testobj.undo()
+        assert capsys.readouterr().out == ("called Editor.mark_dirty with arg False\n"
+                                           "called StatusBar.showMessage with arg `text undone`\n")
+        testobj.name = 'name'
+        testobj.value = 'value'
+        testobj.undodata = 'undodata'
+
+        testobj.cut = True
+        testobj.loc = 2
+        testobj.parent.addChild('xx')
+        # testobj.parent.childCount = lambda *x: 1
+        assert capsys.readouterr().out == "called TreeItem.addChild\n"
+        testobj.undo()
+        assert testobj.item == 'added item'
+        assert capsys.readouterr().out == (
+                f"called PasteAttributeCommand with args ({testobj.win}, 'name', 'value',"
+                f" {testobj.parent})"
+                " {'description': 'PyQT5 versie van een op een treeview gebaseerde XML-editor\\n'}\n"
+                "called PasteAttributeCommand.redo\n"
+                "called Editor.mark_dirty with arg False\n"
+                "called StatusBar.showMessage with arg `text undone`\n")
 
 
 class TestGui:
@@ -1175,133 +1567,290 @@ class TestGui:
             print('called Gui.__init__ with args', args)
         monkeypatch.setattr(testee.Gui, '__init__', mock_init)
         testobj = testee.Gui()
-        assert capsys.readouterr().out == 'called Gui.__init__ with args ()\n'
+        testobj.app = mockqtw.MockApplication()
+        testobj.editor = MockEditor()
+        testobj.tree = mockqtw.MockTreeWidget()
+        assert capsys.readouterr().out == ('called Gui.__init__ with args ()\n'
+                                           "called Application.__init__\n"
+                                           "called Editor.__init__\n"
+                                           "called Tree.__init__\n")
         return testobj
 
-    def _test_init(self, monkeypatch, capsys):
+    def test_init(self, monkeypatch, capsys):
         """unittest for Gui.__init__
         """
-        testobj = testee.Gui(parent=None, fn='', readonly=False)
-        assert capsys.readouterr().out == ("")
+        def mock_init(self, *args, **kwargs):
+            print('called MainWindow.__init__ with args', args, kwargs)
+        monkeypatch.setattr(testee.qtw.QApplication, '__init__', mockqtw.MockApplication.__init__)
+        monkeypatch.setattr(testee.qtw.QMainWindow, '__init__', mock_init)
+        monkeypatch.setattr(testee.qtw.QMainWindow, 'show', mockqtw.MockMainWindow.show)
+        testobj = testee.Gui()
+        assert testobj.editor is None
+        assert isinstance(testobj.app, testee.qtw.QApplication)
+        assert testobj.fn == ''
+        assert testobj.editable
+        assert capsys.readouterr().out == ("called Application.__init__\n"
+                                           "called MainWindow.__init__ with args () {}\n"
+                                           "called MainWindow.show\n")
+        testobj = testee.Gui('parent', 'fname', True)
+        assert testobj.editor == 'parent'
+        assert isinstance(testobj.app, testee.qtw.QApplication)
+        assert testobj.fn == 'fname'
+        assert not testobj.editable
+        assert capsys.readouterr().out == ("called Application.__init__\n"
+                                           "called MainWindow.__init__ with args () {}\n"
+                                           "called MainWindow.show\n")
 
-    def _test_go(self, monkeypatch, capsys):
+    def test_go(self, monkeypatch, capsys):
         """unittest for Gui.go
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.go() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        with pytest.raises(SystemExit):
+            testobj.go()
+        assert capsys.readouterr().out == ("called Application.exec_\n")
 
-    def _test_keyReleaseEvent(self, monkeypatch, capsys):
+    def test_keyReleaseEvent(self, monkeypatch, capsys):
         """unittest for Gui.keyReleaseEvent
         """
+        def mock_event(self, arg):
+            print(f'called MainWindow.keyReleaseEvent with arg {arg}')
+        def mock_onkey(arg):
+            print(f'called Gui.on_keyup with arg {arg}')
+            return False
+        def mock_onkey_2(arg):
+            print(f'called Gui.on_keyup with arg {arg}')
+            return True
+        monkeypatch.setattr(testee.qtw.QMainWindow, 'keyReleaseEvent', mock_event)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.keyReleaseEvent(event) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.on_keyup = mock_onkey
+        testobj.keyReleaseEvent('event')
+        assert capsys.readouterr().out == ("called Gui.on_keyup with arg event\n"
+                                           "called MainWindow.keyReleaseEvent with arg event\n")
+        testobj.on_keyup = mock_onkey_2
+        testobj.keyReleaseEvent('event')
+        assert capsys.readouterr().out == "called Gui.on_keyup with arg event\n"
 
-    def _test_closeEvent(self, monkeypatch, capsys):
+    def test_closeEvent(self, monkeypatch, capsys):
         """unittest for Gui.closeEvent
         """
+        def mock_check():
+            print(f'called Gui.check_tree')
+            return True
+        def mock_check_2():
+            print(f'called Gui.check_tree')
+            return False
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.closeEvent(event) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        event = mockqtw.MockEvent()
+        testobj.editor.check_tree = mock_check
+        testobj.closeEvent(event)
+        assert capsys.readouterr().out == "called Gui.check_tree\ncalled event.accept\n"
+        testobj.editor.check_tree = mock_check_2
+        testobj.closeEvent(event)
+        assert capsys.readouterr().out == "called Gui.check_tree\ncalled event.ignore\n"
 
-    def _test_get_node_children(self, monkeypatch, capsys):
+    def test_get_node_children(self, monkeypatch, capsys):
         """unittest for Gui.get_node_children
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.get_node_children(node) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        node = mockqtw.MockTreeItem()
+        item1 = mockqtw.MockTreeItem()
+        item2 = mockqtw.MockTreeItem()
+        node.addChild(item1)
+        node.addChild(item2)
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.addChild\ncalled TreeItem.addChild\n")
+        assert testobj.get_node_children(node) == [item1, item2]
 
-    def _test_get_node_title(self, monkeypatch, capsys):
+    def test_get_node_title(self, monkeypatch, capsys):
         """unittest for Gui.get_node_title
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.get_node_title(node) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        node = mockqtw.MockTreeItem('title')
+        assert capsys.readouterr().out == "called TreeItem.__init__ with args ('title',)\n"
+        assert testobj.get_node_title(node) == "title"
+        assert capsys.readouterr().out == "called TreeItem.text for col 0\n"
 
-    def _test_get_node_data(self, monkeypatch, capsys):
+    def test_get_node_data(self, monkeypatch, capsys):
         """unittest for Gui.get_node_data
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.get_node_data(node) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        node = mockqtw.MockTreeItem('title', 'text', 'data')
+        assert capsys.readouterr().out == (
+                "called TreeItem.__init__ with args ('title', 'text', 'data')\n")
+        assert testobj.get_node_data(node) == ('text', 'data')
+        assert capsys.readouterr().out == ("called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n")
 
-    def _test_get_treetop(self, monkeypatch, capsys):
+    def test_get_treetop(self, monkeypatch, capsys):
         """unittest for Gui.get_treetop
         """
+        item = mockqtw.MockTreeItem()
+        item2 = mockqtw.MockTreeItem('x')
+        item.addChild(item2)
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.__init__ with args ('x',)\n"
+                                           "called TreeItem.addChild\n")
+        def mock_item(arg):
+            print(f'called Tree.topLevelItem with arg `{arg}`')
+            return item
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.get_treetop() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.tree.topLevelItem = mock_item
+        assert testobj.get_treetop() == item2
+        assert capsys.readouterr().out == ("called Tree.topLevelItem with arg `0`\n"
+                                           "called TreeItem.child with arg 0\n"
+                                           "called TreeItem.text for col 0\n")
 
-    def _test_setup_new_tree(self, monkeypatch, capsys):
+        item.insertChild(0, mockqtw.MockTreeItem('namespaces'))
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ('namespaces',)\n"
+                                           "called TreeItem.insertChild at pos 0\n")
+        def mock_item(arg):
+            print(f'called Tree.topLevelItem with arg `{arg}`')
+            return item
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.tree.topLevelItem = mock_item
+        assert testobj.get_treetop() == item2
+        assert capsys.readouterr().out == ("called Tree.topLevelItem with arg `0`\n"
+                                           "called TreeItem.child with arg 0\n"
+                                           "called TreeItem.text for col 0\n"
+                                           "called TreeItem.child with arg 1\n")
+
+    def test_setup_new_tree(self, monkeypatch, capsys):
         """unittest for Gui.setup_new_tree
         """
+        monkeypatch.setattr(testee.qtw, 'QTreeWidgetItem', mockqtw.MockTreeItem)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.setup_new_tree(title) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.undo_stack = mockqtw.MockUndoStack()
+        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        testobj.editable = False
+        assert isinstance(testobj.setup_new_tree('Title'), testee.qtw.QTreeWidgetItem)
+        assert capsys.readouterr().out == ("called Tree.clear\n"
+                                           "called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.setText with arg `Title` for col 0\n"
+                                           "called Tree.addTopLevelItem\n")
+        testobj.editable = True
+        assert isinstance(testobj.setup_new_tree('Title'), testee.qtw.QTreeWidgetItem)
+        assert capsys.readouterr().out == ("called Tree.clear\n"
+                                           "called UndoRedoStack.clear\n"
+                                           "called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.setText with arg `Title` for col 0\n"
+                                           "called Tree.addTopLevelItem\n")
 
-    def _test_add_node_to_parent(self, monkeypatch, capsys):
+    def test_add_node_to_parent(self, monkeypatch, capsys):
         """unittest for Gui.add_node_to_parent
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.add_node_to_parent(parent, pos=-1) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        parent = mock_and_create_nodes(monkeypatch, capsys, 1)[0]
+        assert isinstance(testobj.add_node_to_parent(parent), testee.qtw.QTreeWidgetItem)
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.addChild\n")
+        assert isinstance(testobj.add_node_to_parent(parent, pos=1), testee.qtw.QTreeWidgetItem)
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.insertChild at pos 1\n")
 
-    def _test_set_node_title(self, monkeypatch, capsys):
+    def test_set_node_title(self, monkeypatch, capsys):
         """unittest for Gui.set_node_title
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.set_node_title(node, title) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        node = mock_and_create_nodes(monkeypatch, capsys, 1)[0]
+        testobj.set_node_title(node, 'Title')
+        assert capsys.readouterr().out == "called TreeItem.setText with arg `Title` for col 0\n"
 
-    def _test_get_node_parentpos(self, monkeypatch, capsys):
+    def test_get_node_parentpos(self, monkeypatch, capsys):
         """unittest for Gui.get_node_parentpos
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.get_node_parentpos(node) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        parent, node = mock_and_create_nodes(monkeypatch, capsys, 2)
+        parent.addChild(node)
+        assert capsys.readouterr().out == "called TreeItem.addChild\n"
+        assert testobj.get_node_parentpos(node) == (parent, 0)
+        assert capsys.readouterr().out == "called TreeItem.parent\n"
 
-    def _test_set_node_data(self, monkeypatch, capsys):
+    def test_set_node_data(self, monkeypatch, capsys):
         """unittest for Gui.set_node_data
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.set_node_data(node, name, value) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        node = mock_and_create_nodes(monkeypatch, capsys, 1)[0]
+        testobj.set_node_data(node, 'Name', 'Value')
+        assert capsys.readouterr().out == ("called TreeItem.setText with arg `Name` for col 1\n""called TreeItem.setText with arg `Value` for col 2\n")
 
-    def _test_get_selected_item(self, monkeypatch, capsys):
+    def test_get_selected_item(self, monkeypatch, capsys):
         """unittest for Gui.get_selected_item
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.get_selected_item() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        assert testobj.get_selected_item() == "called Tree.currentItem"
+        assert capsys.readouterr().out == ""
 
-    def _test_set_selected_item(self, monkeypatch, capsys):
+    def test_set_selected_item(self, monkeypatch, capsys):
         """unittest for Gui.set_selected_item
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.set_selected_item(item) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        item = mock_and_create_nodes(monkeypatch, capsys, 1)[0]
+        testobj.set_selected_item(item)
+        assert capsys.readouterr().out == (f"called Tree.setCurrentItem with arg `{item}`\n")
 
-    def _test_is_node_root(self, monkeypatch, capsys):
+    def test_is_node_root(self, monkeypatch, capsys):
         """unittest for Gui.is_node_root
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.is_node_root(item=None) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        node = mockqtw.MockTreeItem('', 'xxx', 'yyy')
+        testobj.item = mockqtw.MockTreeItem('', 'aaa', '')
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ('', 'xxx', 'yyy')\n"
+                                           "called TreeItem.__init__ with args ('', 'aaa', '')\n")
+        testobj.editor.rt = types.SimpleNamespace(tag='aaa', text=None)
+        assert testobj.is_node_root()
+        assert capsys.readouterr().out == ("called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n")
+        assert not testobj.is_node_root(node)
+        assert capsys.readouterr().out == ("called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n")
 
-    def _test_expand_item(self, monkeypatch, capsys):
+    def test_expand_item(self, monkeypatch, capsys):
         """unittest for Gui.expand_item
         """
+        def mock_current():
+            print('called Tree.currentItem')
+            return None
+        def mock_expand(item):
+            print(f'called Tree.expandItem with arg {item}')
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.expand_item(item=None) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.tree.currentItem = mock_current
+        # testobj.tree.expandItem = mock_expand
+        testobj.expand_item()
+        assert capsys.readouterr().out == ("called Tree.currentItem\n")
 
-    def _test_collapse_item(self, monkeypatch, capsys):
+        item = mockqtw.MockTreeItem(['x'])
+        item2 = mockqtw.MockTreeItem(['y'])
+        item.addChild(item2)
+        item3 = mockqtw.MockTreeItem(['z'])
+        item.addChild(item3)
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args (['x'],)\n"
+                                           "called TreeItem.__init__ with args (['y'],)\n"
+                                           "called TreeItem.addChild\n"
+                                           "called TreeItem.__init__ with args (['z'],)\n"
+                                           "called TreeItem.addChild\n")
+        testobj.expand_item(item)
+        assert capsys.readouterr().out == (f"called Tree.expandItem with arg {item}\n"
+                                           "called TreeItem.child with arg 0\n"
+                                           f"called Tree.expandItem with arg {item2}\n"
+                                           "called TreeItem.child with arg 1\n"
+                                           f"called Tree.expandItem with arg {item3}\n"
+                                           "called Tree.resizeColumnToContents with arg 0\n")
+
+    def test_collapse_item(self, monkeypatch, capsys):
         """unittest for Gui.collapse_item
         """
+        def mock_current():
+            print('called Tree.currentItem')
+            return None
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.collapse_item(item=None) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.tree.currentItem = mock_current
+        testobj.collapse_item()
+        assert capsys.readouterr().out == "called Tree.currentItem\n"
+        testobj.collapse_item('yyy')
+        assert capsys.readouterr().out == ("called Tree.collapseItem with arg yyy\n"
+                                           "called Tree.resizeColumnToContents with arg 0\n")
 
     def _test_edit_item(self, monkeypatch, capsys):
         """unittest for Gui.edit_item
@@ -1310,54 +1859,219 @@ class TestGui:
         assert testobj.edit_item(item) == "expected_result"
         assert capsys.readouterr().out == ("")
 
-    def _test_copy(self, monkeypatch, capsys):
+    def test_copy(self, monkeypatch, capsys):
         """unittest for Gui.copy
         """
+        class MockCopyEl:
+            def __init__(self, *args):
+                print('called CopyElementCommand.__init__ with args', args)
+        class MockCopyAtt:
+            def __init__(self, *args):
+                print('called CopyAttributeCommand.__init__ with args', args)
+        monkeypatch.setattr(testee, 'CopyElementCommand', MockCopyEl)
+        monkeypatch.setattr(testee, 'CopyAttributeCommand', MockCopyAtt)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.copy(item, cut=False, retain=True) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.undo_stack = mockqtw.MockUndoStack()
+        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        testobj.editor.elstart = '<>'
+        item = mockqtw.MockTreeItem('<> x')
+        testobj.copy(item)
+        assert capsys.readouterr().out == (
+                "called TreeItem.__init__ with args ('<> x',)\n"
+                "called Editor.get_copy_text with args (False, True)\n"
+                "called TreeItem.text for col 0\n"
+                "called CopyElementCommand.__init__ with args"
+                f" ({testobj}, {item}, False, True, 'copy Element')\n"
+                "called UndoRedoStack.push\n")
+        item = mockqtw.MockTreeItem('x')
+        testobj.copy(item, True, False)
+        assert capsys.readouterr().out == (
+                "called TreeItem.__init__ with args ('x',)\n"
+                "called Editor.get_copy_text with args (True, False)\n"
+                "called TreeItem.text for col 0\n"
+                "called CopyAttributeCommand.__init__ with args"
+                f" ({testobj}, {item}, True, False, 'copy Attribute')\n"
+                "called UndoRedoStack.push\n"
+                "called Editor.mark_dirty with arg True\n")
 
-    def _test_paste(self, monkeypatch, capsys):
+    def test_paste(self, monkeypatch, capsys):
         """unittest for Gui.paste
         """
+        class MockPasteEl:
+            def __init__(self, *args, **kwargs):
+                print('called PasteElementCommand.__init__ with args', args, kwargs)
+        class MockPasteAtt:
+            def __init__(self, *args, **kwargs):
+                print('called PasteAttributeCommand.__init__ with args', args, kwargs)
+        monkeypatch.setattr(testee, 'PasteElementCommand', MockPasteEl)
+        monkeypatch.setattr(testee, 'PasteAttributeCommand', MockPasteAtt)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.paste(item, before=True, below=False) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.undo_stack = mockqtw.MockUndoStack()
+        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        item = mockqtw.MockTreeItem()
+        assert capsys.readouterr().out == "called TreeItem.__init__ with args ()\n"
+        testobj.cut_att = ('Name', 'Value')
+        testobj.cut_el = (('', ('Tag', 'Text')),)
+        testobj.paste(item)
+        assert testobj.item == item
+        assert capsys.readouterr().out == (
+                f"called PasteAttributeCommand.__init__ with args ({testobj}, 'Name', 'Value',"
+                f" {item}) {{'description': 'Paste Attribute'}}\n"
+                "called UndoRedoStack.push\n"
+                "called Editor.mark_dirty with arg True\n")
+        testobj.cut_att = ()
+        testobj.paste(item)
+        assert testobj.item == item
+        assert capsys.readouterr().out == (
+                f"called PasteElementCommand.__init__ with args ({testobj}, 'Tag', 'Text')"
+                f" {{'before': True, 'below': False, 'where': {item},"
+                " 'description': 'Paste Element', 'data': (('', ('Tag', 'Text')),)}\n"
+                "called UndoRedoStack.push\n"
+                "called Editor.mark_dirty with arg True\n")
+        testobj.paste(item, False, True)
+        assert testobj.item == item
+        assert capsys.readouterr().out == (
+                f"called PasteElementCommand.__init__ with args ({testobj}, 'Tag', 'Text')"
+                f" {{'before': False, 'below': True, 'where': {item},"
+                " 'description': 'Paste Element', 'data': (('', ('Tag', 'Text')),)}\n"
+                "called UndoRedoStack.push\n"
+                "called Editor.mark_dirty with arg True\n")
 
-    def _test_add_attribute(self, monkeypatch, capsys):
+    def test_add_attribute(self, monkeypatch, capsys):
         """unittest for Gui.add_attribute
         """
+        class MockAttrDialog:
+            def __init__(self, *args, **kwargs):
+                print('called AttributeDialog with args', args, kwargs)
+            def exec_(self):
+                print('called AttributeDialog.exec_')
+                return testee.qtw.QDialog.Rejected
+        class MockAttrDialog2:
+            def __init__(self, *args, **kwargs):
+                print('called AttributeDialog with args', args, kwargs)
+            def exec_(self):
+                print('called AttributeDialog.exec_')
+                return testee.qtw.QDialog.Accepted
+        class MockPasteAtt:
+            def __init__(self, *args, **kwargs):
+                print('called PasteAttributeCommand.__init__ with args', args, kwargs)
+        monkeypatch.setattr(testee, 'AttributeDialog', MockAttrDialog)
+        monkeypatch.setattr(testee, 'PasteAttributeCommand', MockPasteAtt)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.add_attribute(item) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.undo_stack = mockqtw.MockUndoStack()
+        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        item = mockqtw.MockTreeItem()
+        assert capsys.readouterr().out == "called TreeItem.__init__ with args ()\n"
+        testobj.add_attribute(item)
+        assert capsys.readouterr().out == (
+                f"called AttributeDialog with args ({testobj},) {{'title': 'New attribute'}}\n"
+                "called AttributeDialog.exec_\n")
+        monkeypatch.setattr(testee, 'AttributeDialog', MockAttrDialog2)
+        testobj.data = {'name': 'Name', 'value': 'Value'}
+        testobj.add_attribute(item)
+        assert capsys.readouterr().out == (
+                f"called AttributeDialog with args ({testobj},) {{'title': 'New attribute'}}\n"
+                "called AttributeDialog.exec_\n"
+                f"called PasteAttributeCommand.__init__ with args ({testobj}, 'Name', 'Value',"
+                f" {item}, 'Insert Attribute') {{}}\n"
+                "called UndoRedoStack.push\ncalled Editor.mark_dirty with arg True\n")
 
-    def _test_insert(self, monkeypatch, capsys):
+    def test_insert(self, monkeypatch, capsys):
         """unittest for Gui.insert
         """
+        class MockEleDialog:
+            def __init__(self, *args, **kwargs):
+                print('called ElementDialog with args', args, kwargs)
+            def exec_(self):
+                print('called ElementDialog.exec_')
+                return testee.qtw.QDialog.Rejected
+        class MockEleDialog2:
+            def __init__(self, *args, **kwargs):
+                print('called ElementDialog with args', args, kwargs)
+            def exec_(self):
+                print('called ElementDialog.exec_')
+                return testee.qtw.QDialog.Accepted
+        class MockPasteEl:
+            def __init__(self, *args, **kwargs):
+                print('called PasteElementCommand.__init__ with args', args, kwargs)
+        monkeypatch.setattr(testee, 'ElementDialog', MockEleDialog)
+        monkeypatch.setattr(testee, 'PasteElementCommand', MockPasteEl)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.insert(item, before=True, below=False) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.undo_stack = mockqtw.MockUndoStack()
+        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        item = mockqtw.MockTreeItem()
+        assert capsys.readouterr().out == "called TreeItem.__init__ with args ()\n"
+        testobj.insert(item, before=True, below=False)
+        assert capsys.readouterr().out == (
+                f"called ElementDialog with args ({testobj},) {{'title': 'New element'}}\n"
+                "called ElementDialog.exec_\n")
+        monkeypatch.setattr(testee, 'ElementDialog', MockEleDialog2)
+        testobj.data = {'tag': 'Tag', 'text': 'Text'}
+        testobj.insert(item, before=True, below=False)
+        assert capsys.readouterr().out == (
+                f"called ElementDialog with args ({testobj},) {{'title': 'New element'}}\n"
+                "called ElementDialog.exec_\n"
+                f"called PasteElementCommand.__init__ with args ({testobj}, 'Tag', 'Text')"
+                f" {{'before': True, 'below': False, 'where': {item},"
+                " 'description': 'Insert Element'}\n"
+                "called UndoRedoStack.push\n"
+                "called Editor.mark_dirty with arg True\n")
 
-    def _test_init_gui(self, monkeypatch, capsys):
+    def test_init_gui(self, monkeypatch, capsys, expected_output):
         """unittest for Gui.init_gui
         """
+        def mock_init_menus():
+            print('called Gui.init_menus')
+        def mock_init_stack(self, parent):
+            print(f'called UndoredoStack.__init__ with arg {parent}')
+        def mock_enable(value):
+            print(f'called Gui.enable_pasteitems with arg {value}')
+        monkeypatch.setattr(testee.gui.QIcon, '__init__', mockqtw.MockIcon.__init__)
+        monkeypatch.setattr(testee.qtw.QMainWindow, 'resize', mockqtw.MockMainWindow.resize)
+        monkeypatch.setattr(testee.qtw.QMainWindow, 'setWindowIcon',
+                            mockqtw.MockMainWindow.setWindowIcon)
+        monkeypatch.setattr(testee.qtw.QMainWindow, 'statusBar', mockqtw.MockMainWindow.statusBar)
+        monkeypatch.setattr(testee.qtw.QMainWindow, 'setCentralWidget',
+                            mockqtw.MockMainWindow.setCentralWidget)
+        # monkeypatch.setattr(testee.qtw, 'QTreeWidget', mockqtw.MockTreeWidget)
+        monkeypatch.setattr(testee.qtw.QTreeWidget, '__init__', mockqtw.MockTreeWidget.__init__)
+        monkeypatch.setattr(testee.qtw.QTreeWidget, 'headerItem', mockqtw.MockTreeWidget.headerItem)
+        monkeypatch.setattr(testee.UndoRedoStack, '__init__', mock_init_stack)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.init_gui() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.editor = MockEditor()
+        assert capsys.readouterr().out == "called Editor.__init__\n"
+        testobj.editor.iconame = 'icon-name'
+        testobj.init_menus = mock_init_menus
+        testobj.enable_pasteitems = mock_enable
+        testobj.editable = False
+        testobj.init_gui()
+        assert isinstance(testobj.tree, testee.qtw.QTreeWidget)
+        assert not testobj.in_dialog
+        assert capsys.readouterr().out == expected_output['maingui']
 
-    def _test_set_windowtitle(self, monkeypatch, capsys):
+        testobj.editable = True
+        testobj.init_gui()
+        assert isinstance(testobj.tree, testee.qtw.QTreeWidget)
+        assert not testobj.in_dialog
+        assert capsys.readouterr().out == expected_output['maingui2'].format(testobj=testobj)
+
+    def test_set_windowtitle(self, monkeypatch, capsys):
         """unittest for Gui.set_windowtitle
         """
+        monkeypatch.setattr(testee.qtw.QMainWindow, 'setWindowTitle',
+                            mockqtw.MockMainWindow.setWindowTitle)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.set_windowtitle(text) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.set_windowtitle('text')
+        assert capsys.readouterr().out == "called MainWindow.setWindowTitle to `text`\n"
 
-    def _test_get_windowtitle(self, monkeypatch, capsys):
+    def test_get_windowtitle(self, monkeypatch, capsys):
         """unittest for Gui.get_windowtitle
         """
+        monkeypatch.setattr(testee.qtw.QMainWindow, 'windowTitle',
+                            mockqtw.MockMainWindow.windowTitle)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.get_windowtitle() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        assert testobj.get_windowtitle() == "text"
+        assert capsys.readouterr().out == "called MainWindow.windowTitle\n"
 
     def _test_init_menus(self, monkeypatch, capsys):
         """unittest for Gui.init_menus
@@ -1366,100 +2080,299 @@ class TestGui:
         assert testobj.init_menus(popup=False) == "expected_result"
         assert capsys.readouterr().out == ("")
 
-    def _test_meldinfo(self, monkeypatch, capsys):
+    def test_meldinfo(self, monkeypatch, capsys):
         """unittest for Gui.meldinfo
         """
+        monkeypatch.setattr(testee.qtw, 'QMessageBox', mockqtw.MockMessageBox)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.meldinfo(text) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.editor.title = 'Title'
+        testobj.meldinfo('message')
+        assert capsys.readouterr().out == (
+                f"called MessageBox.information with args `{testobj}` `Title` `message`\n")
 
-    def _test_meldfout(self, monkeypatch, capsys):
+    def test_meldfout(self, monkeypatch, capsys):
         """unittest for Gui.meldfout
         """
+        def mock_close():
+            print('called Gui.close')
+        monkeypatch.setattr(testee.qtw, 'QMessageBox', mockqtw.MockMessageBox)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.meldfout(text, abort=False) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.editor.title = 'Title'
+        testobj.close = mock_close
+        testobj.meldfout('error')
+        assert capsys.readouterr().out == (
+                f"called MessageBox.critical with args `{testobj}` `Title` `error`\n")
+        testobj.meldfout('error', abort=True)
+        assert capsys.readouterr().out == (
+                f"called MessageBox.critical with args `{testobj}` `Title` `error`\n"
+                'called Gui.close\n')
 
-    def _test_ask_yesnocancel(self, monkeypatch, capsys):
+    def test_ask_yesnocancel(self, monkeypatch, capsys):
         """unittest for Gui.ask_yesnocancel
         """
+        def mock_ask_no(parent, *args, **kwargs):
+            print(f'called MessageBox.question with args {parent}', args, kwargs)
+            return mockqtw.MockMessageBox.No
+        def mock_ask_yes(parent, *args, **kwargs):
+            print(f'called MessageBox.question with args {parent}', args, kwargs)
+            return mockqtw.MockMessageBox.Yes
+        def mock_ask_cancel(parent, *args, **kwargs):
+            print(f'called MessageBox.question with args {parent}', args, kwargs)
+            return mockqtw.MockMessageBox.Cancel
+        monkeypatch.setattr(testee.qtw, 'QMessageBox', mockqtw.MockMessageBox)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.ask_yesnocancel(prompt) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.editor.title = 'Title'
+        monkeypatch.setattr(mockqtw.MockMessageBox, 'question', mock_ask_no)
+        assert testobj.ask_yesnocancel('Prompt') == 0
+        assert testobj.in_dialog
+        assert capsys.readouterr().out == (f"called MessageBox.question with args {testobj}"
+                                           " ('Title', 'Prompt', 14) {'defaultButton': 4}\n")
+        monkeypatch.setattr(mockqtw.MockMessageBox, 'question', mock_ask_yes)
+        testobj.editor.title = 'Title'
+        assert testobj.ask_yesnocancel('Prompt') == 1
+        assert capsys.readouterr().out == (f"called MessageBox.question with args {testobj}"
+                                           " ('Title', 'Prompt', 14) {'defaultButton': 4}\n")
+        monkeypatch.setattr(mockqtw.MockMessageBox, 'question', mock_ask_cancel)
+        testobj.editor.title = 'Title'
+        assert testobj.ask_yesnocancel('Prompt') == -1
+        assert capsys.readouterr().out == (f"called MessageBox.question with args {testobj}"
+                                           " ('Title', 'Prompt', 14) {'defaultButton': 4}\n")
 
-    def _test_ask_for_text(self, monkeypatch, capsys):
+    def test_ask_for_text(self, monkeypatch, capsys):
         """unittest for Gui.ask_for_text
         """
+        monkeypatch.setattr(testee.qtw, 'QInputDialog', mockqtw.MockInputDialog)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.ask_for_text(prompt, value='') == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.editor.title = 'Title'
+        assert testobj.ask_for_text('Prompt', value='x') == ""
+        assert testobj.in_dialog == True
+        assert capsys.readouterr().out == (f"called InputDialog.getText with args {testobj}"
+                                           " ('Title', 'Prompt', 0, 'x') {}\n")
 
-    def _test_file_to_read(self, monkeypatch, capsys):
+    def test_file_to_read(self, monkeypatch, capsys):
         """unittest for Gui.file_to_read
         """
+        def mock_open(parent, *args, **kwargs):
+            print('called FileDialog.getOpenFilename with args', parent, args, kwargs)
+            return 'xxx', True
+        monkeypatch.setattr(testee.qtw, 'QFileDialog', mockqtw.MockFileDialog)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.file_to_read() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        assert testobj.file_to_read() == (False, "")
+        assert capsys.readouterr().out == (
+                f"called FileDialog.getOpenFilename with args {testobj} ('Choose a file',"
+                " '/home/albert/projects/xmledit', 'XML files (*.xml *.XML);;All files (*.*)')"
+                " {}\n")
+        monkeypatch.setattr(mockqtw.MockFileDialog, 'getOpenFileName', mock_open)
+        assert testobj.file_to_read() == (True, "xxx")
+        assert capsys.readouterr().out == (
+                f"called FileDialog.getOpenFilename with args {testobj} ('Choose a file',"
+                " '/home/albert/projects/xmledit', 'XML files (*.xml *.XML);;All files (*.*)')"
+                " {}\n")
 
-    def _test_file_to_save(self, monkeypatch, capsys):
+    def test_file_to_save(self, monkeypatch, capsys):
         """unittest for Gui.file_to_save
         """
+        def mock_save(parent, *args, **kwargs):
+            print('called FileDialog.getSaveFilename with args', parent, args, kwargs)
+            return 'xxx', True
+        monkeypatch.setattr(testee.qtw, 'QFileDialog', mockqtw.MockFileDialog)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.file_to_save() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.editor.xmlfn = 'qqq'
+        assert testobj.file_to_save() == (False, "")
+        assert capsys.readouterr().out == (
+                f"called FileDialog.getSaveFilename with args {testobj} ('Save file as ...',"
+                " 'qqq', 'XML files (*.xml *.XML);;All files (*.*)') {}\n")
+        monkeypatch.setattr(mockqtw.MockFileDialog, 'getSaveFileName', mock_save)
+        assert testobj.file_to_save() == (True, "xxx")
+        assert capsys.readouterr().out == (
+                f"called FileDialog.getSaveFilename with args {testobj} ('Save file as ...',"
+                " 'qqq', 'XML files (*.xml *.XML);;All files (*.*)') {}\n")
 
-    def _test_enable_pasteitems(self, monkeypatch, capsys):
+    def test_enable_pasteitems(self, monkeypatch, capsys):
         """unittest for Gui.enable_pasteitems
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.enable_pasteitems(active=False) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.pastebefore_item = mockqtw.MockAction()
+        testobj.pasteafter_item = mockqtw.MockAction()
+        testobj.pasteunder_item = mockqtw.MockAction()
+        assert capsys.readouterr().out == ("called Action.__init__ with args ()\n"
+                                           "called Action.__init__ with args ()\n"
+                                           "called Action.__init__ with args ()\n")
+        testobj.enable_pasteitems()
+        assert capsys.readouterr().out == ("called Action.setText with arg `Nothing to Paste`\n"
+                                           "called Action.setEnabled with arg `False`\n"
+                                           "called Action.setEnabled with arg `False`\n"
+                                           "called Action.setEnabled with arg `False`\n")
+        testobj.enable_pasteitems(active=True)
+        assert capsys.readouterr().out == ("called Action.setText with arg `Paste Before`\n"
+                                           "called Action.setEnabled with arg `True`\n"
+                                           "called Action.setEnabled with arg `True`\n"
+                                           "called Action.setEnabled with arg `True`\n")
 
-    def _test_limit_undo(self, monkeypatch, capsys):
+    def test_limit_undo(self, monkeypatch, capsys):
         """unittest for Gui.limit_undo
         """
+        def mock_meldinfo(msg):
+            print(f"called Gui.meldinfo with arg '{msg}'")
+        def mock_unset(value):
+            print(f"called undostack.unset_undo_limit with arg {value}")
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.limit_undo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.meldinfo = mock_meldinfo
+        testobj.undoredowarning = 'undo/redo warning'
+        testobj.setundo_action = mockqtw.MockAction()
+        testobj.undo_stack = mockqtw.MockUndoStack()
+        assert capsys.readouterr().out == ("called Action.__init__ with args ()\n"
+                                           "called UndoStack.__init__ with args ()\n")
+        testobj.undo_stack.unset_undo_limit = mock_unset
+        testobj.limit_undo()
+        assert capsys.readouterr().out == ("called Action.isChecked\n"
+                                           "called undostack.unset_undo_limit with arg False\n")
+        testobj.setundo_action.setChecked(True)
+        testobj.limit_undo()
+        assert capsys.readouterr().out == ("called Action.isChecked\n"
+                                           "called undostack.unset_undo_limit with arg True\n"
+                                           "called Gui.meldinfo with arg 'undo/redo warning'\n")
 
-    def _test_popupmenu(self, monkeypatch, capsys):
+    def test_popupmenu(self, monkeypatch, capsys):
         """unittest for Gui.popupmenu
         """
+        def mock_menu(**kwargs):
+            print(f'called Gui.init_menus with args', kwargs)
+            result = mockqtw.MockMenu()
+            assert capsys.readouterr().out == ("called Gui.init_menus with args {'popup': True}\n"
+                                               "called Menu.__init__ with args ()\n")
+            return result
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.popupmenu(item) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.init_menus = mock_menu
+        # breakpoint()
+        testobj.popupmenu('item')
+        assert capsys.readouterr().out == ("called Tree.visualItemRect with arg item\n"
+                                           "called Tree.mapToGlobal with arg bottom-right\n"
+                                           "called Menu.exec_ with args ('mapped-to-global',) {}\n")
 
-    def _test_quit(self, monkeypatch, capsys):
+    def test_quit(self, monkeypatch, capsys):
         """unittest for Gui.quit
         """
+        def mock_close():
+            print('called Gui.close')
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.quit() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.close = mock_close
+        testobj.quit()
+        assert capsys.readouterr().out == "called Gui.close\n"
 
-    def _test_on_keyup(self, monkeypatch, capsys):
+    def test_on_keyup(self, monkeypatch, capsys):
         """unittest for Gui.on_keyup
         """
+        def mock_current():
+            print('called Tree.currentItem')
+            return None
+        def mock_current_top():
+            print('called Tree.currentItem')
+            return 'top'
+        item = mockqtw.MockTreeItem()
+        parent = mockqtw.MockTreeItem()
+        parent.addChild(item)
+        child = mockqtw.MockTreeItem()
+        item.addChild(child)
+        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.addChild\n"
+                                           "called TreeItem.__init__ with args ()\n"
+                                           "called TreeItem.addChild\n")
+        def mock_current_other():
+            print('called Tree.currentItem')
+            return item
+        def mock_popup(arg):
+            print(f'called Gui.popupmenu with arg {arg}')
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.on_keyup(ev=None) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.top = 'top'
+        testobj.popupmenu = mock_popup
+        event = mockqtw.MockEvent(key=testee.core.Qt.Key_Return)
+        testobj.tree.currentItem = mock_current
+        assert not testobj.on_keyup(event)
+        assert capsys.readouterr().out == "called Tree.currentItem\n"
 
-    def _test_ask_for_search_args(self, monkeypatch, capsys):
+        testobj.tree.currentItem = mock_current_top
+        assert not testobj.on_keyup(event)
+        assert capsys.readouterr().out == "called Tree.currentItem\n"
+
+        testobj.tree.currentItem = mock_current_other
+        testobj.in_dialog = True
+        assert testobj.on_keyup(event)
+        assert not testobj.in_dialog
+        assert capsys.readouterr().out == "called Tree.currentItem\n"
+        # testobj.in_dialog = False
+        monkeypatch.setattr(mockqtw.MockTreeItem, 'childCount', lambda x: 0)
+        assert testobj.on_keyup(event)
+        assert capsys.readouterr().out == "called Tree.currentItem\n"
+        monkeypatch.setattr(mockqtw.MockTreeItem, 'childCount', lambda x: 1)
+        monkeypatch.setattr(mockqtw.MockTreeItem, 'isExpanded', lambda x: True)
+        assert testobj.on_keyup(event)
+        assert capsys.readouterr().out == ("called Tree.currentItem\n"
+                                           f"called Tree.collapseItem with arg {item}\n"
+                                           "called TreeItem.parent\n"
+                                           f"called Tree.setCurrentItem with arg `{parent}`\n")
+        monkeypatch.setattr(mockqtw.MockTreeItem, 'isExpanded', lambda x: False)
+        assert testobj.on_keyup(event)
+        assert capsys.readouterr().out == ("called Tree.currentItem\n"
+                                           f"called Tree.expandItem with arg {item}\n"
+                                           "called TreeItem.child with arg 0\n"
+                                           f"called Tree.setCurrentItem with arg `{child}`\n")
+
+        event = mockqtw.MockEvent(key=testee.core.Qt.Key_Backspace)
+        monkeypatch.setattr(mockqtw.MockTreeItem, 'isExpanded', lambda x: False)
+        assert testobj.on_keyup(event)
+        assert capsys.readouterr().out == "called Tree.currentItem\n"
+        monkeypatch.setattr(mockqtw.MockTreeItem, 'isExpanded', lambda x: True)
+        assert testobj.on_keyup(event)
+        assert capsys.readouterr().out == ("called Tree.currentItem\n"
+                                           f"called Tree.collapseItem with arg {item}\n"
+                                           "called TreeItem.parent\n"
+                                           f"called Tree.setCurrentItem with arg `{parent}`\n")
+
+        event = mockqtw.MockEvent(key=testee.core.Qt.Key_Menu)
+        assert testobj.on_keyup(event)
+        assert capsys.readouterr().out == ("called Tree.currentItem\n"
+                                           f"called Gui.popupmenu with arg {item}\n")
+
+    def test_ask_for_search_args(self, monkeypatch, capsys):
         """unittest for Gui.ask_for_search_args
         """
+        class MockSearch:
+            def __init__(self, *args, **kwargs):
+                print('called SearchDialog.__init__ with args', args, kwargs)
+            def exec_(self):
+                print('called SearchDialog.exec_')
+                return testee.qtw.QDialog.Rejected
+        def exec_2(self):
+            print('called SearchDialog.exec_')
+            return testee.qtw.QDialog.Accepted
+        monkeypatch.setattr(testee, 'SearchDialog', MockSearch)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.ask_for_search_args() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        assert not testobj.ask_for_search_args()
+        assert capsys.readouterr().out == (
+                f"called SearchDialog.__init__ with args ({testobj},) {{'title': 'Search options'}}\n"
+                "called SearchDialog.exec_\n")
+        MockSearch.exec_ = exec_2
+        assert testobj.ask_for_search_args()
+        assert capsys.readouterr().out == (
+                f"called SearchDialog.__init__ with args ({testobj},) {{'title': 'Search options'}}\n"
+                "called SearchDialog.exec_\n")
 
-    def _test_do_undo(self, monkeypatch, capsys):
+    def test_do_undo(self, monkeypatch, capsys):
         """unittest for Gui.do_undo
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.do_undo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.undo_stack = mockqtw.MockUndoStack()
+        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        testobj.do_undo()
+        assert capsys.readouterr().out == "called UndoRedoStack.undo\n"
 
-    def _test_do_redo(self, monkeypatch, capsys):
+    def test_do_redo(self, monkeypatch, capsys):
         """unittest for Gui.do_redo
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.do_redo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.undo_stack = mockqtw.MockUndoStack()
+        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        testobj.do_redo()
+        assert capsys.readouterr().out == "called UndoRedoStack.redo\n"
