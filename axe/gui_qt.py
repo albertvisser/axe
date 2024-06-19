@@ -343,7 +343,7 @@ class SearchDialog(qtw.QDialog):
         attr_name = self.txt_attr_name.text()
         attr_val = self.txt_attr_val.text()
         text = self.txt_text.text()
-        out = self._parent.editor.get_search_text(ele, attr_name, attr_val, text)
+        out = self._parent.editor.build_search_description(ele, attr_name, attr_val, text)
         self.lbl_search.setText('\n'.join(out))
         # self.layout()
 
@@ -373,9 +373,6 @@ class SearchDialog(qtw.QDialog):
         self._parent.in_dialog = True
         self._parent.editor.search_args = (ele, attr_name, attr_val, text)
         super().accept()
-
-    ## def on_cancel(self):
-        ## super().done(qtw.QDialog.Rejected)
 
 
 class VisualTree(qtw.QTreeWidget):
@@ -624,10 +621,7 @@ class CopyElementCommand(qtw.QUndoCommand):
                 push_el(subel, children)
             result.append((text, data, children))
             return result
-        # print(f'In copy element redo for item {self.item} with data {self.data}')
-        print("redo of ", self.item)
         if self.undodata is None:
-            print('building reference data')
             self.parent = self.item.parent()
             self.loc = self.parent.indexOfChild(self.item)
             self.undodata = push_el(self.item, [])
@@ -637,17 +631,11 @@ class CopyElementCommand(qtw.QUndoCommand):
                 self.prev = self.parent
                 if self.prev == self.win.editor.rt:
                     self.prev = self.parent.child(self.loc + 1)
-            print('   parent:', self.parent)
-            print('   location:', self.loc)
-            print('   undodata:', self.undodata)
-            print('   pointer fallback:', self.prev)
         if self.retain:
-            # print('Retaining item')
             self.win.cut_el = self.undodata
             self.win.cut_att = None
             self.win.enable_pasteitems(True)
         if self.cut:
-            # print(f'cutting item from parent {self.parent}')
             self.parent.removeChild(self.item)
             self.item = self.prev
             self.win.tree.setCurrentItem(self.prev)
@@ -866,7 +854,7 @@ class Gui(qtw.QMainWindow):
         "edit an element or attribute"
         self.item = item
         data = str(self.item.text(0))  # self.item.get_text()
-        if data.startswith(self.parent.elstart):
+        if data.startswith(self.editor.elstart):
             tag, text = str(self.item.text(1)), str(self.item.text(2))
             state = data, tag, text   # current values to be passed to UndoAction
             data = {'item': self.item, 'tag': tag}
@@ -980,38 +968,11 @@ class Gui(qtw.QMainWindow):
     def init_menus(self, popup=False):
         """setup application menu"""
         filemenu = viewmenu = editmenu = None
-        build_editmenu = False
         if popup:
             viewmenu = qtw.QMenu("&View")
+            menubar = None
         else:
-            self.filemenu_actions, self.viewmenu_actions = [], []
-            self.editmenu_actions, self.searchmenu_actions = [], []
-            for ix, menudata in enumerate(self.editor.get_menu_data()):
-                for text, callback, shortcuts in menudata:
-                    act = qtw.QAction(text, self)
-                    act.triggered.connect(callback)
-                    if shortcuts:
-                        act.setShortcuts([x for x in shortcuts.split(',')])
-                    if ix == 0:
-                        actions = self.filemenu_actions
-                    elif ix == 1:
-                        actions = self.viewmenu_actions
-                    elif ix == 2:
-                        actions = self.editmenu_actions if self.editable else self.searchmenu_actions
-                    elif ix == 3:
-                        actions = self.searchmenu_actions
-                    actions.append(act)
-            if self.editable:
-                act = qtw.QAction('&Unlimited Undo', self)
-                act.triggered.connect(self.limit_undo)
-                self.filemenu_actions.insert(-1, act)
-                self.undo_item, self.redo_item = self.editmenu_actions[0:2]
-                self.pastebefore_item, self.pasteafter_item = self.editmenu_actions[6:8]
-                self.pasteunder_item = self.editmenu_actions[8]
-                self.setundo_action = self.filemenu_actions[-2]
-                self.setundo_action.setCheckable(True)
-                self.setundo_action.setChecked(False)
-
+            self.setup_menuactions()
             menubar = self.menuBar()
             filemenu = menubar.addMenu("&File")
             for act in self.filemenu_actions[:4]:
@@ -1026,37 +987,11 @@ class Gui(qtw.QMainWindow):
             viewmenu.addAction(act)
 
         if self.editable:
-            if popup:
-                editmenu = viewmenu
-                editmenu.setTitle("View/Edit")
-                editmenu.addSeparator()
-                build_editmenu = True
-            else:
-                editmenu = menubar.addMenu("&Edit")
-
-            for ix, act in enumerate(self.editmenu_actions[:6]):
-                editmenu.addAction(act)
-                if ix == 2:
-                    editmenu.addSeparator()
-
-            disable_menu = not self.cut_el and not self.cut_att
-            add_menuitem = not popup or not disable_menu
-            if disable_menu:
-                self.pastebefore_item.setText("Nothing to Paste")
-                self.pastebefore_item.setEnabled(False)
-                self.pasteafter_item.setEnabled(False)
-                self.pasteunder_item.setEnabled(False)
-            if add_menuitem:
-                editmenu.addAction(self.pastebefore_item)
-                editmenu.addAction(self.pasteafter_item)
-                editmenu.addAction(self.pasteunder_item)
-
-            editmenu.addSeparator()
-            for act in self.editmenu_actions[9:]:
-                editmenu.addAction(act)
+            editmenu = self.add_editactions(popup, menubar, viewmenu)
 
         if popup:
-            searchmenu = editmenu if build_editmenu else viewmenu
+            # searchmenu = editmenu if build_editmenu else viewmenu
+            searchmenu = editmenu if self.editable else viewmenu
             searchmenu.addSeparator()
         else:
             searchmenu = menubar.addMenu("&Search")
@@ -1067,6 +1002,69 @@ class Gui(qtw.QMainWindow):
         if popup:
             return searchmenu
         return filemenu, viewmenu, editmenu
+
+    def setup_menuactions(self):
+        """build lists with actions for the various submenus from the editor's menudata
+        """
+        self.filemenu_actions, self.viewmenu_actions = [], []
+        self.editmenu_actions, self.searchmenu_actions = [], []
+        for ix, menudata in enumerate(self.editor.get_menu_data()):
+            for text, callback, shortcuts in menudata:
+                act = qtw.QAction(text, self)
+                act.triggered.connect(callback)
+                if shortcuts:
+                    act.setShortcuts(list(shortcuts.split(',')))
+                if ix == 0:
+                    actions = self.filemenu_actions
+                elif ix == 1:
+                    actions = self.viewmenu_actions
+                elif ix == 2:
+                    actions = self.editmenu_actions if self.editable else self.searchmenu_actions
+                elif ix == 3:
+                    actions = self.searchmenu_actions
+                actions.append(act)
+        if self.editable:
+            act = qtw.QAction('&Unlimited Undo', self)
+            act.triggered.connect(self.limit_undo)
+            self.filemenu_actions.insert(-1, act)
+            self.undo_item, self.redo_item = self.editmenu_actions[0:2]
+            self.pastebefore_item, self.pasteafter_item = self.editmenu_actions[6:8]
+            self.pasteunder_item = self.editmenu_actions[8]
+            self.setundo_action = self.filemenu_actions[-2]
+            self.setundo_action.setCheckable(True)
+            self.setundo_action.setChecked(False)
+
+    def add_editactions_to_menu(self, popup, menubar, viewmenu):
+        """update the menu in editable mode
+        """
+        if popup:
+            editmenu = viewmenu
+            editmenu.setTitle("View/Edit")
+            editmenu.addSeparator()
+            # build_editmenu = True
+        else:
+            editmenu = menubar.addMenu("&Edit")
+
+        for ix, act in enumerate(self.editmenu_actions[:6]):
+            editmenu.addAction(act)
+            if ix == 2:
+                editmenu.addSeparator()
+
+        disable_menu = not self.cut_el and not self.cut_att
+        add_menuitem = not popup or not disable_menu
+        if disable_menu:
+            self.pastebefore_item.setText("Nothing to Paste")
+            self.pastebefore_item.setEnabled(False)
+            self.pasteafter_item.setEnabled(False)
+            self.pasteunder_item.setEnabled(False)
+        if add_menuitem:
+            editmenu.addAction(self.pastebefore_item)
+            editmenu.addAction(self.pasteafter_item)
+            editmenu.addAction(self.pasteunder_item)
+
+        editmenu.addSeparator()
+        for act in self.editmenu_actions[9:]:
+            editmenu.addAction(act)
 
     def meldinfo(self, text):
         """notify about some information"""

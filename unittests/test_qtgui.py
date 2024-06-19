@@ -225,6 +225,8 @@ called Editor.mark_dirty with arg False
 
 @pytest.fixture
 def expected_output():
+    """fixture for output predictions
+    """
     return {'element': eldialog_start + eldialog_end,
             'element2': eldialog_start + eldialog_middle_1 + eldialog_end,
             'element3': eldialog_start + eldialog_middle_1 + eldialog_middle_2 + eldialog_end,
@@ -237,6 +239,8 @@ def expected_output():
 
 
 class MockEditor:
+    """stub for base.Editor
+    """
     def __init__(self):
         print('called Editor.__init__')
         self.ns_uris = {'ns1': 'namespace1', 'ns2': 'namespace'}
@@ -250,9 +254,14 @@ class MockEditor:
     def get_copy_text(self, *args):
         print("called Editor.get_copy_text with args", args)
         return 'copy'
+    def getshortname(self, *args, **kwargs):
+        print('called Editor.getshortname with args', args, kwargs)
+        return 'shortname'
 
 
 class MockTree:  # kan waarschijnlijk vervangen worden door mockqtw versie
+    """stub for qtgui.VisualTree
+    """
     def __init__(self):
         print('called Tree.__init__')
     def expandItem(self, arg):
@@ -262,6 +271,8 @@ class MockTree:  # kan waarschijnlijk vervangen worden door mockqtw versie
 
 
 class MockGui:
+    """stub for qtgui.Gui
+    """
     def __init__(self):
         print('called Gui.__init__')
         self.editor = MockEditor()
@@ -278,6 +289,8 @@ class MockGui:
 
 
 def mock_and_create_nodes(monkeypatch, capsys, count):
+    """Helper function to create parent TreeWidgetItem
+    """
     monkeypatch.setattr(testee.qtw, 'QTreeWidgetItem', mockqtw.MockTreeItem)
     result = []
     while count > 0:
@@ -653,8 +666,8 @@ class TestSearchDialog:
     def test_set_search(self, monkeypatch, capsys):
         """unittest for SearchDialog.set_search
         """
-        def mock_get(*args):
-            print('called Editor.get_search_text with args', args)
+        def mock_build(*args):
+            print('called Editor.build_search_description with args', args)
             return args
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.txt_element = mockqtw.MockLineEdit()
@@ -672,14 +685,14 @@ class TestSearchDialog:
                 "called LineEdit.__init__\ncalled LineEdit.setText with arg `zzz`\n"
                 "called LineEdit.__init__\ncalled LineEdit.setText with arg `qqq`\n"
                 "called Label.__init__\n")
-        testobj._parent.editor.get_search_text = mock_get
+        testobj._parent.editor.build_search_description = mock_build
         testobj.set_search()
         assert capsys.readouterr().out == (
                 "called LineEdit.text\n"
                 "called LineEdit.text\n"
                 "called LineEdit.text\n"
                 "called LineEdit.text\n"
-                "called Editor.get_search_text with args ('xxx', 'yyy', 'zzz', 'qqq')\n"
+                "called Editor.build_search_description with args ('xxx', 'yyy', 'zzz', 'qqq')\n"
                 "called Label.setText with arg `xxx\nyyy\nzzz\nqqq`\n")
 
     def test_clear_values(self, monkeypatch, capsys):
@@ -1343,12 +1356,129 @@ class TestCopyElementCommand:
                                            "called TreeItem.text for col 1\n"
                                            "called TreeItem.text for col 2\n")
 
-    def _test_redo(self, monkeypatch, capsys):
+    def test_redo(self, monkeypatch, capsys):
         """unittest for CopyElementCommand.redo
         """
+        testitem = mockqtw.MockTreeItem('xxx', 'yyy', 'zzz')
+        testchild1 = mockqtw.MockTreeItem('c1', 'child', 'one')
+        testitem.addChild(testchild1)
+        testchild2 = mockqtw.MockTreeItem('c2', 'child', 'two')
+        testitem.addChild(testchild2)
+        testparent = mockqtw.MockTreeItem('p0', 'parent', 'zero')
+        previtem = mockqtw.MockTreeItem()
+        testparent.addChild(previtem)
+        testparent.addChild(testitem)
+        nextitem = mockqtw.MockTreeItem()
+        testparent.addChild(nextitem)
+        assert capsys.readouterr().out == (
+                "called TreeItem.__init__ with args ('xxx', 'yyy', 'zzz')\n"
+                "called TreeItem.__init__ with args ('c1', 'child', 'one')\n"
+                "called TreeItem.addChild\n"
+                "called TreeItem.__init__ with args ('c2', 'child', 'two')\n"
+                "called TreeItem.addChild\n"
+                "called TreeItem.__init__ with args ('p0', 'parent', 'zero')\n"
+                "called TreeItem.__init__ with args ()\n"
+                "called TreeItem.addChild\n"
+                "called TreeItem.addChild\n"
+                "called TreeItem.__init__ with args ()\n"
+                "called TreeItem.addChild\n")
+
         testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.item = testitem
+        # testobj.prev = ''
+        testobj.win.cut_el = None
+        testobj.win.cut_att = None
+        testobj.undodata = None
+        testobj.retain = False
+        testobj.cut = False
+        testobj.win.editor = types.SimpleNamespace(rt='not testparent')
         testobj.redo()
-        assert capsys.readouterr().out == ("")
+        assert testobj.parent == testparent
+        assert testobj.loc == 1
+        assert testobj.undodata == [('xxx', ('yyy', 'zzz'), [('c1', ('child', 'one'), []),
+                                                             ('c2', ('child', 'two'), [])])]
+        assert testobj.prev == previtem
+        assert capsys.readouterr().out == ("called TreeItem.parent\n"
+                                           "called TreeItem.text for col 0\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.child with arg 0\n"
+                                           "called TreeItem.text for col 0\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.child with arg 1\n"
+                                           "called TreeItem.text for col 0\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.child with arg 0\n")
+        testparent = mockqtw.MockTreeItem('p0', 'parent', 'zero')
+        testparent.addChild(testitem)
+        testparent.addChild(nextitem)
+        assert capsys.readouterr().out == (
+                "called TreeItem.__init__ with args ('p0', 'parent', 'zero')\n"
+                "called TreeItem.addChild\n"
+                "called TreeItem.addChild\n")
+        testobj.parent = None
+        testobj.loc = None
+        testobj.undodata = None
+        testobj.prev = None
+        testobj.redo()
+        assert testobj.parent == testparent
+        assert testobj.loc == 0
+        assert testobj.undodata == [('xxx', ('yyy', 'zzz'), [('c1', ('child', 'one'), []),
+                                                             ('c2', ('child', 'two'), [])])]
+        assert testobj.prev == testparent
+        assert capsys.readouterr().out == ("called TreeItem.parent\n"
+                                           "called TreeItem.text for col 0\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.child with arg 0\n"
+                                           "called TreeItem.text for col 0\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.child with arg 1\n"
+                                           "called TreeItem.text for col 0\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n")
+        testobj.win.editor = types.SimpleNamespace(rt=testparent)
+        testobj.parent = None
+        testobj.loc = None
+        testobj.undodata = None
+        testobj.prev = None
+        # breakpoint()
+        testobj.redo()
+        assert testobj.parent == testparent
+        assert testobj.loc == 0
+        assert testobj.undodata == [('xxx', ('yyy', 'zzz'), [('c1', ('child', 'one'), []),
+                                                             ('c2', ('child', 'two'), [])])]
+        assert testobj.prev == nextitem
+        assert capsys.readouterr().out == ("called TreeItem.parent\n"
+                                           "called TreeItem.text for col 0\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.child with arg 0\n"
+                                           "called TreeItem.text for col 0\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.child with arg 1\n"
+                                           "called TreeItem.text for col 0\n"
+                                           "called TreeItem.text for col 1\n"
+                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.child with arg 1\n")
+
+        testobj.retain = True
+        testobj.redo()
+        assert testobj.win.cut_el == [('xxx', ('yyy', 'zzz'), [('c1', ('child', 'one'), []),
+                                                               ('c2', ('child', 'two'), [])])]
+        assert testobj.win.cut_att is None
+        assert capsys.readouterr().out == "called Gui.enable_pasteitems with arg True\n"
+
+        testobj.retain = False
+        testobj.cut = True
+        testobj.redo()
+        assert testobj.item == testobj.prev
+        assert capsys.readouterr().out == ("called TreeItem.removeChild\n"
+                                           f"called Tree.setCurrentItem with arg {testobj.prev}\n")
 
     def test_undo(self, monkeypatch, capsys):
         """unittest for CopyElementCommand.undo
@@ -1634,10 +1764,10 @@ class TestGui:
         """unittest for Gui.closeEvent
         """
         def mock_check():
-            print(f'called Gui.check_tree')
+            print('called Gui.check_tree')
             return True
         def mock_check_2():
-            print(f'called Gui.check_tree')
+            print('called Gui.check_tree')
             return False
         testobj = self.setup_testobj(monkeypatch, capsys)
         event = mockqtw.MockEvent()
@@ -1852,12 +1982,94 @@ class TestGui:
         assert capsys.readouterr().out == ("called Tree.collapseItem with arg yyy\n"
                                            "called Tree.resizeColumnToContents with arg 0\n")
 
-    def _test_edit_item(self, monkeypatch, capsys):
+    def test_edit_item(self, monkeypatch, capsys):
         """unittest for Gui.edit_item
         """
+        class MockEleDialog:
+            def __init__(self, *args, **kwargs):
+                print('called ElementDialog with args', args, kwargs)
+            def exec_(self):
+                print('called ElementDialog.exec_')
+                return testee.qtw.QDialog.Rejected
+        class MockEleDialog2:
+            def __init__(self, *args, **kwargs):
+                print('called ElementDialog with args', args, kwargs)
+            def exec_(self):
+                print('called ElementDialog.exec_')
+                return testee.qtw.QDialog.Accepted
+        class MockAttrDialog:
+            def __init__(self, *args, **kwargs):
+                print('called AttributeDialog with args', args, kwargs)
+            def exec_(self):
+                print('called AttributeDialog.exec_')
+                return testee.qtw.QDialog.Rejected
+        class MockAttrDialog2:
+            def __init__(self, *args, **kwargs):
+                print('called AttributeDialog with args', args, kwargs)
+            def exec_(self):
+                print('called AttributeDialog.exec_')
+                return testee.qtw.QDialog.Accepted
+        class MockEditCmd:
+            def __init__(self, *args, **kwargs):
+                print('called EditCommand.__init__ with args', args, kwargs)
+        monkeypatch.setattr(testee, 'ElementDialog', MockEleDialog)
+        monkeypatch.setattr(testee, 'AttributeDialog', MockAttrDialog)
+        monkeypatch.setattr(testee, 'EditCommand', MockEditCmd)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.edit_item(item) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.editor.elstart = '<>'
+        testelement = mockqtw.MockTreeItem('<> xxx', 'yyy', 'zzz')
+        testattribute = mockqtw.MockTreeItem('xxx', 'yyy', 'zzz')
+        testobj.undo_stack = mockqtw.MockUndoStack()
+        assert capsys.readouterr().out == (
+                "called TreeItem.__init__ with args ('<> xxx', 'yyy', 'zzz')\n"
+                "called TreeItem.__init__ with args ('xxx', 'yyy', 'zzz')\n"
+                "called UndoStack.__init__ with args ()\n")
+        testobj.edit_item(testelement)
+        assert capsys.readouterr().out == (
+                "called TreeItem.text for col 0\n"
+                "called TreeItem.text for col 1\n"
+                "called TreeItem.text for col 2\n"
+                f"called ElementDialog with args ({testobj},) {{'title': 'Edit an element',"
+                f" 'item': {{'item': {testelement}, 'tag': 'yyy', 'data': True, 'text': 'zzz'}}}}\n"
+                "called ElementDialog.exec_\n")
+        monkeypatch.setattr(testee, 'ElementDialog', MockEleDialog2)
+        testobj.data = {'tag': 'Tag', 'text': 'Text'}
+        testobj.edit_item(testelement)
+        assert capsys.readouterr().out == (
+                "called TreeItem.text for col 0\n"
+                "called TreeItem.text for col 1\n"
+                "called TreeItem.text for col 2\n"
+                f"called ElementDialog with args ({testobj},) {{'title': 'Edit an element',"
+                f" 'item': {{'item': {testelement}, 'tag': 'yyy', 'data': True, 'text': 'zzz'}}}}\n"
+                "called ElementDialog.exec_\n"
+                "called Editor.getshortname with args (('Tag', 'Text'),) {}\n"
+                f"called EditCommand.__init__ with args ({testobj},"
+                " ('<> xxx', 'yyy', 'zzz'), ('shortname', 'Tag', 'Text'), 'Edit Element') {}\n"
+                "called UndoRedoStack.push\n"
+                "called Editor.mark_dirty with arg True\n")
+        testobj.edit_item(testattribute)
+        assert capsys.readouterr().out == (
+                "called TreeItem.text for col 0\n"
+                "called TreeItem.text for col 1\n"
+                "called TreeItem.text for col 2\n"
+                f"called AttributeDialog with args ({testobj},) {{'title': 'Edit an attribute',"
+                f" 'item': {{'item': {testattribute}, 'name': 'yyy', 'value': 'zzz'}}}}\n"
+                "called AttributeDialog.exec_\n")
+        monkeypatch.setattr(testee, 'AttributeDialog', MockAttrDialog2)
+        testobj.data = {'name': 'Name', 'value': 'Value'}
+        testobj.edit_item(testattribute)
+        assert capsys.readouterr().out == (
+                "called TreeItem.text for col 0\n"
+                "called TreeItem.text for col 1\n"
+                "called TreeItem.text for col 2\n"
+                f"called AttributeDialog with args ({testobj},) {{'title': 'Edit an attribute',"
+                f" 'item': {{'item': {testattribute}, 'name': 'yyy', 'value': 'zzz'}}}}\n"
+                "called AttributeDialog.exec_\n"
+                "called Editor.getshortname with args (('Name', 'Value'),) {'attr': True}\n"
+                f"called EditCommand.__init__ with args ({testobj}, ('xxx', 'yyy', 'zzz'),"
+                " ('shortname', 'Name', 'Value'), 'Edit Attribute') {}\n"
+                "called UndoRedoStack.push\n"
+                "called Editor.mark_dirty with arg True\n")
 
     def test_copy(self, monkeypatch, capsys):
         """unittest for Gui.copy
@@ -2073,12 +2285,297 @@ class TestGui:
         assert testobj.get_windowtitle() == "text"
         assert capsys.readouterr().out == "called MainWindow.windowTitle\n"
 
-    def _test_init_menus(self, monkeypatch, capsys):
+    def test_init_menus(self, monkeypatch, capsys):
         """unittest for Gui.init_menus
         """
+        def mock_setup(self):
+            print('called Gui.setup_menuactions')
+            self.filemenu_actions = ['fm1', 'fm2', 'fm3', 'fm4', 'fm9']
+            self.viewmenu_actions = ['vm1', 'vm2']
+            self.editmenu_actions = ['em1', 'em2']
+            self.searchmenu_actions = ['sm1', 'sm2']
+            self.setundo_action = 'fm5'
+        def mock_add(*args):
+            print('called Gui.add_editactions')
+            editmenu = mockqtw.MockMenu()
+            return editmenu
+        monkeypatch.setattr(testee.qtw, 'QMenu', mockqtw.MockMenu)
+
+        monkeypatch.setattr(testee.Gui, 'setup_menuactions', mock_setup)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.init_menus(popup=False) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.menuBar = lambda: mockqtw.MockMenuBar()
+        testobj.add_editactions = mock_add
+        testobj.editable = False
+        result = testobj.init_menus()
+        assert len(result) == len(['File', 'View', 'Edit'])
+        assert isinstance(result[0], testee.qtw.QMenu)
+        assert isinstance(result[1], testee.qtw.QMenu)
+        assert result[2] is None
+        assert capsys.readouterr().out == ("called Gui.setup_menuactions\n"
+                                           "called MenuBar.__init__\n"
+                                           "called MenuBar.addMenu with arg  &File\n"
+                                           "called Menu.__init__ with args ('&File',)\n"
+                                           "called Menu.addAction with args `fm1` None\n"
+                                           "called Action.__init__ with args ('fm1', None)\n"
+                                           "called Menu.addAction with args `fm2` None\n"
+                                           "called Action.__init__ with args ('fm2', None)\n"
+                                           "called Menu.addAction with args `fm3` None\n"
+                                           "called Action.__init__ with args ('fm3', None)\n"
+                                           "called Menu.addAction with args `fm4` None\n"
+                                           "called Action.__init__ with args ('fm4', None)\n"
+                                           "called MenuBar.addMenu with arg  &View\n"
+                                           "called Menu.__init__ with args ('&View',)\n"
+                                           "called Menu.addAction with args `vm1` None\n"
+                                           "called Action.__init__ with args ('vm1', None)\n"
+                                           "called Menu.addAction with args `vm2` None\n"
+                                           "called Action.__init__ with args ('vm2', None)\n"
+                                           "called MenuBar.addMenu with arg  &Search\n"
+                                           "called Menu.__init__ with args ('&Search',)\n"
+                                           "called Menu.addAction with args `sm1` None\n"
+                                           "called Action.__init__ with args ('sm1', None)\n"
+                                           "called Menu.addAction with args `sm2` None\n"
+                                           "called Action.__init__ with args ('sm2', None)\n")
+        result = testobj.init_menus(popup=True)
+        assert isinstance(result, testee.qtw.QMenu)
+        assert capsys.readouterr().out == ("called Menu.__init__ with args ('&View',)\n"
+                                           "called Menu.addAction with args `vm1` None\n"
+                                           "called Action.__init__ with args ('vm1', None)\n"
+                                           "called Menu.addAction with args `vm2` None\n"
+                                           "called Action.__init__ with args ('vm2', None)\n"
+                                           "called Menu.addSeparator\n"
+                                           "called Action.__init__ with args ('-----', None)\n"
+                                           "called Menu.addAction with args `sm1` None\n"
+                                           "called Action.__init__ with args ('sm1', None)\n"
+                                           "called Menu.addAction with args `sm2` None\n"
+                                           "called Action.__init__ with args ('sm2', None)\n")
+        testobj.editable = True
+        result = testobj.init_menus()
+        assert len(result) == len (['File', 'View', 'Edit'])
+        assert capsys.readouterr().out == ("called Gui.setup_menuactions\n"
+                                           "called MenuBar.__init__\n"
+                                           "called MenuBar.addMenu with arg  &File\n"
+                                           "called Menu.__init__ with args ('&File',)\n"
+                                           "called Menu.addAction with args `fm1` None\n"
+                                           "called Action.__init__ with args ('fm1', None)\n"
+                                           "called Menu.addAction with args `fm2` None\n"
+                                           "called Action.__init__ with args ('fm2', None)\n"
+                                           "called Menu.addAction with args `fm3` None\n"
+                                           "called Action.__init__ with args ('fm3', None)\n"
+                                           "called Menu.addAction with args `fm4` None\n"
+                                           "called Action.__init__ with args ('fm4', None)\n"
+                                           "called Menu.addSeparator\n"
+                                           "called Action.__init__ with args ('-----', None)\n"
+                                           "called Menu.addAction with args `fm5` None\n"
+                                           "called Action.__init__ with args ('fm5', None)\n"
+                                           "called Menu.addSeparator\n"
+                                           "called Action.__init__ with args ('-----', None)\n"
+                                           "called Menu.addAction with args `fm9` None\n"
+                                           "called Action.__init__ with args ('fm9', None)\n"
+                                           "called MenuBar.addMenu with arg  &View\n"
+                                           "called Menu.__init__ with args ('&View',)\n"
+                                           "called Menu.addAction with args `vm1` None\n"
+                                           "called Action.__init__ with args ('vm1', None)\n"
+                                           "called Menu.addAction with args `vm2` None\n"
+                                           "called Action.__init__ with args ('vm2', None)\n"
+                                           "called Gui.add_editactions\n"
+                                           "called Menu.__init__ with args ()\n"
+                                           "called MenuBar.addMenu with arg  &Search\n"
+                                           "called Menu.__init__ with args ('&Search',)\n"
+                                           "called Menu.addAction with args `sm1` None\n"
+                                           "called Action.__init__ with args ('sm1', None)\n"
+                                           "called Menu.addAction with args `sm2` None\n"
+                                           "called Action.__init__ with args ('sm2', None)\n")
+        result = testobj.init_menus(popup=True)
+        assert isinstance(result, testee.qtw.QMenu)
+        assert capsys.readouterr().out == ("called Menu.__init__ with args ('&View',)\n"
+                                           "called Menu.addAction with args `vm1` None\n"
+                                           "called Action.__init__ with args ('vm1', None)\n"
+                                           "called Menu.addAction with args `vm2` None\n"
+                                           "called Action.__init__ with args ('vm2', None)\n"
+                                           "called Gui.add_editactions\n"
+                                           "called Menu.__init__ with args ()\n"
+                                           "called Menu.addSeparator\n"
+                                           "called Action.__init__ with args ('-----', None)\n"
+                                           "called Menu.addAction with args `sm1` None\n"
+                                           "called Action.__init__ with args ('sm1', None)\n"
+                                           "called Menu.addAction with args `sm2` None\n"
+                                           "called Action.__init__ with args ('sm2', None)\n")
+
+    def test_setup_menuactions(self, monkeypatch, capsys):
+        """unittest for Gui.setup_menuactions
+        """
+        def mock_get():
+            print('called Editor.get_menu_data')
+            return []
+        def mock_get_2():
+            print('called Editor.get_menu_data')
+            return [(('text1', 'callback1', ''),), (('text2', 'callback2', 'xxx'),),
+                    (('text3', 'callback3', 'xxx,yyy'),), (('text4', 'callback4', ''),)]
+        def mock_get_3():
+            print('called Editor.get_menu_data')
+            return [(('tf1', 'cf1', ''), ('tf2', 'cf2', '')),
+                    (('tv1', 'cv1', ''),),
+                    (('te1', 'ce1', ''), ('te2', 'ce2', ''), ('te3', 'ce3', ''),
+                     ('te4', 'ce4', ''), ('te5', 'ce5', ''), ('te6', 'ce6', ''),
+                     ('te7', 'ce7', ''), ('te8', 'ce8', ''), ('te9', 'ce9', '')),
+                    (('ts1', 'cs1', ''),)]
+        monkeypatch.setattr(testee.qtw, 'QAction', mockqtw.MockAction)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.editor.get_menu_data = mock_get
+        testobj.editable = False
+        testobj.setup_menuactions()
+        assert testobj.filemenu_actions == []
+        assert testobj.viewmenu_actions == []
+        assert testobj.editmenu_actions == []
+        assert testobj.searchmenu_actions == []
+        assert capsys.readouterr().out == "called Editor.get_menu_data\n"
+
+        testobj.editor.get_menu_data = mock_get_2
+        testobj.setup_menuactions()
+        assert len(testobj.filemenu_actions) == 1
+        assert isinstance(testobj.filemenu_actions[0], testee.qtw.QAction)
+        assert len(testobj.viewmenu_actions) == 1
+        assert isinstance(testobj.viewmenu_actions[0], testee.qtw.QAction)
+        assert len(testobj.editmenu_actions) == 0
+        assert len(testobj.searchmenu_actions) == 2
+        assert isinstance(testobj.searchmenu_actions[0], testee.qtw.QAction)
+        assert isinstance(testobj.searchmenu_actions[1], testee.qtw.QAction)
+        assert capsys.readouterr().out == (
+                "called Editor.get_menu_data\n"
+                f"called Action.__init__ with args ('text1', {testobj})\n"
+                "called Signal.connect with args ('callback1',)\n"
+                f"called Action.__init__ with args ('text2', {testobj})\n"
+                "called Signal.connect with args ('callback2',)\n"
+                "called Action.setShortcuts with arg `['xxx']`\n"
+                f"called Action.__init__ with args ('text3', {testobj})\n"
+                "called Signal.connect with args ('callback3',)\n"
+                "called Action.setShortcuts with arg `['xxx', 'yyy']`\n"
+                f"called Action.__init__ with args ('text4', {testobj})\n"
+                "called Signal.connect with args ('callback4',)\n")
+
+        testobj.editor.get_menu_data = mock_get_3
+        testobj.editable = True
+        testobj.setup_menuactions()
+        assert len(testobj.filemenu_actions) == 3
+        assert len(testobj.viewmenu_actions) == 1
+        assert len(testobj.editmenu_actions) == 9
+        assert len(testobj.searchmenu_actions) == 1
+        assert testobj.undo_item, testobj.redo_item == testobj.editmenu_actions[0:2]
+        assert testobj.pastebefore_item, testobj.pasteafter_item == testobj.editmenu_actions[6:8]
+        assert testobj.pasteunder_item == testobj.editmenu_actions[8]
+        assert testobj.setundo_action == testobj.filemenu_actions[-2]
+        assert capsys.readouterr().out == (
+                "called Editor.get_menu_data\n"
+                f"called Action.__init__ with args ('tf1', {testobj})\n"
+                "called Signal.connect with args ('cf1',)\n"
+                f"called Action.__init__ with args ('tf2', {testobj})\n"
+                "called Signal.connect with args ('cf2',)\n"
+                f"called Action.__init__ with args ('tv1', {testobj})\n"
+                "called Signal.connect with args ('cv1',)\n"
+                f"called Action.__init__ with args ('te1', {testobj})\n"
+                "called Signal.connect with args ('ce1',)\n"
+                f"called Action.__init__ with args ('te2', {testobj})\n"
+                "called Signal.connect with args ('ce2',)\n"
+                f"called Action.__init__ with args ('te3', {testobj})\n"
+                "called Signal.connect with args ('ce3',)\n"
+                f"called Action.__init__ with args ('te4', {testobj})\n"
+                "called Signal.connect with args ('ce4',)\n"
+                f"called Action.__init__ with args ('te5', {testobj})\n"
+                "called Signal.connect with args ('ce5',)\n"
+                f"called Action.__init__ with args ('te6', {testobj})\n"
+                "called Signal.connect with args ('ce6',)\n"
+                f"called Action.__init__ with args ('te7', {testobj})\n"
+                "called Signal.connect with args ('ce7',)\n"
+                f"called Action.__init__ with args ('te8', {testobj})\n"
+                "called Signal.connect with args ('ce8',)\n"
+                f"called Action.__init__ with args ('te9', {testobj})\n"
+                "called Signal.connect with args ('ce9',)\n"
+                f"called Action.__init__ with args ('ts1', {testobj})\n"
+                "called Signal.connect with args ('cs1',)\n"
+                f"called Action.__init__ with args ('&Unlimited Undo', {testobj})\n"
+                f"called Signal.connect with args ({testobj.limit_undo},)\n"
+                "called Action.setChecked with arg `False`\n")
+
+    def test_add_editactions_to_menu(self, monkeypatch, capsys):
+        """unittest for Gui.add_editactions_to_menu
+        """
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.editmenu_actions = []   # (10+ items?)
+        testobj.cut_el = testobj.cut_att = None
+        testobj.pastebefore_item = mockqtw.MockAction()
+        testobj.pasteafter_item = mockqtw.MockAction()
+        testobj.pasteunder_item = mockqtw.MockAction()
+        menubar = mockqtw.MockMenuBar()
+        viewmenu = mockqtw.MockMenu()
+        assert capsys.readouterr().out == ("called Action.__init__ with args ()\n"
+                                           "called Action.__init__ with args ()\n"
+                                           "called Action.__init__ with args ()\n"
+                                           "called MenuBar.__init__\n"
+                                           "called Menu.__init__ with args ()\n")
+        testobj.add_editactions_to_menu(False, menubar, viewmenu)
+        assert capsys.readouterr().out == ("called MenuBar.addMenu with arg  &Edit\n"
+                                           "called Menu.__init__ with args ('&Edit',)\n"
+                                           "called Action.setText with arg `Nothing to Paste`\n"
+                                           "called Action.setEnabled with arg `False`\n"
+                                           "called Action.setEnabled with arg `False`\n"
+                                           "called Action.setEnabled with arg `False`\n"
+                                           "called Menu.addAction\n"
+                                           "called Menu.addAction\n"
+                                           "called Menu.addAction\n"
+                                           "called Menu.addSeparator\n"
+                                           "called Action.__init__ with args ('-----', None)\n")
+
+        testobj.editmenu_actions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+        testobj.cut_el = 'x'
+        testobj.add_editactions_to_menu(False, menubar, viewmenu)
+        assert capsys.readouterr().out == ("called MenuBar.addMenu with arg  &Edit\n"
+                                           "called Menu.__init__ with args ('&Edit',)\n"
+                                           "called Menu.addAction with args `1` None\n"
+                                           "called Action.__init__ with args ('1', None)\n"
+                                           "called Menu.addAction with args `2` None\n"
+                                           "called Action.__init__ with args ('2', None)\n"
+                                           "called Menu.addAction with args `3` None\n"
+                                           "called Action.__init__ with args ('3', None)\n"
+                                           "called Menu.addSeparator\n"
+                                           "called Action.__init__ with args ('-----', None)\n"
+                                           "called Menu.addAction with args `4` None\n"
+                                           "called Action.__init__ with args ('4', None)\n"
+                                           "called Menu.addAction with args `5` None\n"
+                                           "called Action.__init__ with args ('5', None)\n"
+                                           "called Menu.addAction with args `6` None\n"
+                                           "called Action.__init__ with args ('6', None)\n"
+                                           "called Menu.addAction\n"
+                                           "called Menu.addAction\n"
+                                           "called Menu.addAction\n"
+                                           "called Menu.addSeparator\n"
+                                           "called Action.__init__ with args ('-----', None)\n"
+                                           "called Menu.addAction with args `10` None\n"
+                                           "called Action.__init__ with args ('10', None)\n")
+        testobj.add_editactions_to_menu(True, menubar, viewmenu)
+        assert capsys.readouterr().out == ("called Menu.setTitle with arg 'View/Edit'\n"
+                                           "called Menu.addSeparator\n"
+                                           "called Action.__init__ with args ('-----', None)\n"
+                                           "called Menu.addAction with args `1` None\n"
+                                           "called Action.__init__ with args ('1', None)\n"
+                                           "called Menu.addAction with args `2` None\n"
+                                           "called Action.__init__ with args ('2', None)\n"
+                                           "called Menu.addAction with args `3` None\n"
+                                           "called Action.__init__ with args ('3', None)\n"
+                                           "called Menu.addSeparator\n"
+                                           "called Action.__init__ with args ('-----', None)\n"
+                                           "called Menu.addAction with args `4` None\n"
+                                           "called Action.__init__ with args ('4', None)\n"
+                                           "called Menu.addAction with args `5` None\n"
+                                           "called Action.__init__ with args ('5', None)\n"
+                                           "called Menu.addAction with args `6` None\n"
+                                           "called Action.__init__ with args ('6', None)\n"
+                                           "called Menu.addAction\n"
+                                           "called Menu.addAction\n"
+                                           "called Menu.addAction\n"
+                                           "called Menu.addSeparator\n"
+                                           "called Action.__init__ with args ('-----', None)\n"
+                                           "called Menu.addAction with args `10` None\n"
+                                           "called Action.__init__ with args ('10', None)\n")
 
     def test_meldinfo(self, monkeypatch, capsys):
         """unittest for Gui.meldinfo
@@ -2145,7 +2642,7 @@ class TestGui:
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.editor.title = 'Title'
         assert testobj.ask_for_text('Prompt', value='x') == ""
-        assert testobj.in_dialog == True
+        assert testobj.in_dialog
         assert capsys.readouterr().out == (f"called InputDialog.getText with args {testobj}"
                                            " ('Title', 'Prompt', 0, 'x') {}\n")
 
@@ -2153,19 +2650,19 @@ class TestGui:
         """unittest for Gui.file_to_read
         """
         def mock_open(parent, *args, **kwargs):
-            print('called FileDialog.getOpenFilename with args', parent, args, kwargs)
+            print('called FileDialog.getOpenFileName with args', parent, args, kwargs)
             return 'xxx', True
         monkeypatch.setattr(testee.qtw, 'QFileDialog', mockqtw.MockFileDialog)
         testobj = self.setup_testobj(monkeypatch, capsys)
         assert testobj.file_to_read() == (False, "")
         assert capsys.readouterr().out == (
-                f"called FileDialog.getOpenFilename with args {testobj} ('Choose a file',"
+                f"called FileDialog.getOpenFileName with args {testobj} ('Choose a file',"
                 " '/home/albert/projects/xmledit', 'XML files (*.xml *.XML);;All files (*.*)')"
                 " {}\n")
         monkeypatch.setattr(mockqtw.MockFileDialog, 'getOpenFileName', mock_open)
         assert testobj.file_to_read() == (True, "xxx")
         assert capsys.readouterr().out == (
-                f"called FileDialog.getOpenFilename with args {testobj} ('Choose a file',"
+                f"called FileDialog.getOpenFileName with args {testobj} ('Choose a file',"
                 " '/home/albert/projects/xmledit', 'XML files (*.xml *.XML);;All files (*.*)')"
                 " {}\n")
 
@@ -2228,6 +2725,7 @@ class TestGui:
         assert capsys.readouterr().out == ("called Action.isChecked\n"
                                            "called undostack.unset_undo_limit with arg False\n")
         testobj.setundo_action.setChecked(True)
+        assert capsys.readouterr().out == "called Action.setChecked with arg `True`\n"
         testobj.limit_undo()
         assert capsys.readouterr().out == ("called Action.isChecked\n"
                                            "called undostack.unset_undo_limit with arg True\n"
@@ -2237,7 +2735,7 @@ class TestGui:
         """unittest for Gui.popupmenu
         """
         def mock_menu(**kwargs):
-            print(f'called Gui.init_menus with args', kwargs)
+            print('called Gui.init_menus with args', kwargs)
             result = mockqtw.MockMenu()
             assert capsys.readouterr().out == ("called Gui.init_menus with args {'popup': True}\n"
                                                "called Menu.__init__ with args ()\n")
