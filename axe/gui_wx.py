@@ -301,7 +301,7 @@ class SearchDialog(wx.Dialog):
         attr_name = self.txt_attr_name.GetValue()
         attr_val = self.txt_attr_val.GetValue()
         text = self.txt_text.GetValue()
-        out = self._parent.editor.get_search_text(ele, attr_name, attr_val, text)
+        out = self._parent.editor.build_search_description(ele, attr_name, attr_val, text)
         self.lbl_search.SetLabel('\n'.join(out))
         self.Fit()
 
