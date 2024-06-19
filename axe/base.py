@@ -28,62 +28,18 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
         data.reverse()
 
     if pos:
-        pos, is_attr = pos
-        ## found_item = False
-        for ix, item in enumerate(data):
-            if is_attr:
-                found_attr = False
-                for ix2, attr in enumerate(item[3]):
-                    if attr[0] == pos:
-                        found_attr = True
-                        break
-                if found_attr:
-                    break
-            elif item[0] == pos:
-                break
-        if is_attr:
-            data = data[ix:]
-            id, name, text, attrs = data[0]
-            data[0] = id, name, text, attrs[ix2 + 1:]
-        elif ix < len(data) - 1:
-            data = data[ix + 1:]
-        else:
+        data = get_remaining_data_to_search(pos, data)
+        if not data:
             return None, False  # no more data to search
 
     itemfound = False
     for item, element_name, element_text, attr_list in data:
-        ele_ok = attr_name_ok = attr_value_ok = attr_ok = text_ok = False
-        # print(element_name, element_text, attr_list)
-        # ele_ok = text_ok = False
-        if not wanted_ele or wanted_ele in element_name:
-            ele_ok = True
-            # print('ele wanted:', wanted_ele, 'found:', ele_ok)
-        if not wanted_text or wanted_text in element_text:
-            text_ok = True
-            # print('text wanted:', wanted_text, 'found:', text_ok)
-
-        attr_item = None
-        if attr_list and (wanted_attr or wanted_value):
-            if reverse:
-                attr_list.reverse()
-            for attr, name, value in attr_list:
-                attr_name_ok = attr_value_ok = False
-                if not wanted_attr or wanted_attr in name:
-                    attr_name_ok = True
-                    # print('attr name wanted:', wanted_attr, 'found:', attr_name_ok)
-                if not wanted_value or wanted_value in value:
-                    attr_value_ok = True
-                    # print('attr value wanted:', wanted_value, 'found:', attr_value_ok)
-                if attr_name_ok and attr_value_ok:
-                    attr_ok = True
-                    if not (wanted_ele or wanted_text):
-                        attr_item = attr
-                    break
-        elif not wanted_attr and not wanted_value:
-            attr_ok = True
-
-        ok = ele_ok and text_ok and attr_ok
-        if ok:
+        ele_ok = apply_search_criteria_for_element(wanted_ele, element_name)
+        attr_ok, attr_item = apply_search_criteria_for_attrs(search_args, attr_list, reverse)
+        text_ok = apply_search_criteria_for_text(wanted_text, element_text)
+        # ok = ele_ok and text_ok and attr_ok
+        # if ok:
+        if all((ele_ok, attr_ok, text_ok)):
             if attr_item:
                 itemfound, is_attr = attr_item, True
             else:
@@ -92,6 +48,81 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
     if itemfound:
         return itemfound, is_attr
     return None, False
+
+
+def get_remaining_data_to_search(pos, data):
+    "return the portion of the flattened tree that is still to be searched"
+    pos, is_attr = pos
+    ## found_item = False
+    for ix, item in enumerate(data):
+        if is_attr:
+            found_attr = False
+            for ix2, attr in enumerate(item[3]):
+                if attr[0] == pos:
+                    found_attr = True
+                    break
+            if found_attr:
+                break
+        elif item[0] == pos:
+            break
+    if is_attr:
+        data = data[ix:]
+        id, name, text, attrs = data[0]
+        data[0] = id, name, text, attrs[ix2 + 1:]
+    elif ix < len(data) - 1:
+        data = data[ix + 1:]
+    else:
+        data = []
+    return data
+
+
+def apply_search_criteria_for_element(wanted_ele, element_name):
+    """return True if an element is found that conforms to the criteria
+    or if no criteria are provided, otherwise False
+    """
+    ele_ok = False
+    if not wanted_ele or wanted_ele in element_name:
+        ele_ok = True
+    return ele_ok
+
+
+def apply_search_criteria_for_text(wanted_text, element_text):
+    """return True if element text is found that conforms to the criteria
+    or if no criteria are provided, otherwise False
+    """
+    text_ok = False
+    if not wanted_text or wanted_text in element_text:
+        text_ok = True
+    return text_ok
+
+
+def apply_search_criteria_for_attrs(search_args, attr_list, reverse):
+    """return True if an attribute is found that conforms to the criteria
+    or if no criteria are provided, otherwise False
+    also return the attribute's tree node (needed for positioning) or None if not found
+    """
+    wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
+    attr_name_ok = attr_value_ok = attr_ok = False
+    attr_item = None
+    if attr_list and (wanted_attr or wanted_value):
+        if reverse:
+            attr_list.reverse()
+        for attr, name, value in attr_list:
+            attr_name_ok = attr_value_ok = False
+            if not wanted_attr or wanted_attr in name:
+                attr_name_ok = True
+                # print('attr name wanted:', wanted_attr, 'found:', attr_name_ok)
+            if not wanted_value or wanted_value in value:
+                attr_value_ok = True
+                # print('attr value wanted:', wanted_value, 'found:', attr_value_ok)
+            if attr_name_ok and attr_value_ok:
+                attr_ok = True
+                if not (wanted_ele or wanted_text):
+                    attr_item = attr
+                break
+    elif not wanted_attr and not wanted_value:
+        attr_ok = True
+    return attr_ok, attr_item
 
 
 def parse_nsmap(file):
@@ -149,6 +180,7 @@ class Editor:
         self.xmlfn = os.path.abspath(fname) if fname else ''
         self.readonly = readonly
         self.gui = Gui(self, fname, readonly=readonly)
+        self.ns_prefixes, self.ns_uris = [], []
         if not readonly:
             self.gui.cut_att = None
             self.gui.cut_el = None
@@ -159,12 +191,12 @@ class Editor:
             self.init_tree(et.Element(NEW_ROOT))
         if self.xmlfn:
             try:
-                tree, prefixes, uris = parse_nsmap(self.xmlfn)
+                tree, self.ns_prefixes, self.ns_uris = parse_nsmap(self.xmlfn)
             except (OSError, et.ParseError) as err:
                 self.gui.meldfout(str(err), abort=True)
                 self.gui.init_tree(None)
                 return
-            self.init_tree(tree.getroot(), prefixes, uris)
+            self.init_tree(tree.getroot())
         self.gui.go()
 
     def mark_dirty(self, state):
@@ -239,7 +271,7 @@ class Editor:
             if node is not None:
                 self.expandnode(tag, node, tree)
 
-    def init_tree(self, root, prefixes=None, uris=None, name=''):
+    def init_tree(self, root, name=''):
         "set up display tree"
         if name:
             titel = name
@@ -248,13 +280,28 @@ class Editor:
         else:
             titel = '[unsaved file]'
         self.top = self.gui.setup_new_tree(titel)
-        self.rt = root
-        self.ns_prefixes = prefixes or []
-        self.ns_uris = uris or []
         self.gui.set_windowtitle(" - ".join((os.path.basename(titel), self.title)))
-        if root is None:  # explicit test needed, empty root element is falsey
+        self.rt = root
+        if self.rt is None:  # explicit test needed, empty root element is falsey
             return
-        # eventuele namespaces toevoegen
+        self.add_nodes_for_namespaces_if_any()
+        rootitem = self.add_item(self.top, self.rt.tag, self.rt.text)
+        for attr in self.rt.keys():
+            h = self.rt.get(attr)   # is dit een dict / kan dit met get(attr, default)?
+            if not h:
+                h = '""'
+            self.add_item(rootitem, attr, h, attr=True)
+        for el in list(self.rt):
+            self.add_to_tree(el, rootitem)
+        # self.tree.selection = self.top
+        # set_selection()
+        # self.replaced = {}  # dict of nodes that have been replaced while editing (see PasteCmd)
+        self.gui.expand_item(self.top)
+        self.mark_dirty(False)
+
+    def add_nodes_for_namespaces_if_any(self):
+        """eventuele namespaces toevoegen
+        """
         namespaces = False
         for ix, prf in enumerate(self.ns_prefixes):
             if not namespaces:
@@ -264,19 +311,6 @@ class Editor:
                 namespaces = True
             ns_item = self.gui.add_node_to_parent(ns_root)
             self.gui.set_node_title(ns_item, f'{prf}: {self.ns_uris[ix]}')
-        rt = self.add_item(self.top, self.rt.tag, self.rt.text)
-        for attr in self.rt.keys():
-            h = self.rt.get(attr)
-            if not h:
-                h = '""'
-            self.add_item(rt, attr, h, attr=True)
-        for el in list(self.rt):
-            self.add_to_tree(el, rt)
-        # self.tree.selection = self.top
-        # set_selection()
-        self.replaced = {}  # dict of nodes that have been replaced while editing
-        self.gui.expand_item(self.top)
-        self.mark_dirty(False)
 
     def add_to_tree(self, el, rt):
         "recursively add elements"
@@ -290,35 +324,40 @@ class Editor:
         for subel in list(el):
             self.add_to_tree(subel, rr)
 
-    def getshortname(self, data, attr=False):
+    def getshortname(self, data, is_attr=False):
         """build and return a name for this node
         """
         fullname, value = data
         text = ''
-        if attr:
+        if is_attr:
             text = value.rstrip('\n')
         elif value:
             text = value.split("\n", 1)[0]
         max = 60
         if len(text) > max:
             text = text[:max].lstrip() + '...'
+        fullname = self.apply_namespace_mapping(fullname)
+        strt = f'{ELSTART} {fullname}'
+        if is_attr:
+            return f"{fullname} = {text}"
+        if text:
+            return f"{strt}: {text}"
+        return strt
+
+    def apply_namespace_mapping(self, fullname):
+        "replace namespace uri by namespace prefix"
         if fullname.startswith('{'):
             uri, localname = fullname[1:].split('}')
             for i, ns_uri in enumerate(self.ns_uris):
                 if ns_uri == uri:
                     prefix = self.ns_prefixes[i]
                     break
-            fullname = f'{prefix}:{localname}'
-        strt = f'{ELSTART} {fullname}'
-        if attr:
-            return f"{fullname} = {text}"
-        if text:
-            return f"{strt}: {text}"
-        return strt
+            return f'{prefix}:{localname}'
+        return fullname
 
     def add_item(self, to_item, name, value, before=False, below=True, attr=False):
         """execute adding of item"""
-        print(f'in add_item {name=} {value=} {to_item=} {before=} {below=}')
+        # print(f'in add_item {name=} {value=} {to_item=} {before=} {below=}')
         if value is None:
             value = ""
         itemtext = self.getshortname((name, value), attr)
@@ -338,10 +377,10 @@ class Editor:
                         break
         else:
             add_under, insert = self.gui.get_node_parentpos(to_item)
-            print('in base.add_item (not below), insert is', insert)
+            # print('in base.add_item (not below), insert is', insert)
             if not before:
                 insert += 1
-            print('in base.add_item after correction, insert is', insert)
+            # print('in base.add_item after correction, insert is', insert)
         item = self.gui.add_node_to_parent(add_under, insert)
         self.gui.set_node_title(item, itemtext)
         self.gui.set_node_data(item, name, value)
@@ -596,7 +635,7 @@ class Editor:
         self.find_next(reverse=True)
 
     @staticmethod
-    def get_search_text(ele, attr_name, attr_val, text):
+    def build_search_description(ele, attr_name, attr_val, text):
         "build text describing search arguments"
         attr = attr_name or attr_val
         out = ['search for'] if any((ele, attr, text)) else ['']
