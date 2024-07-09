@@ -2296,7 +2296,7 @@ class TestGui:
             self.searchmenu_actions = ['sm1', 'sm2']
             self.setundo_action = 'fm5'
         def mock_add(*args):
-            print('called Gui.add_editactions')
+            print('called Gui.add_editactions_to_menu')
             editmenu = mockqtw.MockMenu()
             return editmenu
         monkeypatch.setattr(testee.qtw, 'QMenu', mockqtw.MockMenu)
@@ -2304,7 +2304,7 @@ class TestGui:
         monkeypatch.setattr(testee.Gui, 'setup_menuactions', mock_setup)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.menuBar = lambda: mockqtw.MockMenuBar()
-        testobj.add_editactions = mock_add
+        testobj.add_editactions_to_menu = mock_add
         testobj.editable = False
         result = testobj.init_menus()
         assert len(result) == len(['File', 'View', 'Edit'])
@@ -2377,7 +2377,7 @@ class TestGui:
                                            "called Action.__init__ with args ('vm1', None)\n"
                                            "called Menu.addAction with args `vm2` None\n"
                                            "called Action.__init__ with args ('vm2', None)\n"
-                                           "called Gui.add_editactions\n"
+                                           "called Gui.add_editactions_to_menu\n"
                                            "called Menu.__init__ with args ()\n"
                                            "called MenuBar.addMenu with arg  &Search\n"
                                            "called Menu.__init__ with args ('&Search',)\n"
@@ -2392,7 +2392,7 @@ class TestGui:
                                            "called Action.__init__ with args ('vm1', None)\n"
                                            "called Menu.addAction with args `vm2` None\n"
                                            "called Action.__init__ with args ('vm2', None)\n"
-                                           "called Gui.add_editactions\n"
+                                           "called Gui.add_editactions_to_menu\n"
                                            "called Menu.__init__ with args ()\n"
                                            "called Menu.addSeparator\n"
                                            "called Action.__init__ with args ('-----', None)\n"

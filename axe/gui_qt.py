@@ -987,7 +987,7 @@ class Gui(qtw.QMainWindow):
             viewmenu.addAction(act)
 
         if self.editable:
-            editmenu = self.add_editactions(popup, menubar, viewmenu)
+            editmenu = self.add_editactions_to_menu(popup, menubar, viewmenu)
 
         if popup:
             # searchmenu = editmenu if build_editmenu else viewmenu
