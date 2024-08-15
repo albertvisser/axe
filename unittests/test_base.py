@@ -1434,7 +1434,7 @@ def test_editor_insert_child(monkeypatch, capsys):
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.insert = mock_insert
     testobj.insert_child()
-    assert capsys.readouterr().out == f"called Editor.insert with args () {'below': True}\n"
+    assert capsys.readouterr().out == f"called Editor.insert with args () {{'below': True}}\n"
 
 
 def test_editor_insert(monkeypatch, capsys):
