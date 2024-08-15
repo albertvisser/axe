@@ -1851,8 +1851,8 @@ class TestGui:
         """
         monkeypatch.setattr(testee.qtw, 'QTreeWidgetItem', mockqtw.MockTreeItem)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.undo_stack = mockqtw.MockUndoStack()
-        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        testobj.undo_stack = mockqtw.MockUndoStack(testobj)
+        assert capsys.readouterr().out == f"called UndoStack.__init__ with args ({testobj},)\n"
         testobj.editable = False
         assert isinstance(testobj.setup_new_tree('Title'), testee.qtw.QTreeWidgetItem)
         assert capsys.readouterr().out == ("called Tree.clear\n"
@@ -2019,11 +2019,11 @@ class TestGui:
         testobj.editor.elstart = '<>'
         testelement = mockqtw.MockTreeItem('<> xxx', 'yyy', 'zzz')
         testattribute = mockqtw.MockTreeItem('xxx', 'yyy', 'zzz')
-        testobj.undo_stack = mockqtw.MockUndoStack()
+        testobj.undo_stack = mockqtw.MockUndoStack(testobj)
         assert capsys.readouterr().out == (
                 "called TreeItem.__init__ with args ('<> xxx', 'yyy', 'zzz')\n"
                 "called TreeItem.__init__ with args ('xxx', 'yyy', 'zzz')\n"
-                "called UndoStack.__init__ with args ()\n")
+                f"called UndoStack.__init__ with args ({testobj},)\n")
         testobj.edit_item(testelement)
         assert capsys.readouterr().out == (
                 "called TreeItem.text for col 0\n"
@@ -2083,8 +2083,8 @@ class TestGui:
         monkeypatch.setattr(testee, 'CopyElementCommand', MockCopyEl)
         monkeypatch.setattr(testee, 'CopyAttributeCommand', MockCopyAtt)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.undo_stack = mockqtw.MockUndoStack()
-        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        testobj.undo_stack = mockqtw.MockUndoStack(testobj)
+        assert capsys.readouterr().out == f"called UndoStack.__init__ with args ({testobj},)\n"
         testobj.editor.elstart = '<>'
         item = mockqtw.MockTreeItem('<> x')
         testobj.copy(item)
@@ -2118,8 +2118,8 @@ class TestGui:
         monkeypatch.setattr(testee, 'PasteElementCommand', MockPasteEl)
         monkeypatch.setattr(testee, 'PasteAttributeCommand', MockPasteAtt)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.undo_stack = mockqtw.MockUndoStack()
-        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        testobj.undo_stack = mockqtw.MockUndoStack(testobj)
+        assert capsys.readouterr().out == f"called UndoStack.__init__ with args ({testobj},)\n"
         item = mockqtw.MockTreeItem()
         assert capsys.readouterr().out == "called TreeItem.__init__ with args ()\n"
         testobj.cut_att = ('Name', 'Value')
@@ -2170,8 +2170,8 @@ class TestGui:
         monkeypatch.setattr(testee, 'AttributeDialog', MockAttrDialog)
         monkeypatch.setattr(testee, 'PasteAttributeCommand', MockPasteAtt)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.undo_stack = mockqtw.MockUndoStack()
-        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        testobj.undo_stack = mockqtw.MockUndoStack(testobj)
+        assert capsys.readouterr().out == f"called UndoStack.__init__ with args ({testobj},)\n"
         item = mockqtw.MockTreeItem()
         assert capsys.readouterr().out == "called TreeItem.__init__ with args ()\n"
         testobj.add_attribute(item)
@@ -2209,8 +2209,8 @@ class TestGui:
         monkeypatch.setattr(testee, 'ElementDialog', MockEleDialog)
         monkeypatch.setattr(testee, 'PasteElementCommand', MockPasteEl)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.undo_stack = mockqtw.MockUndoStack()
-        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        testobj.undo_stack = mockqtw.MockUndoStack(testobj)
+        assert capsys.readouterr().out == f"called UndoStack.__init__ with args ({testobj},)\n"
         item = mockqtw.MockTreeItem()
         assert capsys.readouterr().out == "called TreeItem.__init__ with args ()\n"
         testobj.insert(item, before=True, below=False)
@@ -2677,7 +2677,7 @@ class TestGui:
         testobj.editor.xmlfn = 'qqq'
         assert testobj.file_to_save() == (False, "")
         assert capsys.readouterr().out == (
-                f"called FileDialog.getSaveFilename with args {testobj} ('Save file as ...',"
+                f"called FileDialog.getSaveFileName with args {testobj} ('Save file as ...',"
                 " 'qqq', 'XML files (*.xml *.XML);;All files (*.*)') {}\n")
         monkeypatch.setattr(mockqtw.MockFileDialog, 'getSaveFileName', mock_save)
         assert testobj.file_to_save() == (True, "xxx")
@@ -2717,9 +2717,9 @@ class TestGui:
         testobj.meldinfo = mock_meldinfo
         testobj.undoredowarning = 'undo/redo warning'
         testobj.setundo_action = mockqtw.MockAction()
-        testobj.undo_stack = mockqtw.MockUndoStack()
+        testobj.undo_stack = mockqtw.MockUndoStack(testobj)
         assert capsys.readouterr().out == ("called Action.__init__ with args ()\n"
-                                           "called UndoStack.__init__ with args ()\n")
+                                           f"called UndoStack.__init__ with args ({testobj},)\n")
         testobj.undo_stack.unset_undo_limit = mock_unset
         testobj.limit_undo()
         assert capsys.readouterr().out == ("called Action.isChecked\n"
@@ -2861,8 +2861,8 @@ class TestGui:
         """unittest for Gui.do_undo
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.undo_stack = mockqtw.MockUndoStack()
-        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        testobj.undo_stack = mockqtw.MockUndoStack(testobj)
+        assert capsys.readouterr().out == f"called UndoStack.__init__ with args ({testobj},)\n"
         testobj.do_undo()
         assert capsys.readouterr().out == "called UndoRedoStack.undo\n"
 
@@ -2870,7 +2870,7 @@ class TestGui:
         """unittest for Gui.do_redo
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.undo_stack = mockqtw.MockUndoStack()
-        assert capsys.readouterr().out == "called UndoStack.__init__ with args ()\n"
+        testobj.undo_stack = mockqtw.MockUndoStack(testobj)
+        assert capsys.readouterr().out == f"called UndoStack.__init__ with args ({testobj},)\n"
         testobj.do_redo()
         assert capsys.readouterr().out == "called UndoRedoStack.redo\n"
