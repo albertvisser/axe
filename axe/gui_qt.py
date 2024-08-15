@@ -991,7 +991,8 @@ class Gui(qtw.QMainWindow):
 
         if popup:
             # searchmenu = editmenu if build_editmenu else viewmenu
-            searchmenu = editmenu if self.editable else viewmenu
+            # searchmenu = editmenu if self.editable else viewmenu
+            searchmenu = viewmenu
             searchmenu.addSeparator()
         else:
             searchmenu = menubar.addMenu("&Search")
