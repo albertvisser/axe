@@ -146,7 +146,6 @@ def test_get_remaining_data_to_search():
     assert testee.get_remaining_data_to_search((11, True), data) == [(6, 'z', 'zz', [])]
 
 
-
 def test_apply_search_criteria_for_element():
     """unittest for base.apply_search_criteria_for_element
     """
