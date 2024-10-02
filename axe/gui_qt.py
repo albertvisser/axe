@@ -3,9 +3,9 @@
 import os
 import sys
 ## import functools
-import PyQt5.QtWidgets as qtw
-import PyQt5.QtGui as gui
-import PyQt5.QtCore as core
+import PyQt6.QtWidgets as qtw
+import PyQt6.QtGui as gui
+import PyQt6.QtCore as core
 # from .shared import ELSTART, axe_iconame, log
 HMASK = {"nt": "XML files (*.xml);;All files (*.*)",
          "posix": "XML files (*.xml *.XML);;All files (*.*)"}
@@ -137,8 +137,8 @@ class ElementDialog(qtw.QDialog):
 
     def keyPressEvent(self, event):
         """reimplemented event handler voor toetsaanslagen"""
-        if event.key() == core.Qt.Key_Escape:
-            super().done(qtw.QDialog.Rejected)
+        if event.key() == core.Qt.Key.Key_Escape:
+            super().done(qtw.QDialog.DialogCode.Rejected)
 
 
 class AttributeDialog(qtw.QDialog):
@@ -242,8 +242,8 @@ class AttributeDialog(qtw.QDialog):
 
     def keyPressEvent(self, event):
         """event handler voor toetsaanslagen"""
-        if event.key() == core.Qt.Key_Escape:
-            super().done(qtw.QDialog.Rejected)
+        if event.key() == core.Qt.Key.Key_Escape:
+            super().done(qtw.QDialog.DialogCode.Rejected)
 
 
 class SearchDialog(qtw.QDialog):
@@ -398,18 +398,18 @@ class VisualTree(qtw.QTreeWidget):
         # xc, yc = event.x(), event.y()
         # item = self.itemAt(xc, yc)
         item = self.itemAt(event.pos())
-        if event.button() == core.Qt.RightButton:
+        if event.button() == core.Qt.MouseButton.RightButton:
             if item and item != self.parent.top:
                 ## self.parent.setCurrentItem(item)
                 menu = self.parent.init_menus(popup=True)
-                # menu.exec_(core.QPoint(xc, yc))
-                menu.exec_(self.mapToGlobal(event.pos()))
+                # menu.exec(core.QPoint(xc, yc))
+                menu.exec(self.mapToGlobal(event.pos()))
         else:  # left click
             self.parent.set_selected_item(item)
         event.ignore()
 
 
-class UndoRedoStack(qtw.QUndoStack):
+class UndoRedoStack(gui.QUndoStack):
     """Undo stack subclass overriding some event handlers
     """
     def __init__(self, parent):
@@ -466,7 +466,7 @@ class UndoRedoStack(qtw.QUndoStack):
 
 
 # UndoCommand subclasses
-class PasteElementCommand(qtw.QUndoCommand):
+class PasteElementCommand(gui.QUndoCommand):
     """subclass to make Undo/Redo possible"""
     def __init__(self, win, tag, text, before, below, description="",
                  data=None, where=None):
@@ -539,7 +539,7 @@ class PasteElementCommand(qtw.QUndoCommand):
         self.win.statusbar.showMessage(f'{self.text()} undone')
 
 
-class PasteAttributeCommand(qtw.QUndoCommand):
+class PasteAttributeCommand(gui.QUndoCommand):
     """subclass to make Undo/Redo possible"""
     def __init__(self, win, name, value, item, description=""):
         super().__init__(description)
@@ -568,7 +568,7 @@ class PasteAttributeCommand(qtw.QUndoCommand):
         self.win.statusbar.showMessage(f'{self.text()} undone')
 
 
-class EditCommand(qtw.QUndoCommand):
+class EditCommand(gui.QUndoCommand):
     """subclass to make Undo/Redo possible"""
     def __init__(self, win, old_state, new_state, description=""):
         # print(f"building editcommand for {description}")
@@ -595,7 +595,7 @@ class EditCommand(qtw.QUndoCommand):
         self.win.statusbar.showMessage(f'{self.text()} undone')
 
 
-class CopyElementCommand(qtw.QUndoCommand):
+class CopyElementCommand(gui.QUndoCommand):
     """subclass to make Undo/Redo possible"""
     def __init__(self, win, item, cut, retain, description=""):
         super().__init__(description)
@@ -663,7 +663,7 @@ class CopyElementCommand(qtw.QUndoCommand):
         ## self.win.tree.setCurrentItem(self.item)
 
 
-class CopyAttributeCommand(qtw.QUndoCommand):
+class CopyAttributeCommand(gui.QUndoCommand):
     """subclass to make Undo/Redo possible"""
     def __init__(self, win, item, cut, retain, description):
         super().__init__(description)
@@ -740,7 +740,7 @@ class Gui(qtw.QMainWindow):
 
     def go(self):
         "start application event loop"
-        sys.exit(self.app.exec_())
+        sys.exit(self.app.exec())
 
     # reimplemented methods from QMainWindow
     def keyReleaseEvent(self, event):
@@ -861,8 +861,8 @@ class Gui(qtw.QMainWindow):
             if text:
                 data['data'] = True
                 data['text'] = text
-            edt = ElementDialog(self, title='Edit an element', item=data).exec_()
-            if edt == qtw.QDialog.Accepted:
+            edt = ElementDialog(self, title='Edit an element', item=data).exec()
+            if edt == qtw.QDialog.DialogCode.Accepted:
                 name = self.editor.getshortname((self.data["tag"], self.data["text"]))
                 new_state = name, self.data["tag"], self.data["text"]
                 # print('calling editcommand for element')
@@ -873,8 +873,8 @@ class Gui(qtw.QMainWindow):
             nam, val = str(self.item.text(1)), str(self.item.text(2))
             state = data, nam, val   # current values to be passed to UndoAction
             data = {'item': self.item, 'name': nam, 'value': val}
-            edt = AttributeDialog(self, title='Edit an attribute', item=data).exec_()
-            if edt == qtw.QDialog.Accepted:
+            edt = AttributeDialog(self, title='Edit an attribute', item=data).exec()
+            if edt == qtw.QDialog.DialogCode.Accepted:
                 name = self.editor.getshortname((self.data["name"], self.data["value"]), attr=True)
                 new_state = name, self.data["name"], self.data["value"]
                 # print('calling editcommand for attribute')
@@ -915,8 +915,8 @@ class Gui(qtw.QMainWindow):
     def add_attribute(self, item):
         "ask for attibute, then start add action"
         self.item = item
-        edt = AttributeDialog(self, title="New attribute").exec_()
-        if edt == qtw.QDialog.Accepted:
+        edt = AttributeDialog(self, title="New attribute").exec()
+        if edt == qtw.QDialog.DialogCode.Accepted:
             command = PasteAttributeCommand(self, self.data["name"], self.data["value"],
                                             self.item, "Insert Attribute")
             self.undo_stack.push(command)
@@ -925,8 +925,8 @@ class Gui(qtw.QMainWindow):
     def insert(self, item, before=True, below=False):
         """execute insert action"""
         self.item = item
-        edt = ElementDialog(self, title="New element").exec_()
-        if edt == qtw.QDialog.Accepted:
+        edt = ElementDialog(self, title="New element").exec()
+        if edt == qtw.QDialog.DialogCode.Accepted:
             command = PasteElementCommand(self, self.data['tag'], self.data['text'],
                                           before=before, below=below, where=self.item,
                                           description="Insert Element")
@@ -1011,7 +1011,7 @@ class Gui(qtw.QMainWindow):
         self.editmenu_actions, self.searchmenu_actions = [], []
         for ix, menudata in enumerate(self.editor.get_menu_data()):
             for text, callback, shortcuts in menudata:
-                act = qtw.QAction(text, self)
+                act = gui.QAction(text, self)
                 act.triggered.connect(callback)
                 if shortcuts:
                     act.setShortcuts(list(shortcuts.split(',')))
@@ -1025,7 +1025,7 @@ class Gui(qtw.QMainWindow):
                     actions = self.searchmenu_actions
                 actions.append(act)
         if self.editable:
-            act = qtw.QAction('&Unlimited Undo', self)
+            act = gui.QAction('&Unlimited Undo', self)
             act.triggered.connect(self.limit_undo)
             self.filemenu_actions.insert(-1, act)
             self.undo_item, self.redo_item = self.editmenu_actions[0:2]
@@ -1083,20 +1083,20 @@ class Gui(qtw.QMainWindow):
         """stelt een vraag en retourneert het antwoord
         1 = Yes, 0 = No, -1 = Cancel
         """
-        retval = dict(zip((qtw.QMessageBox.Yes, qtw.QMessageBox.No,
-                           qtw.QMessageBox.Cancel), (1, 0, -1)))
+        retval = dict(zip((qtw.QMessageBox.StandardButton.Yes, qtw.QMessageBox.StandardButton.No,
+                           qtw.QMessageBox.StandardButton.Cancel), (1, 0, -1)))
         self.in_dialog = True
         h = qtw.QMessageBox.question(
             self, self.editor.title, prompt,
-            qtw.QMessageBox.Yes | qtw.QMessageBox.No | qtw.QMessageBox.Cancel,
+            qtw.QMessageBox.StandardButton.Yes | qtw.QMessageBox.StandardButton.No
+            | qtw.QMessageBox.StandardButton.Cancel,
             defaultButton=qtw.QMessageBox.Yes)
         return retval[h]
 
     def ask_for_text(self, prompt, value=''):
         """vraagt om tekst en retourneert het antwoord"""
         self.in_dialog = True
-        data, *_ = qtw.QInputDialog.getText(self, self.editor.title, prompt,
-                                            qtw.QLineEdit.Normal, value)
+        data, *_ = qtw.QInputDialog.getText(self, self.editor.title, prompt, text=value)
         return data
 
     def file_to_read(self):
@@ -1135,7 +1135,7 @@ class Gui(qtw.QMainWindow):
     def popupmenu(self, item):
         """call up menu"""
         menu = self.init_menus(popup=True)
-        menu.exec_(self.tree.mapToGlobal(self.tree.visualItemRect(item).bottomRight()))
+        menu.exec(self.tree.mapToGlobal(self.tree.visualItemRect(item).bottomRight()))
 
     def quit(self):
         "close the application"
@@ -1147,7 +1147,7 @@ class Gui(qtw.QMainWindow):
         item = self.tree.currentItem()
         skip = False
         if item and item != self.top:
-            if ky == core.Qt.Key_Return:
+            if ky == core.Qt.Key.Key_Return:
                 if self.in_dialog:
                     self.in_dialog = False
                 elif item.childCount() > 0:
@@ -1158,12 +1158,12 @@ class Gui(qtw.QMainWindow):
                         self.tree.expandItem(item)
                         self.tree.setCurrentItem(item.child(0))
                 skip = True
-            elif ky == core.Qt.Key_Backspace:
+            elif ky == core.Qt.Key.Key_Backspace:
                 if item.isExpanded():
                     self.tree.collapseItem(item)
                     self.tree.setCurrentItem(item.parent())
                 skip = True
-            elif ky == core.Qt.Key_Menu:
+            elif ky == core.Qt.Key.Key_Menu:
                 self.popupmenu(item)
                 skip = True
         return skip
@@ -1172,8 +1172,8 @@ class Gui(qtw.QMainWindow):
         """send dialog to get search argument(s)
         """
         # self.search_args = []
-        edt = SearchDialog(self, title='Search options').exec_()
-        if edt == qtw.QDialog.Accepted:
+        edt = SearchDialog(self, title='Search options').exec()
+        if edt == qtw.QDialog.DialogCode.Accepted:
             # self.editor.search_args = self.search_args
             return True
         return False

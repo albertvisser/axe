@@ -246,15 +246,19 @@ class MockEditor:
         self.ns_uris = {'ns1': 'namespace1', 'ns2': 'namespace'}
         self._count = 0
     def add_item(self, *args, **kwargs):
+        "stub"
         print('called Editor.add_item with args', args, kwargs)
         self._count += 1
         return f'added item #{self._count}'
     def mark_dirty(self, value):
+        "stub"
         print(f'called Editor.mark_dirty with arg {value}')
     def get_copy_text(self, *args):
+        "stub"
         print("called Editor.get_copy_text with args", args)
         return 'copy'
     def getshortname(self, *args, **kwargs):
+        "stub"
         print('called Editor.getshortname with args', args, kwargs)
         return 'shortname'
 
@@ -265,8 +269,10 @@ class MockTree:  # kan waarschijnlijk vervangen worden door mockqtw versie
     def __init__(self):
         print('called Tree.__init__')
     def expandItem(self, arg):
+        "stub"
         print('called Tree.expandItem with arg', arg)
     def setCurrentItem(self, arg):
+        "stub"
         print('called Tree.setCurrentItem with arg', arg)
 
 
@@ -278,13 +284,17 @@ class MockGui:
         self.editor = MockEditor()
         self._icon = 'appicon'
     def meldfout(self, msg):
+        "stub"
         print(f"called Gui.meldfout with arg '{msg}'")
     def init_menus(self, **kwargs):
+        "stub"
         print('called Gui.init_menus with args', kwargs)
         return mockqtw.MockMenu()
     def set_selected_item(self, item):
+        "stub"
         print('called Gui.set_selected_item with arg', item)
     def enable_pasteitems(self, value):
+        "stub"
         print('called Gui.enable_pasteitems with arg', value)
 
 
@@ -302,10 +312,11 @@ def mock_and_create_nodes(monkeypatch, capsys, count):
 
 
 # jammergenoeg komt deze maar op 2 uitgecommentaarde locaties voor
-def test_calculate_location(monkeypatch, capsys):
+def test_calculate_location(capsys):
     """unittest for gui_qt.calculate_location
     """
     class Node:
+        "stub"
         def __init__(self, name, parent=None):
             self.name = name
             self.children = []
@@ -468,10 +479,10 @@ class TestElementDialog:
         event = mockqtw.MockEvent(key=None)
         testobj.keyPressEvent(event)
         assert capsys.readouterr().out == ""
-        event = mockqtw.MockEvent(key=testee.core.Qt.Key_Escape)
+        event = mockqtw.MockEvent(key=testee.core.Qt.Key.Key_Escape)
         testobj.keyPressEvent(event)
         assert capsys.readouterr().out == (
-                f"called Dialog.done with arg `{testee.qtw.QDialog.Rejected}`\n")
+                f"called Dialog.done with arg `{testee.qtw.QDialog.DialogCode.Rejected}`\n")
 
 
 class TestAttributeDialog:
@@ -515,15 +526,15 @@ class TestAttributeDialog:
         assert capsys.readouterr().out == "called Gui.__init__\ncalled Editor.__init__\n"
         testobj = testee.AttributeDialog(parent)
         assert capsys.readouterr().out == expected_output['attrib'].format(testobj=testobj,
-                                                                            name='',
-                                                                            title='',
-                                                                            value='')
+                                                                           name='',
+                                                                           title='',
+                                                                           value='')
         mockitem = {'name': 'xxx', 'value': 'yyy'}
         testobj = testee.AttributeDialog(parent, item=mockitem)
         assert capsys.readouterr().out == expected_output['attrib'].format(testobj=testobj,
-                                                                            name='xxx',
-                                                                            title='',
-                                                                            value='yyy')
+                                                                           name='xxx',
+                                                                           title='',
+                                                                           value='yyy')
         mockitem = {'name': '{ns}xxx', 'value': 'yyy'}
         testobj = testee.AttributeDialog(parent, 'title', mockitem)
         assert capsys.readouterr().out == expected_output['attrib2'].format(testobj=testobj,
@@ -607,10 +618,10 @@ class TestAttributeDialog:
         event = mockqtw.MockEvent(key=None)
         testobj.keyPressEvent(event)
         assert capsys.readouterr().out == ""
-        event = mockqtw.MockEvent(key=testee.core.Qt.Key_Escape)
+        event = mockqtw.MockEvent(key=testee.core.Qt.Key.Key_Escape)
         testobj.keyPressEvent(event)
         assert capsys.readouterr().out == (
-                f"called Dialog.done with arg `{testee.qtw.QDialog.Rejected}`\n")
+                f"called Dialog.done with arg `{testee.qtw.QDialog.DialogCode.Rejected}`\n")
 
 
 class TestSearchDialog:
@@ -789,6 +800,7 @@ class TestVisualTree:
         monkeypatch.setattr(testee.qtw.QTreeWidget, '__init__', mockqtw.MockTreeWidget.__init__)
         parent = MockGui()
         testobj = testee.VisualTree(parent)
+        assert testobj.parent == parent
         assert capsys.readouterr().out == ("called Gui.__init__\n"
                                            "called Editor.__init__\n"
                                            "called Tree.__init__\n")
@@ -831,10 +843,10 @@ class TestVisualTree:
             print('called VisualTree.mapToGlobal with arg', arg)
         def mock_button(self):
             print('called event.button')
-            return testee.core.Qt.LeftButton
+            return testee.core.Qt.MouseButton.LeftButton
         def mock_button_2(self):
             print('called event.button')
-            return testee.core.Qt.RightButton
+            return testee.core.Qt.MouseButton.RightButton
         monkeypatch.setattr(mockqtw.MockEvent, 'button', mock_button)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.itemAt = mock_itemat
@@ -853,7 +865,7 @@ class TestVisualTree:
                                            "called Gui.init_menus with args {'popup': True}\n"
                                            "called Menu.__init__ with args ()\n"
                                            "called VisualTree.mapToGlobal with arg ('x', 'y')\n"
-                                           "called Menu.exec_ with args (None,) {}\n"
+                                           "called Menu.exec with args (None,) {}\n"
                                            "called event.ignore\n")
         testobj.parent.top = 'an item'
         testobj.mouseReleaseEvent(event)
@@ -898,11 +910,11 @@ class TestUndoRedoStack:
         """unittest for UndoRedoStack.__init__
         """
         monkeypatch.setattr(testee.qtw.QMainWindow, '__init__', mockqtw.MockMainWindow.__init__)
-        monkeypatch.setattr(testee.qtw.QUndoStack, '__init__', mockqtw.MockUndoStack.__init__)
-        monkeypatch.setattr(testee.qtw.QUndoStack, 'cleanChanged', mockqtw.MockUndoStack.cleanChanged)
-        monkeypatch.setattr(testee.qtw.QUndoStack, 'indexChanged', mockqtw.MockUndoStack.indexChanged)
-        monkeypatch.setattr(testee.qtw.QUndoStack, 'undoLimit', mockqtw.MockUndoStack.undoLimit)
-        monkeypatch.setattr(testee.qtw.QUndoStack, 'setUndoLimit', mockqtw.MockUndoStack.setUndoLimit)
+        monkeypatch.setattr(testee.gui.QUndoStack, '__init__', mockqtw.MockUndoStack.__init__)
+        monkeypatch.setattr(testee.gui.QUndoStack, 'cleanChanged', mockqtw.MockUndoStack.cleanChanged)
+        monkeypatch.setattr(testee.gui.QUndoStack, 'indexChanged', mockqtw.MockUndoStack.indexChanged)
+        monkeypatch.setattr(testee.gui.QUndoStack, 'undoLimit', mockqtw.MockUndoStack.undoLimit)
+        monkeypatch.setattr(testee.gui.QUndoStack, 'setUndoLimit', mockqtw.MockUndoStack.setUndoLimit)
         parent = testee.qtw.QMainWindow()
         parent.undo_item = mockqtw.MockAction(parent)
         parent.redo_item = mockqtw.MockAction(parent)
@@ -915,7 +927,7 @@ class TestUndoRedoStack:
     def test_unset_undo_limit(self, monkeypatch, capsys):
         """unittest for UndoRedoStack.unset_undo_limit
         """
-        monkeypatch.setattr(testee.qtw.QUndoStack, 'setUndoLimit',
+        monkeypatch.setattr(testee.gui.QUndoStack, 'setUndoLimit',
                             mockqtw.MockUndoStack.setUndoLimit)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.unset_undo_limit(True)
@@ -1001,7 +1013,7 @@ class TestPasteElementCommand:
         win = MockGui()
         win.editor.tree_dirty = False
         assert capsys.readouterr().out == "called Gui.__init__\ncalled Editor.__init__\n"
-        monkeypatch.setattr(testee.qtw.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
+        monkeypatch.setattr(testee.gui.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
         testobj = testee.PasteElementCommand(win, 'tag', 'text', True, False, data=['xx'])
         assert testobj.win == win
         assert testobj.tag == 'tag'
@@ -1014,7 +1026,7 @@ class TestPasteElementCommand:
         assert testobj.first_edit
         assert capsys.readouterr().out == "called UndoCommand.__init__ with args (' Before',) {}\n"
         win.editor.tree_dirty = True
-        testobj = testee.PasteElementCommand(win, 'tag', 'text', False, False, "xx", where= 'yy')
+        testobj = testee.PasteElementCommand(win, 'tag', 'text', False, False, "xx", where='yy')
         assert testobj.win == win
         assert testobj.tag == 'tag'
         assert testobj.data == 'text'
@@ -1082,6 +1094,7 @@ class TestPasteElementCommand:
         """unittest for PasteElementCommand.undo
         """
         class MockCopy:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called CopyElementCommand with args', args, kwargs)
             def redo(self):
@@ -1141,7 +1154,7 @@ class TestPasteAttributeCommand:
         win = MockGui()
         win.editor.tree_dirty = False
         assert capsys.readouterr().out == "called Gui.__init__\ncalled Editor.__init__\n"
-        monkeypatch.setattr(testee.qtw.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
+        monkeypatch.setattr(testee.gui.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
         testobj = testee.PasteAttributeCommand(win, 'name', 'value', 'item')
         assert testobj.win == win
         assert testobj.item == 'item'
@@ -1180,6 +1193,7 @@ class TestPasteAttributeCommand:
         """unittest for PasteAttributeCommand.undo
         """
         class MockCopy:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called CopyAttributeCommand with args', args, kwargs)
             def redo(self):
@@ -1240,7 +1254,7 @@ class TestEditCommand:
         win.editor.tree_dirty = False
         assert capsys.readouterr().out == "called Gui.__init__\ncalled Editor.__init__\n"
         win.item = 'xxx'
-        monkeypatch.setattr(testee.qtw.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
+        monkeypatch.setattr(testee.gui.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
         testobj = testee.EditCommand(win, 'old_state', 'new_state')
         assert testobj.win == win
         assert testobj.item == 'xxx'
@@ -1330,7 +1344,7 @@ class TestCopyElementCommand:
         assert capsys.readouterr().out == (
                 "called Gui.__init__\ncalled Editor.__init__\n"
                 "called TreeItem.__init__ with args ('xx', 'a tag', 'a text')\n")
-        monkeypatch.setattr(testee.qtw.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
+        monkeypatch.setattr(testee.gui.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
         testobj = testee.CopyElementCommand(win, item, True, False)
         assert testobj.undodata is None
         assert testobj.win == win
@@ -1484,6 +1498,7 @@ class TestCopyElementCommand:
         """unittest for CopyElementCommand.undo
         """
         class MockPaste:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called PasteElementCommand with args', args, kwargs)
                 self.added = 'added item'
@@ -1572,7 +1587,7 @@ class TestCopyAttributeCommand:
         assert capsys.readouterr().out == (
                 "called Gui.__init__\ncalled Editor.__init__\n"
                 "called TreeItem.__init__ with args ('xx', 'a name', 'a value')\n")
-        monkeypatch.setattr(testee.qtw.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
+        monkeypatch.setattr(testee.gui.QUndoCommand, '__init__', mockqtw.MockUndoCommand)
         testobj = testee.CopyAttributeCommand(win, item, True, False, 'desc')
         assert testobj.win == win
         assert testobj.item == item
@@ -1642,6 +1657,7 @@ class TestCopyAttributeCommand:
         """unittest for CopyAttributeCommand.undo
         """
         class MockPaste:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called PasteAttributeCommand with args', args, kwargs)
                 self.added = 'added item'
@@ -1737,7 +1753,7 @@ class TestGui:
         testobj = self.setup_testobj(monkeypatch, capsys)
         with pytest.raises(SystemExit):
             testobj.go()
-        assert capsys.readouterr().out == ("called Application.exec_\n")
+        assert capsys.readouterr().out == ("called Application.exec\n")
 
     def test_keyReleaseEvent(self, monkeypatch, capsys):
         """unittest for Gui.keyReleaseEvent
@@ -1986,30 +2002,35 @@ class TestGui:
         """unittest for Gui.edit_item
         """
         class MockEleDialog:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called ElementDialog with args', args, kwargs)
-            def exec_(self):
-                print('called ElementDialog.exec_')
-                return testee.qtw.QDialog.Rejected
+            def exec(self):
+                print('called ElementDialog.exec')
+                return testee.qtw.QDialog.DialogCode.Rejected
         class MockEleDialog2:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called ElementDialog with args', args, kwargs)
-            def exec_(self):
-                print('called ElementDialog.exec_')
-                return testee.qtw.QDialog.Accepted
+            def exec(self):
+                print('called ElementDialog.exec')
+                return testee.qtw.QDialog.DialogCode.Accepted
         class MockAttrDialog:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called AttributeDialog with args', args, kwargs)
-            def exec_(self):
-                print('called AttributeDialog.exec_')
-                return testee.qtw.QDialog.Rejected
+            def exec(self):
+                print('called AttributeDialog.exec')
+                return testee.qtw.QDialog.DialogCode.Rejected
         class MockAttrDialog2:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called AttributeDialog with args', args, kwargs)
-            def exec_(self):
-                print('called AttributeDialog.exec_')
-                return testee.qtw.QDialog.Accepted
+            def exec(self):
+                print('called AttributeDialog.exec')
+                return testee.qtw.QDialog.DialogCode.Accepted
         class MockEditCmd:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called EditCommand.__init__ with args', args, kwargs)
         monkeypatch.setattr(testee, 'ElementDialog', MockEleDialog)
@@ -2031,7 +2052,7 @@ class TestGui:
                 "called TreeItem.text for col 2\n"
                 f"called ElementDialog with args ({testobj},) {{'title': 'Edit an element',"
                 f" 'item': {{'item': {testelement}, 'tag': 'yyy', 'data': True, 'text': 'zzz'}}}}\n"
-                "called ElementDialog.exec_\n")
+                "called ElementDialog.exec\n")
         monkeypatch.setattr(testee, 'ElementDialog', MockEleDialog2)
         testobj.data = {'tag': 'Tag', 'text': 'Text'}
         testobj.edit_item(testelement)
@@ -2041,7 +2062,7 @@ class TestGui:
                 "called TreeItem.text for col 2\n"
                 f"called ElementDialog with args ({testobj},) {{'title': 'Edit an element',"
                 f" 'item': {{'item': {testelement}, 'tag': 'yyy', 'data': True, 'text': 'zzz'}}}}\n"
-                "called ElementDialog.exec_\n"
+                "called ElementDialog.exec\n"
                 "called Editor.getshortname with args (('Tag', 'Text'),) {}\n"
                 f"called EditCommand.__init__ with args ({testobj},"
                 " ('<> xxx', 'yyy', 'zzz'), ('shortname', 'Tag', 'Text'), 'Edit Element') {}\n"
@@ -2054,7 +2075,7 @@ class TestGui:
                 "called TreeItem.text for col 2\n"
                 f"called AttributeDialog with args ({testobj},) {{'title': 'Edit an attribute',"
                 f" 'item': {{'item': {testattribute}, 'name': 'yyy', 'value': 'zzz'}}}}\n"
-                "called AttributeDialog.exec_\n")
+                "called AttributeDialog.exec\n")
         monkeypatch.setattr(testee, 'AttributeDialog', MockAttrDialog2)
         testobj.data = {'name': 'Name', 'value': 'Value'}
         testobj.edit_item(testattribute)
@@ -2064,7 +2085,7 @@ class TestGui:
                 "called TreeItem.text for col 2\n"
                 f"called AttributeDialog with args ({testobj},) {{'title': 'Edit an attribute',"
                 f" 'item': {{'item': {testattribute}, 'name': 'yyy', 'value': 'zzz'}}}}\n"
-                "called AttributeDialog.exec_\n"
+                "called AttributeDialog.exec\n"
                 "called Editor.getshortname with args (('Name', 'Value'),) {'attr': True}\n"
                 f"called EditCommand.__init__ with args ({testobj}, ('xxx', 'yyy', 'zzz'),"
                 " ('shortname', 'Name', 'Value'), 'Edit Attribute') {}\n"
@@ -2075,9 +2096,11 @@ class TestGui:
         """unittest for Gui.copy
         """
         class MockCopyEl:
+            "stub"
             def __init__(self, *args):
                 print('called CopyElementCommand.__init__ with args', args)
         class MockCopyAtt:
+            "stub"
             def __init__(self, *args):
                 print('called CopyAttributeCommand.__init__ with args', args)
         monkeypatch.setattr(testee, 'CopyElementCommand', MockCopyEl)
@@ -2110,9 +2133,11 @@ class TestGui:
         """unittest for Gui.paste
         """
         class MockPasteEl:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called PasteElementCommand.__init__ with args', args, kwargs)
         class MockPasteAtt:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called PasteAttributeCommand.__init__ with args', args, kwargs)
         monkeypatch.setattr(testee, 'PasteElementCommand', MockPasteEl)
@@ -2153,18 +2178,21 @@ class TestGui:
         """unittest for Gui.add_attribute
         """
         class MockAttrDialog:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called AttributeDialog with args', args, kwargs)
-            def exec_(self):
-                print('called AttributeDialog.exec_')
-                return testee.qtw.QDialog.Rejected
+            def exec(self):
+                print('called AttributeDialog.exec')
+                return testee.qtw.QDialog.DialogCode.Rejected
         class MockAttrDialog2:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called AttributeDialog with args', args, kwargs)
-            def exec_(self):
-                print('called AttributeDialog.exec_')
-                return testee.qtw.QDialog.Accepted
+            def exec(self):
+                print('called AttributeDialog.exec')
+                return testee.qtw.QDialog.DialogCode.Accepted
         class MockPasteAtt:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called PasteAttributeCommand.__init__ with args', args, kwargs)
         monkeypatch.setattr(testee, 'AttributeDialog', MockAttrDialog)
@@ -2177,33 +2205,37 @@ class TestGui:
         testobj.add_attribute(item)
         assert capsys.readouterr().out == (
                 f"called AttributeDialog with args ({testobj},) {{'title': 'New attribute'}}\n"
-                "called AttributeDialog.exec_\n")
+                "called AttributeDialog.exec\n")
         monkeypatch.setattr(testee, 'AttributeDialog', MockAttrDialog2)
         testobj.data = {'name': 'Name', 'value': 'Value'}
         testobj.add_attribute(item)
         assert capsys.readouterr().out == (
                 f"called AttributeDialog with args ({testobj},) {{'title': 'New attribute'}}\n"
-                "called AttributeDialog.exec_\n"
+                "called AttributeDialog.exec\n"
                 f"called PasteAttributeCommand.__init__ with args ({testobj}, 'Name', 'Value',"
                 f" {item}, 'Insert Attribute') {{}}\n"
-                "called UndoRedoStack.push\ncalled Editor.mark_dirty with arg True\n")
+                "called UndoRedoStack.push\n"
+                "called Editor.mark_dirty with arg True\n")
 
     def test_insert(self, monkeypatch, capsys):
         """unittest for Gui.insert
         """
         class MockEleDialog:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called ElementDialog with args', args, kwargs)
-            def exec_(self):
-                print('called ElementDialog.exec_')
-                return testee.qtw.QDialog.Rejected
+            def exec(self):
+                print('called ElementDialog.exec')
+                return testee.qtw.QDialog.DialogCode.Rejected
         class MockEleDialog2:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called ElementDialog with args', args, kwargs)
-            def exec_(self):
-                print('called ElementDialog.exec_')
-                return testee.qtw.QDialog.Accepted
+            def exec(self):
+                print('called ElementDialog.exec')
+                return testee.qtw.QDialog.DialogCode.Accepted
         class MockPasteEl:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called PasteElementCommand.__init__ with args', args, kwargs)
         monkeypatch.setattr(testee, 'ElementDialog', MockEleDialog)
@@ -2216,13 +2248,13 @@ class TestGui:
         testobj.insert(item, before=True, below=False)
         assert capsys.readouterr().out == (
                 f"called ElementDialog with args ({testobj},) {{'title': 'New element'}}\n"
-                "called ElementDialog.exec_\n")
+                "called ElementDialog.exec\n")
         monkeypatch.setattr(testee, 'ElementDialog', MockEleDialog2)
         testobj.data = {'tag': 'Tag', 'text': 'Text'}
         testobj.insert(item, before=True, below=False)
         assert capsys.readouterr().out == (
                 f"called ElementDialog with args ({testobj},) {{'title': 'New element'}}\n"
-                "called ElementDialog.exec_\n"
+                "called ElementDialog.exec\n"
                 f"called PasteElementCommand.__init__ with args ({testobj}, 'Tag', 'Text')"
                 f" {{'before': True, 'below': False, 'where': {item},"
                 " 'description': 'Insert Element'}\n"
@@ -2350,7 +2382,7 @@ class TestGui:
                                            "called Action.__init__ with args ('sm2', None)\n")
         testobj.editable = True
         result = testobj.init_menus()
-        assert len(result) == len (['File', 'View', 'Edit'])
+        assert len(result) == len(['File', 'View', 'Edit'])
         assert capsys.readouterr().out == ("called Gui.setup_menuactions\n"
                                            "called MenuBar.__init__\n"
                                            "called MenuBar.addMenu with arg  &File\n"
@@ -2419,7 +2451,7 @@ class TestGui:
                      ('te4', 'ce4', ''), ('te5', 'ce5', ''), ('te6', 'ce6', ''),
                      ('te7', 'ce7', ''), ('te8', 'ce8', ''), ('te9', 'ce9', '')),
                     (('ts1', 'cs1', ''),)]
-        monkeypatch.setattr(testee.qtw, 'QAction', mockqtw.MockAction)
+        monkeypatch.setattr(testee.gui, 'QAction', mockqtw.MockAction)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.editor.get_menu_data = mock_get
         testobj.editable = False
@@ -2433,13 +2465,13 @@ class TestGui:
         testobj.editor.get_menu_data = mock_get_2
         testobj.setup_menuactions()
         assert len(testobj.filemenu_actions) == 1
-        assert isinstance(testobj.filemenu_actions[0], testee.qtw.QAction)
+        assert isinstance(testobj.filemenu_actions[0], testee.gui.QAction)
         assert len(testobj.viewmenu_actions) == 1
-        assert isinstance(testobj.viewmenu_actions[0], testee.qtw.QAction)
+        assert isinstance(testobj.viewmenu_actions[0], testee.gui.QAction)
         assert len(testobj.editmenu_actions) == 0
         assert len(testobj.searchmenu_actions) == 2
-        assert isinstance(testobj.searchmenu_actions[0], testee.qtw.QAction)
-        assert isinstance(testobj.searchmenu_actions[1], testee.qtw.QAction)
+        assert isinstance(testobj.searchmenu_actions[0], testee.gui.QAction)
+        assert isinstance(testobj.searchmenu_actions[1], testee.gui.QAction)
         assert capsys.readouterr().out == (
                 "called Editor.get_menu_data\n"
                 f"called Action.__init__ with args ('text1', {testobj})\n"
@@ -2609,13 +2641,13 @@ class TestGui:
         """
         def mock_ask_no(parent, *args, **kwargs):
             print(f'called MessageBox.question with args {parent}', args, kwargs)
-            return mockqtw.MockMessageBox.No
+            return mockqtw.MockMessageBox.StandardButton.No
         def mock_ask_yes(parent, *args, **kwargs):
             print(f'called MessageBox.question with args {parent}', args, kwargs)
-            return mockqtw.MockMessageBox.Yes
+            return mockqtw.MockMessageBox.StandardButton.Yes
         def mock_ask_cancel(parent, *args, **kwargs):
             print(f'called MessageBox.question with args {parent}', args, kwargs)
-            return mockqtw.MockMessageBox.Cancel
+            return mockqtw.MockMessageBox.StandardButton.Cancel
         monkeypatch.setattr(testee.qtw, 'QMessageBox', mockqtw.MockMessageBox)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.editor.title = 'Title'
@@ -2644,7 +2676,7 @@ class TestGui:
         assert testobj.ask_for_text('Prompt', value='x') == ""
         assert testobj.in_dialog
         assert capsys.readouterr().out == (f"called InputDialog.getText with args {testobj}"
-                                           " ('Title', 'Prompt', 0, 'x') {}\n")
+                                           " ('Title', 'Prompt') {'text': 'x'}\n")
 
     def test_file_to_read(self, monkeypatch, capsys):
         """unittest for Gui.file_to_read
@@ -2746,7 +2778,7 @@ class TestGui:
         testobj.popupmenu('item')
         assert capsys.readouterr().out == ("called Tree.visualItemRect with arg item\n"
                                            "called Tree.mapToGlobal with arg bottom-right\n"
-                                           "called Menu.exec_ with args ('mapped-to-global',) {}\n")
+                                           "called Menu.exec with args ('mapped-to-global',) {}\n")
 
     def test_quit(self, monkeypatch, capsys):
         """unittest for Gui.quit
@@ -2785,7 +2817,7 @@ class TestGui:
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.top = 'top'
         testobj.popupmenu = mock_popup
-        event = mockqtw.MockEvent(key=testee.core.Qt.Key_Return)
+        event = mockqtw.MockEvent(key=testee.core.Qt.Key.Key_Return)
         testobj.tree.currentItem = mock_current
         assert not testobj.on_keyup(event)
         assert capsys.readouterr().out == "called Tree.currentItem\n"
@@ -2817,7 +2849,7 @@ class TestGui:
                                            "called TreeItem.child with arg 0\n"
                                            f"called Tree.setCurrentItem with arg `{child}`\n")
 
-        event = mockqtw.MockEvent(key=testee.core.Qt.Key_Backspace)
+        event = mockqtw.MockEvent(key=testee.core.Qt.Key.Key_Backspace)
         monkeypatch.setattr(mockqtw.MockTreeItem, 'isExpanded', lambda x: False)
         assert testobj.on_keyup(event)
         assert capsys.readouterr().out == "called Tree.currentItem\n"
@@ -2828,7 +2860,7 @@ class TestGui:
                                            "called TreeItem.parent\n"
                                            f"called Tree.setCurrentItem with arg `{parent}`\n")
 
-        event = mockqtw.MockEvent(key=testee.core.Qt.Key_Menu)
+        event = mockqtw.MockEvent(key=testee.core.Qt.Key.Key_Menu)
         assert testobj.on_keyup(event)
         assert capsys.readouterr().out == ("called Tree.currentItem\n"
                                            f"called Gui.popupmenu with arg {item}\n")
@@ -2837,25 +2869,26 @@ class TestGui:
         """unittest for Gui.ask_for_search_args
         """
         class MockSearch:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called SearchDialog.__init__ with args', args, kwargs)
-            def exec_(self):
-                print('called SearchDialog.exec_')
-                return testee.qtw.QDialog.Rejected
+            def exec(self):
+                print('called SearchDialog.exec')
+                return testee.qtw.QDialog.DialogCode.Rejected
         def exec_2(self):
-            print('called SearchDialog.exec_')
-            return testee.qtw.QDialog.Accepted
+            print('called SearchDialog.exec')
+            return testee.qtw.QDialog.DialogCode.Accepted
         monkeypatch.setattr(testee, 'SearchDialog', MockSearch)
         testobj = self.setup_testobj(monkeypatch, capsys)
         assert not testobj.ask_for_search_args()
         assert capsys.readouterr().out == (
                 f"called SearchDialog.__init__ with args ({testobj},) {{'title': 'Search options'}}\n"
-                "called SearchDialog.exec_\n")
-        MockSearch.exec_ = exec_2
+                "called SearchDialog.exec\n")
+        MockSearch.exec = exec_2
         assert testobj.ask_for_search_args()
         assert capsys.readouterr().out == (
                 f"called SearchDialog.__init__ with args ({testobj},) {{'title': 'Search options'}}\n"
-                "called SearchDialog.exec_\n")
+                "called SearchDialog.exec\n")
 
     def test_do_undo(self, monkeypatch, capsys):
         """unittest for Gui.do_undo
