@@ -352,6 +352,8 @@ class Editor:
                 if ns_uri == uri:
                     prefix = self.ns_prefixes[i]
                     break
+            else:
+                prefix = uri
             return f'{prefix}:{localname}'
         return fullname
 
@@ -549,16 +551,16 @@ class Editor:
         "delete is copy with remove and without retain"
         self.copy(cut=True, retain=False)
 
-    # def get_copy_text(self, cut, retain):
-    #     "geef keyword voor copy actie terug"
-    #     return 'copy' if not cut else 'delete' if not retain else 'cut'
+    def get_copy_text(self, cut, retain):
+        "geef keyword voor copy actie terug"
+        return 'copy' if not cut else 'delete' if not retain else 'cut'
 
     def copy(self, event=None, cut=False, retain=True):
         "standard copy"
         if not self.checkselection():
             return
-        # txt = self.get_copy_text(cut, retain)
-        txt = 'copy' if not cut else 'delete' if not retain else 'cut'
+        txt = self.get_copy_text(cut, retain)
+        # txt = 'copy' if not cut else 'delete' if not retain else 'cut'  # toch vaker nodig
         if self.gui.get_node_parentpos(self.item)[0] == self.gui.top:
             self.gui.meldfout(f"Can't {txt} the root")
             return

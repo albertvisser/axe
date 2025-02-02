@@ -400,7 +400,7 @@ class VisualTree(qtw.QTreeWidget):
         item = self.itemAt(event.pos())
         if event.button() == core.Qt.MouseButton.RightButton:
             if item and item != self.parent.top:
-                ## self.parent.setCurrentItem(item)
+                # self.parent.setCurrentItem(item)
                 menu = self.parent.init_menus(popup=True)
                 # menu.exec(core.QPoint(xc, yc))
                 menu.exec(self.mapToGlobal(event.pos()))
@@ -497,11 +497,11 @@ class PasteElementCommand(gui.QUndoCommand):
         def zetzeronder(node, data, before=False, below=True):
             "add elements recursively"
             # print(f'zetzeronder voor node {node} met data {data}')
-            # text, data, children = data
-            # tag, value = data
-            tag, value, children = data
-            # is_attr = text.startswith(self.win.parent.elstart)
-            is_attr = not tag.startswith(self.win.editor.elstart)
+            text, data, children = data
+            tag, value = data
+            # tag, value, children = data
+            is_attr = not text.startswith(self.win.editor.elstart)
+            # is_attr = not tag.startswith(self.win.editor.elstart)
             add_under = self.win.editor.add_item(node, tag, value, before=before, below=below,
                                                  attr=is_attr)
             below = True
@@ -520,6 +520,7 @@ class PasteElementCommand(gui.QUndoCommand):
         # print(f'newly added {self.added} with children {self.children}')
         if self.children is not None:
             for item in self.children[0][2]:   # begin je zo niet met de grandchildren?
+            # for item in self.children:
                 zetzeronder(self.added, item)
         ## if self.replaced:
             ## self.win.replaced[calculate_location(add_under)] = self.added
@@ -903,7 +904,7 @@ class Gui(qtw.QMainWindow):
             command = PasteAttributeCommand(self, name, value, self.item,
                                             description="Paste Attribute")
             self.undo_stack.push(command)
-        elif self.cut_el:
+        else:  # if self.cut_el:  als paste wordt gestart heeft een van beide een waiarde
             tag, text = self.cut_el[0][1]
             command = PasteElementCommand(self, tag, text,
                                           before=before, below=below, where=self.item,
@@ -1021,7 +1022,7 @@ class Gui(qtw.QMainWindow):
                     actions = self.viewmenu_actions
                 elif ix == 2:
                     actions = self.editmenu_actions if self.editable else self.searchmenu_actions
-                elif ix == 3:
+                else:  # if ix == 3:  momenteel zijn er maar 4 menu's gedefinieerd
                     actions = self.searchmenu_actions
                 actions.append(act)
         if self.editable:
@@ -1051,17 +1052,17 @@ class Gui(qtw.QMainWindow):
             if ix == 2:
                 editmenu.addSeparator()
 
-        disable_menu = not self.cut_el and not self.cut_att
-        add_menuitem = not popup or not disable_menu
-        if disable_menu:
+        disable_menuitems = not (self.cut_el or self.cut_att)
+        # add_menuitem = not popup or not disable_menuitems
+        if disable_menuitems:
             self.pastebefore_item.setText("Nothing to Paste")
             self.pastebefore_item.setEnabled(False)
             self.pasteafter_item.setEnabled(False)
             self.pasteunder_item.setEnabled(False)
-        if add_menuitem:
-            editmenu.addAction(self.pastebefore_item)
-            editmenu.addAction(self.pasteafter_item)
-            editmenu.addAction(self.pasteunder_item)
+        # if add_menuitem:
+        editmenu.addAction(self.pastebefore_item)
+        editmenu.addAction(self.pasteafter_item)
+        editmenu.addAction(self.pasteunder_item)
 
         editmenu.addSeparator()
         for act in self.editmenu_actions[9:]:
@@ -1090,7 +1091,7 @@ class Gui(qtw.QMainWindow):
             self, self.editor.title, prompt,
             qtw.QMessageBox.StandardButton.Yes | qtw.QMessageBox.StandardButton.No
             | qtw.QMessageBox.StandardButton.Cancel,
-            defaultButton=qtw.QMessageBox.Yes)
+            defaultButton=qtw.QMessageBox.StandardButton.Yes)
         return retval[h]
 
     def ask_for_text(self, prompt, value=''):

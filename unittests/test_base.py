@@ -14,7 +14,7 @@ def test_find_in_flattened_tree(monkeypatch, capsys):
         return []
     def mock_get_2(*args):
         print('called Editor.get_remaining_data_to_search with args', args)
-        return args[1][args[0]:]
+        return args[1]  # [args[0]:]
     def mock_apply_ele(*args):
         print('called apply_search_criteria_for_element with args', args)
         return False
@@ -42,14 +42,11 @@ def test_find_in_flattened_tree(monkeypatch, capsys):
     monkeypatch.setattr(testee, 'apply_search_criteria_for_text', mock_apply_txt)
     data = []
     search_args = ['xx', 'yy', 'zz', 'qq']
-    # 26-50
     assert testee.find_in_flattened_tree(data, search_args) == (None, False)
     assert capsys.readouterr().out == ("")
-    # 28, 31-33, 37-47, 49
     assert testee.find_in_flattened_tree(data, search_args, pos=3) == (None, False)
     assert capsys.readouterr().out == (
             "called Editor.get_remaining_data_to_search with args (3, [])\n")
-    # 28, 37-47, 49
     data = [('item', 'a name', 'a text', 'a list')]
     assert testee.find_in_flattened_tree(data, search_args) == (None, False)
     assert capsys.readouterr().out == (
@@ -57,7 +54,6 @@ def test_find_in_flattened_tree(monkeypatch, capsys):
             "called apply_search_criteria_for_attrs with args"
             " (['xx', 'yy', 'zz', 'qq'], 'a list', False)\n"
             "called apply_search_criteria_for_text with args ('qq', 'a text')\n")
-    # 28, 43-47, 49
     monkeypatch.setattr(testee, 'apply_search_criteria_for_element', mock_apply_ele_2)
     assert testee.find_in_flattened_tree(data, search_args) == (None, False)
     assert capsys.readouterr().out == (
@@ -98,6 +94,14 @@ def test_find_in_flattened_tree(monkeypatch, capsys):
             "called apply_search_criteria_for_element with args ('xx', 'name 2')\n"
             "called apply_search_criteria_for_attrs with args"
             " (['xx', 'yy', 'zz', 'qq'], 'list 2', True)\n"
+            "called apply_search_criteria_for_text with args ('qq', 'text 2')\n")
+    monkeypatch.setattr(testee, 'get_remaining_data_to_search', mock_get_2)
+    assert testee.find_in_flattened_tree(data, search_args, pos=3) == ('item 2', False)
+    assert capsys.readouterr().out == (
+            f"called Editor.get_remaining_data_to_search with args (3, {data})\n"
+            "called apply_search_criteria_for_element with args ('xx', 'name 2')\n"
+            "called apply_search_criteria_for_attrs with args"
+            " (['xx', 'yy', 'zz', 'qq'], 'list 2', False)\n"
             "called apply_search_criteria_for_text with args ('qq', 'text 2')\n")
 
 
@@ -183,6 +187,15 @@ def test_apply_search_criteria_for_attrs():
     assert testee.apply_search_criteria_for_attrs(criteria, attrlist, False) == (True, None)
     criteria = ('', 'nam', '', 'y')
     assert testee.apply_search_criteria_for_attrs(criteria, attrlist, False) == (True, None)
+    criteria = ('xxx', '', '', 'yyy')
+    assert testee.apply_search_criteria_for_attrs(criteria, [], False) == (True, None)
+    assert testee.apply_search_criteria_for_attrs(criteria, [], True) == (True, None)
+    criteria = ('xxx', 'yyy', '', 'zzz')
+    assert testee.apply_search_criteria_for_attrs(criteria, [], False) == (False, None)
+    assert testee.apply_search_criteria_for_attrs(criteria, [], True) == (False, None)
+    criteria = ('xxx', '', 'yyy', 'zzz')
+    assert testee.apply_search_criteria_for_attrs(criteria, [], False) == (False, None)
+    assert testee.apply_search_criteria_for_attrs(criteria, [], True) == (False, None)
 
 
 def test_parse_nsmap(monkeypatch, capsys):
@@ -234,6 +247,9 @@ def test_xmltree_expand(monkeypatch, capsys):
     mock_root = MockElement()
     assert testobj.expand(mock_root, 'text', ('da', 'ta')) is None
     assert capsys.readouterr().out == "called Element.set with args ('da', 'ta')\n"
+    result = testobj.expand(mock_root, '<> text', ('data', ''))
+    assert isinstance(result, testee.et.SubElement)
+    assert capsys.readouterr().out == f"called SubElement.__init__ with args ({mock_root}, 'data')\n"
     node = testobj.expand(mock_root, '<> text', ('da', 'ta'))
     assert isinstance(node, testee.et.SubElement)
     assert node.text == 'ta'
@@ -468,6 +484,20 @@ def test_editor_init(monkeypatch, capsys):
                                        f"called parse_nsmap with arg {testobj.xmlfn}\n"
                                        "called Editor.init_tree with args ('got root from tree',)\n"
                                        "called Gui.go\n")
+    testobj = testee.Editor('testfile.xml', readonly=True)
+    assert testobj.title == f'{testee.TITLESTART} Viewer'
+    assert testobj.xmlfn == os.path.join(os.path.dirname(os.path.dirname(__file__)), 'testfile.xml')
+    assert testobj.readonly
+    assert isinstance(testobj.gui, testee.Gui)
+    assert (testobj.ns_prefixes, testobj.ns_uris) == (['ns_prefix'], ['ns_uri'])
+    assert not hasattr(testobj.gui, 'cut_att')
+    assert not hasattr(testobj.gui, 'cut_el')
+    assert (testobj.search_args, testobj._search_pos) == ([], None)
+    assert capsys.readouterr().out == ("called Gui.__init__\n"
+                                       "called Gui.init_gui with args ()\n"
+                                       f"called parse_nsmap with arg {testobj.xmlfn}\n"
+                                       "called Editor.init_tree with args ('got root from tree',)\n"
+                                       "called Gui.go\n")
     monkeypatch.setattr(testee, 'parse_nsmap', mock_parse_nsmap_2)
     testobj = testee.Editor('testfile.xml')
     assert (testobj.ns_prefixes, testobj.ns_uris) == ([], [])
@@ -515,7 +545,7 @@ def test_editor_mark_dirty(monkeypatch, capsys):
 
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.readonly = False
-    testobj.title = 'windowtitle'
+    testobj.title = 'appname'
     monkeypatch.setattr(testobj.gui, 'get_windowtitle', lambda *x: '')
     testobj.mark_dirty(True)
     assert testobj.tree_dirty
@@ -523,19 +553,27 @@ def test_editor_mark_dirty(monkeypatch, capsys):
 
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.readonly = False
-    testobj.title = 'windowtitle'
+    testobj.title = 'appname'
     monkeypatch.setattr(testobj.gui, 'get_windowtitle', lambda *x: ' - ' + testobj.title)
     testobj.mark_dirty(True)
     assert testobj.tree_dirty
-    assert capsys.readouterr().out == 'called Gui.set_windowtitle with arg `* - windowtitle`\n'
+    assert capsys.readouterr().out == 'called Gui.set_windowtitle with arg `* - appname`\n'
 
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.readonly = False
-    testobj.title = 'windowtitle'
+    testobj.title = 'appname'
     monkeypatch.setattr(testobj.gui, 'get_windowtitle', lambda *x: '* - ' + testobj.title)
     testobj.mark_dirty(True)
     assert testobj.tree_dirty
-    assert capsys.readouterr().out == 'called Gui.set_windowtitle with arg ` - windowtitle`\n'
+    assert capsys.readouterr().out == 'called Gui.set_windowtitle with arg ` - appname`\n'
+
+    testobj = mock_init_editor(monkeypatch, capsys)
+    testobj.readonly = False
+    testobj.title = 'appname'
+    monkeypatch.setattr(testobj.gui, 'get_windowtitle', lambda *x: ' - ' + testobj.title)
+    testobj.mark_dirty(False)
+    assert not testobj.tree_dirty
+    assert capsys.readouterr().out == 'called Gui.set_windowtitle with arg ` - appname`\n'
 
 
 def test_editor_check_tree(monkeypatch, capsys):
@@ -888,14 +926,20 @@ def test_editor_apply_namespace_mapping(monkeypatch, capsys):
     """unittest for base.editor_apply_namespace_mapping
     """
     testobj = mock_init_editor(monkeypatch, capsys)
-    testobj.ns_uris = ('xxx', 'yyy')
+    testobj.ns_uris = ()
     testobj.ns_prefixes = ('a', 'b')
     assert testobj.apply_namespace_mapping('xxx') == 'xxx'
-    assert capsys.readouterr().out == ''
+    assert testobj.apply_namespace_mapping('{xxx}yyy') == 'xxx:yyy'
+
+    testobj.ns_uris = ('xxx', 'zzz')
+    assert testobj.apply_namespace_mapping('xxx') == 'xxx'
     assert testobj.apply_namespace_mapping('{xxx}yyy') == 'a:yyy'
-    assert capsys.readouterr().out == ''
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # Not enough values to unpack
         assert testobj.apply_namespace_mapping('{xxx') == ''
+
+    testobj.ns_uris = ('xxx', 'zzz')
+    assert testobj.apply_namespace_mapping('qqq') == 'qqq'
+    assert testobj.apply_namespace_mapping('{qqq}yyy') == 'qqq:yyy'
 
 
 def test_editor_add_item(monkeypatch, capsys):
