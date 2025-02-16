@@ -8,12 +8,15 @@ import os
 import pathlib
 ## import sys
 import shutil
-import xml.etree.ElementTree as et
+try:
+    from lxml import etree as et
+except ImportError:
+    import xml.etree.ElementTree as et
 # import logging
 from .gui import Gui
 ELSTART = '<>'
 axe_iconame = str(pathlib.Path(__file__).parent / "axe.ico")
-NEW_ROOT = '(new root)'
+NEW_ROOT = 'new_root'
 TITLESTART = "Albert's (Simple) XML"
 ASKTOSAVE = "XML data has been modified - save before continuing?"
 
