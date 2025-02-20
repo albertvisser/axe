@@ -181,6 +181,7 @@ class Editor:
         text = 'Viewer' if readonly else 'Editor'
         self.title = f'{TITLESTART} {text}'
         self.xmlfn = os.path.abspath(fname) if fname else ''
+        self.tree_dirty = False
         self.readonly = readonly
         self.gui = Gui(self, fname, readonly=readonly)
         self.ns_prefixes, self.ns_uris = [], []

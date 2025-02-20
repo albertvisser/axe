@@ -445,11 +445,14 @@ def test_editor_init(monkeypatch, capsys):
     def mock_parse_nsmap_2(arg):
         """stub
         """
+        print(f'called parse_nsmap with arg {arg}')
         raise OSError('got an OSError')
     def mock_parse_nsmap_3(arg):
         """stub
         """
-        raise testee.et.ParseError('got a ParseError')
+        print(f'called parse_nsmap with arg {arg}')
+        # raise testee.et.ParseError('got a ParseError')  # ElementTree
+        raise testee.et.ParseError('got a ParseError', 0, 0, 0)  # lxml
     def mock_init_tree(self, *args):
         """stub
         """
@@ -461,6 +464,7 @@ def test_editor_init(monkeypatch, capsys):
     testobj = testee.Editor('')
     assert testobj.title == f'{testee.TITLESTART} Editor'
     assert testobj.xmlfn == ''
+    assert not testobj.tree_dirty
     assert not testobj.readonly
     assert isinstance(testobj.gui, testee.Gui)
     assert (testobj.ns_prefixes, testobj.ns_uris) == ([], [])
@@ -468,25 +472,12 @@ def test_editor_init(monkeypatch, capsys):
     assert (testobj.search_args, testobj._search_pos) == ([], None)
     assert capsys.readouterr().out == ("called Gui.__init__\n"
                                        "called Gui.init_gui with args ()\n"
-                                       "called Editor.init_tree with args ('(new root)',)\n"
-                                       "called Gui.go\n")
-    testobj = testee.Editor('testfile.xml')
-    assert testobj.title == f'{testee.TITLESTART} Editor'
-    assert testobj.xmlfn == os.path.join(os.path.dirname(os.path.dirname(__file__)), 'testfile.xml')
-    assert not testobj.readonly
-    assert isinstance(testobj.gui, testee.Gui)
-    assert (testobj.ns_prefixes, testobj.ns_uris) == (['ns_prefix'], ['ns_uri'])
-    assert (testobj.gui.cut_att, testobj.gui.cut_el) == (None, None)
-    assert (testobj.search_args, testobj._search_pos) == ([], None)
-    assert capsys.readouterr().out == ("called Gui.__init__\n"
-                                       "called Gui.init_gui with args ()\n"
-                                       "called Editor.init_tree with args ('(new root)',)\n"
-                                       f"called parse_nsmap with arg {testobj.xmlfn}\n"
-                                       "called Editor.init_tree with args ('got root from tree',)\n"
+                                       "called Editor.init_tree with args ('new_root',)\n"
                                        "called Gui.go\n")
     testobj = testee.Editor('testfile.xml', readonly=True)
     assert testobj.title == f'{testee.TITLESTART} Viewer'
     assert testobj.xmlfn == os.path.join(os.path.dirname(os.path.dirname(__file__)), 'testfile.xml')
+    assert not testobj.tree_dirty
     assert testobj.readonly
     assert isinstance(testobj.gui, testee.Gui)
     assert (testobj.ns_prefixes, testobj.ns_uris) == (['ns_prefix'], ['ns_uri'])
@@ -495,6 +486,22 @@ def test_editor_init(monkeypatch, capsys):
     assert (testobj.search_args, testobj._search_pos) == ([], None)
     assert capsys.readouterr().out == ("called Gui.__init__\n"
                                        "called Gui.init_gui with args ()\n"
+                                       # "called Editor.init_tree with args ('new_root',)\n"
+                                       f"called parse_nsmap with arg {testobj.xmlfn}\n"
+                                       "called Editor.init_tree with args ('got root from tree',)\n"
+                                       "called Gui.go\n")
+    testobj = testee.Editor('testfile.xml')
+    assert testobj.title == f'{testee.TITLESTART} Editor'
+    assert testobj.xmlfn == os.path.join(os.path.dirname(os.path.dirname(__file__)), 'testfile.xml')
+    assert not testobj.tree_dirty
+    assert not testobj.readonly
+    assert isinstance(testobj.gui, testee.Gui)
+    assert (testobj.ns_prefixes, testobj.ns_uris) == (['ns_prefix'], ['ns_uri'])
+    assert (testobj.gui.cut_att, testobj.gui.cut_el) == (None, None)
+    assert (testobj.search_args, testobj._search_pos) == ([], None)
+    assert capsys.readouterr().out == ("called Gui.__init__\n"
+                                       "called Gui.init_gui with args ()\n"
+                                       "called Editor.init_tree with args ('new_root',)\n"
                                        f"called parse_nsmap with arg {testobj.xmlfn}\n"
                                        "called Editor.init_tree with args ('got root from tree',)\n"
                                        "called Gui.go\n")
@@ -503,17 +510,21 @@ def test_editor_init(monkeypatch, capsys):
     assert (testobj.ns_prefixes, testobj.ns_uris) == ([], [])
     assert capsys.readouterr().out == ("called Gui.__init__\n"
                                        "called Gui.init_gui with args ()\n"
-                                       "called Editor.init_tree with args ('(new root)',)\n"
+                                       "called Editor.init_tree with args ('new_root',)\n"
+                                       f"called parse_nsmap with arg {testobj.xmlfn}\n"
                                        "called Gui.meldfout with args ('got an OSError',)"
                                        " {'abort': True}\n"
                                        "called Gui.init_tree with args (None,)\n")
     monkeypatch.setattr(testee, 'parse_nsmap', mock_parse_nsmap_3)
+    # breakpoint()
     testobj = testee.Editor('testfile.xml')
     assert (testobj.ns_prefixes, testobj.ns_uris) == ([], [])
     assert capsys.readouterr().out == ("called Gui.__init__\n"
                                        "called Gui.init_gui with args ()\n"
-                                       "called Editor.init_tree with args ('(new root)',)\n"
-                                       "called Gui.meldfout with args ('got a ParseError',)"
+                                       "called Editor.init_tree with args ('new_root',)\n"
+                                       f"called parse_nsmap with arg {testobj.xmlfn}\n"
+                                       # "called Gui.meldfout with args ('got a ParseError',)"
+                                       "called Gui.meldfout with args ('got a ParseError (line 0)',)"
                                        " {'abort': True}\n"
                                        "called Gui.init_tree with args (None,)\n")
 
@@ -1178,9 +1189,9 @@ def test_editor_newxml(monkeypatch, capsys):
     assert testobj.xmlfn == ''
     assert capsys.readouterr().out == (
             "called Gui.ask_for_text with args ('Enter a name (tag) for the root element',"
-            " '(new root)')\n"
-            "created etree.Element for name `(new root)`\n"
-            "called Editor.init_tree with arg `(new root)`\n")
+            " 'new_root')\n"
+            "created etree.Element for name `new_root`\n"
+            "called Editor.init_tree with arg `new_root`\n")
     monkeypatch.setattr(testobj.gui, 'ask_for_text', lambda *x: 'element')
     testobj.newxml()
     assert testobj.xmlfn == ''
@@ -1206,7 +1217,8 @@ def test_editor_openxml(monkeypatch, capsys):
         """stub
         """
         print(f'called parse_nsmap with arg `{fname}`')
-        raise testee.et.ParseError('error')
+        # raise testee.et.ParseError('got a ParseError')  # ElementTree
+        raise testee.et.ParseError('got a ParseError', 0, 0, 0)  # lxml
     def mock_parse_nsmap_ok(fname):
         """stub
         """
@@ -1223,7 +1235,8 @@ def test_editor_openxml(monkeypatch, capsys):
     monkeypatch.setattr(testee, 'parse_nsmap', mock_parse_nsmap)
     testobj.openxml()
     assert capsys.readouterr().out == ("called parse_nsmap with arg `fname`\n"
-                                       "called Gui.meldfout with args ('error',) {}\n")
+                                       "called Gui.meldfout with args"
+                                       " ('got a ParseError (line 0)',) {}\n")
     monkeypatch.setattr(testee, 'parse_nsmap', mock_parse_nsmap_ok)
     testobj.openxml()
     assert capsys.readouterr().out == ("called Editor.init_tree with args ('element_root',"
