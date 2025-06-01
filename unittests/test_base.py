@@ -921,6 +921,9 @@ def test_editor_getshortname(monkeypatch, capsys):
     def mock_apply(name):
         print(f"called editor.apply_namespace_mapping with arg '{name}'")
         return name
+    def mock_apply_2(name):
+        print(f"called editor.apply_namespace_mapping with arg '{name}'")
+        raise AttributeError
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.apply_namespace_mapping = mock_apply
     assert testobj.getshortname(('xxx', '')) == '<> xxx'
@@ -930,6 +933,9 @@ def test_editor_getshortname(monkeypatch, capsys):
     assert testobj.getshortname(('xxx', 'yyy'), True) == 'xxx = yyy'
     assert capsys.readouterr().out == "called editor.apply_namespace_mapping with arg 'xxx'\n"
     assert testobj.getshortname(('xxx', 80 * 'y')) == f"<> xxx: {60 * 'y'}..."
+    assert capsys.readouterr().out == "called editor.apply_namespace_mapping with arg 'xxx'\n"
+    testobj.apply_namespace_mapping = mock_apply_2
+    assert testobj.getshortname(('xxx', '')) == '<!>'
     assert capsys.readouterr().out == "called editor.apply_namespace_mapping with arg 'xxx'\n"
 
 

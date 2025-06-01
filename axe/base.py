@@ -15,6 +15,7 @@ except ImportError:
 # import logging
 from .gui import Gui
 ELSTART = '<>'
+CMSTART = '<!>'
 axe_iconame = str(pathlib.Path(__file__).parent / "axe.ico")
 NEW_ROOT = 'new_root'
 TITLESTART = "Albert's (Simple) XML"
@@ -340,8 +341,13 @@ class Editor:
         max = 60
         if len(text) > max:
             text = text[:max].lstrip() + '...'
-        fullname = self.apply_namespace_mapping(fullname)
-        strt = f'{ELSTART} {fullname}'
+        try:
+            fullname = self.apply_namespace_mapping(fullname)
+        except AttributeError:
+            # fullname = 'Comment'
+            strt = CMSTART
+        else:
+            strt = f'{ELSTART} {fullname}'
         if is_attr:
             return f"{fullname} = {text}"
         if text:
@@ -389,7 +395,7 @@ class Editor:
             # print('in base.add_item after correction, insert is', insert)
         item = self.gui.add_node_to_parent(add_under, insert)
         self.gui.set_node_title(item, itemtext)
-        self.gui.set_node_data(item, name, value)
+        self.gui.set_node_data(item, str(name), value)
         return item
 
     def get_menu_data(self):
