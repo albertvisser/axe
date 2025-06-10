@@ -213,6 +213,7 @@ called StatusBar.__init__ with args ()
 called StatusBar.showMessage with arg `Ready`
 called Gui.init_menus
 called Tree.__init__
+called Tree.headerItem
 called TreeItem.__init__ with args ()
 called TreeItem.setHidden with arg `True`
 called MainWidget.setCentralWindow with arg of type `<class 'axe.gui_qt.VisualTree'>`
@@ -1284,9 +1285,9 @@ class TestEditCommand:
         testobj.old_state = ('xo', 'yo', 'zo')
         testobj.new_state = ('xn', 'yn', 'zn')
         testobj.redo()
-        assert capsys.readouterr().out == ("called TreeItem.setText with arg `xn` for col 0\n"
-                                           "called TreeItem.setText with arg `yn` for col 1\n"
-                                           "called TreeItem.setText with arg `zn` for col 2\n")
+        assert capsys.readouterr().out == ("called TreeItem.setText with args (0, 'xn')\n"
+                                           "called TreeItem.setText with args (1, 'yn')\n"
+                                           "called TreeItem.setText with args (2, 'zn')\n")
 
     def test_undo(self, monkeypatch, capsys):
         """unittest for EditCommand.undo
@@ -1301,17 +1302,17 @@ class TestEditCommand:
         testobj.new_state = ('xn', 'yn', 'zn')
         testobj.first_edit = True
         testobj.undo()
-        assert capsys.readouterr().out == ("called TreeItem.setText with arg `xo` for col 0\n"
-                                           "called TreeItem.setText with arg `yo` for col 1\n"
-                                           "called TreeItem.setText with arg `zo` for col 2\n"
+        assert capsys.readouterr().out == ("called TreeItem.setText with args (0, 'xo')\n"
+                                           "called TreeItem.setText with args (1, 'yo')\n"
+                                           "called TreeItem.setText with args (2, 'zo')\n"
                                            "called Editor.mark_dirty with arg False\n"
                                            "called StatusBar.showMessage with arg `text undone`\n")
 
         testobj.first_edit = False
         testobj.undo()
-        assert capsys.readouterr().out == ("called TreeItem.setText with arg `xo` for col 0\n"
-                                           "called TreeItem.setText with arg `yo` for col 1\n"
-                                           "called TreeItem.setText with arg `zo` for col 2\n"
+        assert capsys.readouterr().out == ("called TreeItem.setText with args (0, 'xo')\n"
+                                           "called TreeItem.setText with args (1, 'yo')\n"
+                                           "called TreeItem.setText with args (2, 'zo')\n"
                                            "called StatusBar.showMessage with arg `text undone`\n")
 
 
@@ -1359,8 +1360,8 @@ class TestCopyElementCommand:
         assert not testobj.retain
         assert testobj.first_edit
         assert capsys.readouterr().out == ("called UndoCommand.__init__ with args ('',) {}\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n")
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n")
         testobj = testee.CopyElementCommand(win, item, True, False, 'desc')
         assert testobj.undodata is None
         assert testobj.win == win
@@ -1371,8 +1372,8 @@ class TestCopyElementCommand:
         assert not testobj.retain
         assert testobj.first_edit
         assert capsys.readouterr().out == ("called UndoCommand.__init__ with args ('desc',) {}\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n")
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n")
 
     def test_redo(self, monkeypatch, capsys):
         """unittest for CopyElementCommand.redo
@@ -1418,19 +1419,19 @@ class TestCopyElementCommand:
         assert testobj.prev == previtem
         assert capsys.readouterr().out == ("called TreeItem.parent\n"
                                            "called TreeItem.indexOfChild\n"
-                                           "called TreeItem.text for col 0\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.text with arg 0\n"
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n"
                                            "called TreeItem.childCount\n"
                                            "called TreeItem.child with arg 0\n"
-                                           "called TreeItem.text for col 0\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.text with arg 0\n"
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n"
                                            "called TreeItem.childCount\n"
                                            "called TreeItem.child with arg 1\n"
-                                           "called TreeItem.text for col 0\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.text with arg 0\n"
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n"
                                            "called TreeItem.childCount\n"
                                            "called TreeItem.child with arg 0\n")
         testparent = mockqtw.MockTreeItem('p0', 'parent', 'zero')
@@ -1452,26 +1453,25 @@ class TestCopyElementCommand:
         assert testobj.prev == testparent
         assert capsys.readouterr().out == ("called TreeItem.parent\n"
                                            "called TreeItem.indexOfChild\n"
-                                           "called TreeItem.text for col 0\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.text with arg 0\n"
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n"
                                            "called TreeItem.childCount\n"
                                            "called TreeItem.child with arg 0\n"
-                                           "called TreeItem.text for col 0\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.text with arg 0\n"
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n"
                                            "called TreeItem.childCount\n"
                                            "called TreeItem.child with arg 1\n"
-                                           "called TreeItem.text for col 0\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.text with arg 0\n"
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n"
                                            "called TreeItem.childCount\n")
         testobj.win.editor = types.SimpleNamespace(rt=testparent)
         testobj.parent = None
         testobj.loc = None
         testobj.undodata = None
         testobj.prev = None
-        # breakpoint()
         testobj.redo()
         assert testobj.parent == testparent
         assert testobj.loc == 0
@@ -1480,19 +1480,19 @@ class TestCopyElementCommand:
         assert testobj.prev == nextitem
         assert capsys.readouterr().out == ("called TreeItem.parent\n"
                                            "called TreeItem.indexOfChild\n"
-                                           "called TreeItem.text for col 0\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.text with arg 0\n"
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n"
                                            "called TreeItem.childCount\n"
                                            "called TreeItem.child with arg 0\n"
-                                           "called TreeItem.text for col 0\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.text with arg 0\n"
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n"
                                            "called TreeItem.childCount\n"
                                            "called TreeItem.child with arg 1\n"
-                                           "called TreeItem.text for col 0\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n"
+                                           "called TreeItem.text with arg 0\n"
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n"
                                            "called TreeItem.childCount\n"
                                            "called TreeItem.child with arg 1\n")
 
@@ -1614,8 +1614,8 @@ class TestCopyAttributeCommand:
         assert not testobj.retain
         assert testobj.first_edit
         assert capsys.readouterr().out == ("called UndoCommand.__init__ with args ('desc',) {}\n"
-                                           "called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n")
+                                           "called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n")
 
     def test_redo(self, monkeypatch, capsys):
         """unittest for CopyAttributeCommand.redo
@@ -1840,7 +1840,7 @@ class TestGui:
         node = mockqtw.MockTreeItem('title')
         assert capsys.readouterr().out == "called TreeItem.__init__ with args ('title',)\n"
         assert testobj.get_node_title(node) == "title"
-        assert capsys.readouterr().out == "called TreeItem.text for col 0\n"
+        assert capsys.readouterr().out == "called TreeItem.text with arg 0\n"
 
     def test_get_node_data(self, monkeypatch, capsys):
         """unittest for Gui.get_node_data
@@ -1850,8 +1850,8 @@ class TestGui:
         assert capsys.readouterr().out == (
                 "called TreeItem.__init__ with args ('title', 'text', 'data')\n")
         assert testobj.get_node_data(node) == ('text', 'data')
-        assert capsys.readouterr().out == ("called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n")
+        assert capsys.readouterr().out == ("called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n")
 
     def test_get_treetop(self, monkeypatch, capsys):
         """unittest for Gui.get_treetop
@@ -1870,7 +1870,7 @@ class TestGui:
         assert testobj.get_treetop() == item2
         assert capsys.readouterr().out == ("called Tree.topLevelItem with arg `0`\n"
                                            "called TreeItem.child with arg 0\n"
-                                           "called TreeItem.text for col 0\n")
+                                           "called TreeItem.text with arg 0\n")
 
         item.insertChild(0, mockqtw.MockTreeItem('namespaces'))
         assert capsys.readouterr().out == ("called TreeItem.__init__ with args ('namespaces',)\n"
@@ -1883,7 +1883,7 @@ class TestGui:
         assert testobj.get_treetop() == item2
         assert capsys.readouterr().out == ("called Tree.topLevelItem with arg `0`\n"
                                            "called TreeItem.child with arg 0\n"
-                                           "called TreeItem.text for col 0\n"
+                                           "called TreeItem.text with arg 0\n"
                                            "called TreeItem.child with arg 1\n")
 
     def test_setup_new_tree(self, monkeypatch, capsys):
@@ -1897,14 +1897,14 @@ class TestGui:
         assert isinstance(testobj.setup_new_tree('Title'), testee.qtw.QTreeWidgetItem)
         assert capsys.readouterr().out == ("called Tree.clear\n"
                                            "called TreeItem.__init__ with args ()\n"
-                                           "called TreeItem.setText with arg `Title` for col 0\n"
+                                           "called TreeItem.setText with args (0, 'Title')\n"
                                            "called Tree.addTopLevelItem\n")
         testobj.editable = True
         assert isinstance(testobj.setup_new_tree('Title'), testee.qtw.QTreeWidgetItem)
         assert capsys.readouterr().out == ("called Tree.clear\n"
                                            "called UndoRedoStack.clear\n"
                                            "called TreeItem.__init__ with args ()\n"
-                                           "called TreeItem.setText with arg `Title` for col 0\n"
+                                           "called TreeItem.setText with args (0, 'Title')\n"
                                            "called Tree.addTopLevelItem\n")
 
     def test_add_node_to_parent(self, monkeypatch, capsys):
@@ -1925,7 +1925,7 @@ class TestGui:
         testobj = self.setup_testobj(monkeypatch, capsys)
         node = mock_and_create_nodes(monkeypatch, capsys, 1)[0]
         testobj.set_node_title(node, 'Title')
-        assert capsys.readouterr().out == "called TreeItem.setText with arg `Title` for col 0\n"
+        assert capsys.readouterr().out == "called TreeItem.setText with args (0, 'Title')\n"
 
     def test_get_node_parentpos(self, monkeypatch, capsys):
         """unittest for Gui.get_node_parentpos
@@ -1944,7 +1944,8 @@ class TestGui:
         testobj = self.setup_testobj(monkeypatch, capsys)
         node = mock_and_create_nodes(monkeypatch, capsys, 1)[0]
         testobj.set_node_data(node, 'Name', 'Value')
-        assert capsys.readouterr().out == ("called TreeItem.setText with arg `Name` for col 1\n""called TreeItem.setText with arg `Value` for col 2\n")
+        assert capsys.readouterr().out == ("called TreeItem.setText with args (1, 'Name')\n"
+                                           "called TreeItem.setText with args (2, 'Value')\n")
 
     def test_get_selected_item(self, monkeypatch, capsys):
         """unittest for Gui.get_selected_item
@@ -1971,11 +1972,11 @@ class TestGui:
                                            "called TreeItem.__init__ with args ('', 'aaa', '')\n")
         testobj.editor.rt = types.SimpleNamespace(tag='aaa', text=None)
         assert testobj.is_node_root()
-        assert capsys.readouterr().out == ("called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n")
+        assert capsys.readouterr().out == ("called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n")
         assert not testobj.is_node_root(node)
-        assert capsys.readouterr().out == ("called TreeItem.text for col 1\n"
-                                           "called TreeItem.text for col 2\n")
+        assert capsys.readouterr().out == ("called TreeItem.text with arg 1\n"
+                                           "called TreeItem.text with arg 2\n")
 
     def test_expand_item(self, monkeypatch, capsys):
         """unittest for Gui.expand_item
@@ -2077,17 +2078,17 @@ class TestGui:
                 f"called UndoStack.__init__ with args ({testobj},)\n")
         testobj.edit_item(testelement)
         assert capsys.readouterr().out == (
-                "called TreeItem.text for col 0\n"
-                "called TreeItem.text for col 1\n"
-                "called TreeItem.text for col 2\n"
+                "called TreeItem.text with arg 0\n"
+                "called TreeItem.text with arg 1\n"
+                "called TreeItem.text with arg 2\n"
                 f"called ElementDialog with args ({testobj},) {{'title': 'Edit an element',"
                 f" 'item': {{'item': {testelement}, 'tag': 'yyy', 'data': True, 'text': 'zzz'}}}}\n"
                 "called ElementDialog.exec\n")
         testobj.edit_item(testelement2)
         assert capsys.readouterr().out == (
-                "called TreeItem.text for col 0\n"
-                "called TreeItem.text for col 1\n"
-                "called TreeItem.text for col 2\n"
+                "called TreeItem.text with arg 0\n"
+                "called TreeItem.text with arg 1\n"
+                "called TreeItem.text with arg 2\n"
                 f"called ElementDialog with args ({testobj},) {{'title': 'Edit an element',"
                 f" 'item': {{'item': {testelement2}, 'tag': 'yyy'}}}}\n"
                 "called ElementDialog.exec\n")
@@ -2095,9 +2096,9 @@ class TestGui:
         testobj.data = {'tag': 'Tag', 'text': 'Text'}
         testobj.edit_item(testelement)
         assert capsys.readouterr().out == (
-                "called TreeItem.text for col 0\n"
-                "called TreeItem.text for col 1\n"
-                "called TreeItem.text for col 2\n"
+                "called TreeItem.text with arg 0\n"
+                "called TreeItem.text with arg 1\n"
+                "called TreeItem.text with arg 2\n"
                 f"called ElementDialog with args ({testobj},) {{'title': 'Edit an element',"
                 f" 'item': {{'item': {testelement}, 'tag': 'yyy', 'data': True, 'text': 'zzz'}}}}\n"
                 "called ElementDialog.exec\n"
@@ -2108,9 +2109,9 @@ class TestGui:
                 "called Editor.mark_dirty with arg True\n")
         testobj.edit_item(testattribute)
         assert capsys.readouterr().out == (
-                "called TreeItem.text for col 0\n"
-                "called TreeItem.text for col 1\n"
-                "called TreeItem.text for col 2\n"
+                "called TreeItem.text with arg 0\n"
+                "called TreeItem.text with arg 1\n"
+                "called TreeItem.text with arg 2\n"
                 f"called AttributeDialog with args ({testobj},) {{'title': 'Edit an attribute',"
                 f" 'item': {{'item': {testattribute}, 'name': 'yyy', 'value': 'zzz'}}}}\n"
                 "called AttributeDialog.exec\n")
@@ -2118,9 +2119,9 @@ class TestGui:
         testobj.data = {'name': 'Name', 'value': 'Value'}
         testobj.edit_item(testattribute)
         assert capsys.readouterr().out == (
-                "called TreeItem.text for col 0\n"
-                "called TreeItem.text for col 1\n"
-                "called TreeItem.text for col 2\n"
+                "called TreeItem.text with arg 0\n"
+                "called TreeItem.text with arg 1\n"
+                "called TreeItem.text with arg 2\n"
                 f"called AttributeDialog with args ({testobj},) {{'title': 'Edit an attribute',"
                 f" 'item': {{'item': {testattribute}, 'name': 'yyy', 'value': 'zzz'}}}}\n"
                 "called AttributeDialog.exec\n"
@@ -2152,7 +2153,7 @@ class TestGui:
         assert capsys.readouterr().out == (
                 "called TreeItem.__init__ with args ('<> x',)\n"
                 "called Editor.get_copy_text with args (False, True)\n"
-                "called TreeItem.text for col 0\n"
+                "called TreeItem.text with arg 0\n"
                 "called CopyElementCommand.__init__ with args"
                 f" ({testobj}, {item}, False, True, 'copy Element')\n"
                 "called UndoRedoStack.push\n")
@@ -2161,7 +2162,7 @@ class TestGui:
         assert capsys.readouterr().out == (
                 "called TreeItem.__init__ with args ('x',)\n"
                 "called Editor.get_copy_text with args (True, False)\n"
-                "called TreeItem.text for col 0\n"
+                "called TreeItem.text with arg 0\n"
                 "called CopyAttributeCommand.__init__ with args"
                 f" ({testobj}, {item}, True, False, 'copy Attribute')\n"
                 "called UndoRedoStack.push\n"
@@ -2564,6 +2565,7 @@ class TestGui:
                 "called Signal.connect with args ('cs1',)\n"
                 f"called Action.__init__ with args ('&Unlimited Undo', {testobj})\n"
                 f"called Signal.connect with args ({testobj.limit_undo},)\n"
+                "called Action.setCheckable with arg `True`\n"
                 "called Action.setChecked with arg `False`\n")
 
     def test_add_editactions_to_menu(self, monkeypatch, capsys):
