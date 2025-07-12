@@ -39,28 +39,28 @@ called Editor.setText with arg `{text}`
 called VBox.__init__
 called HBox.__init__
 called Grid.__init__
-called Grid.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'> at (0, 0)
+called Grid.addWidget with arg MockLabel at (0, 0)
 called HBox.__init__
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLineEdit'>
+called HBox.addWidget with arg MockLineEdit
 called HBox.addStretch
-called Grid.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'> at (0, 1)
-called Grid.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockCheckBox'> at ()
-called Grid.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockComboBox'> at ()
-called HBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockGridLayout'>
+called Grid.addLayout with arg MockHBoxLayout at (0, 1)
+called Grid.addWidget with arg MockCheckBox at ()
+called Grid.addWidget with arg MockComboBox at ()
+called HBox.addLayout with arg MockGridLayout
 called HBox.addStretch
-called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
+called VBox.addLayout with arg MockHBoxLayout
 called HBox.__init__
 called VBox.__init__
-called VBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockCheckBox'>
-called VBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockEditorWidget'>
-called HBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockVBoxLayout'>
-called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
+called VBox.addWidget with arg MockCheckBox
+called VBox.addWidget with arg MockEditorWidget
+called HBox.addLayout with arg MockVBoxLayout
+called VBox.addLayout with arg MockHBoxLayout
 called HBox.__init__
 called HBox.addStretch
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockPushButton'>
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockPushButton'>
+called HBox.addWidget with arg MockPushButton
+called HBox.addWidget with arg MockPushButton
 called HBox.addStretch
-called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
+called VBox.addLayout with arg MockHBoxLayout
 called Dialog.setLayout
 """
 attrdialog_start = """\
@@ -94,27 +94,27 @@ called LineEdit.setText with arg `{value}`
 called VBox.__init__
 called HBox.__init__
 called Grid.__init__
-called Grid.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'> at (0, 0)
+called Grid.addWidget with arg MockLabel at (0, 0)
 called HBox.__init__
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLineEdit'>
+called HBox.addWidget with arg MockLineEdit
 called HBox.addStretch
-called Grid.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'> at (0, 1)
-called Grid.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockCheckBox'> at (1, 0)
-called Grid.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockComboBox'> at (1, 1)
-called Grid.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'> at (2, 0)
+called Grid.addLayout with arg MockHBoxLayout at (0, 1)
+called Grid.addWidget with arg MockCheckBox at (1, 0)
+called Grid.addWidget with arg MockComboBox at (1, 1)
+called Grid.addWidget with arg MockLabel at (2, 0)
 called HBox.__init__
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLineEdit'>
+called HBox.addWidget with arg MockLineEdit
 called HBox.addStretch
-called Grid.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'> at (2, 1)
-called HBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockGridLayout'>
+called Grid.addLayout with arg MockHBoxLayout at (2, 1)
+called HBox.addLayout with arg MockGridLayout
 called HBox.addStretch
-called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
+called VBox.addLayout with arg MockHBoxLayout
 called HBox.__init__
 called HBox.addStretch
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockPushButton'>
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockPushButton'>
+called HBox.addWidget with arg MockPushButton
+called HBox.addWidget with arg MockPushButton
 called HBox.addStretch
-called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
+called VBox.addLayout with arg MockHBoxLayout
 called Dialog.setLayout
 """
 search = """\
@@ -123,62 +123,62 @@ called Dialog.setWindowTitle with args ('{title}',)
 called VBox.__init__
 called Grid.__init__
 called Label.__init__ with args ('Element', {testobj})
-called Grid.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'> at (0, 0)
+called Grid.addWidget with arg MockLabel at (0, 0)
 called VBox.__init__
 called HBox.__init__
 called Label.__init__ with args ('name:', {testobj})
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'>
+called HBox.addWidget with arg MockLabel
 called LineEdit.__init__
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLineEdit'>
-called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
-called Grid.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockVBoxLayout'> at (0, 1)
+called HBox.addWidget with arg MockLineEdit
+called VBox.addLayout with arg MockHBoxLayout
+called Grid.addLayout with arg MockVBoxLayout at (0, 1)
 called VBox.__init__
 called Label.__init__ with args ('Attribute', {testobj})
-called VBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'>
-called Grid.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockVBoxLayout'> at (1, 0)
+called VBox.addWidget with arg MockLabel
+called Grid.addLayout with arg MockVBoxLayout at (1, 0)
 called VBox.__init__
 called HBox.__init__
 called Label.__init__ with args ('name:', {testobj})
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'>
+called HBox.addWidget with arg MockLabel
 called LineEdit.__init__
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLineEdit'>
-called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
-called Grid.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockVBoxLayout'> at (1, 1)
+called HBox.addWidget with arg MockLineEdit
+called VBox.addLayout with arg MockHBoxLayout
+called Grid.addLayout with arg MockVBoxLayout at (1, 1)
 called VBox.__init__
 called HBox.__init__
 called Label.__init__ with args ('value:', {testobj})
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'>
+called HBox.addWidget with arg MockLabel
 called LineEdit.__init__
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLineEdit'>
-called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
-called Grid.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockVBoxLayout'> at (2, 1)
+called HBox.addWidget with arg MockLineEdit
+called VBox.addLayout with arg MockHBoxLayout
+called Grid.addLayout with arg MockVBoxLayout at (2, 1)
 called Label.__init__ with args ('Text', {testobj})
-called Grid.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'> at (3, 0)
+called Grid.addWidget with arg MockLabel at (3, 0)
 called HBox.__init__
 called Label.__init__ with args ('value:', {testobj})
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'>
+called HBox.addWidget with arg MockLabel
 called LineEdit.__init__
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLineEdit'>
-called Grid.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'> at (3, 1)
-called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockGridLayout'>
+called HBox.addWidget with arg MockLineEdit
+called Grid.addLayout with arg MockHBoxLayout at (3, 1)
+called VBox.addLayout with arg MockGridLayout
 called HBox.__init__
 called Label.__init__ with args ('', {testobj})
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'>
-called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
+called HBox.addWidget with arg MockLabel
+called VBox.addLayout with arg MockHBoxLayout
 called HBox.__init__
 called HBox.addStretch
 called PushButton.__init__ with args ('&Ok', {testobj}) {{}}
 called Signal.connect with args ({testobj.accept},)
 called PushButton.setDefault with arg `True`
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockPushButton'>
+called HBox.addWidget with arg MockPushButton
 called PushButton.__init__ with args ('&Cancel', {testobj}) {{}}
 called Signal.connect with args ({testobj.reject},)
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockPushButton'>
+called HBox.addWidget with arg MockPushButton
 called PushButton.__init__ with args ('C&lear Values', {testobj}) {{}}
 called Signal.connect with args (<bound method SearchDialog.clear_values of {testobj}>,)
-called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockPushButton'>
+called HBox.addWidget with arg MockPushButton
 called HBox.addStretch
-called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
+called VBox.addLayout with arg MockHBoxLayout
 called Dialog.setLayout
 called Signal.connect with args ({testobj.set_search},)
 called LineEdit.setText with arg `{name}`
@@ -216,7 +216,7 @@ called Tree.__init__
 called Tree.headerItem
 called TreeItem.__init__ with args ()
 called TreeItem.setHidden with arg `True`
-called MainWidget.setCentralWindow with arg of type `<class 'axe.gui_qt.VisualTree'>`
+called MainWidget.setCentralWindow with arg `VisualTree`
 """
 main_edit = """\
 called Gui.enable_pasteitems with arg False
