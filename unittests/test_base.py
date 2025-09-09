@@ -42,63 +42,72 @@ def test_find_in_flattened_tree(monkeypatch, capsys):
     monkeypatch.setattr(testee, 'apply_search_criteria_for_text', mock_apply_txt)
     data = []
     search_args = ['xx', 'yy', 'zz', 'qq']
-    assert testee.find_in_flattened_tree(data, search_args) == (None, False)
+    assert testee.find_in_flattened_tree(data, search_args, True) == (None, False)
     assert capsys.readouterr().out == ("")
-    assert testee.find_in_flattened_tree(data, search_args, pos=3) == (None, False)
-    assert capsys.readouterr().out == (
-            "called Editor.get_remaining_data_to_search with args (3, [])\n")
+    assert testee.find_in_flattened_tree(data, search_args, True, pos=3) == (None, False)
+    assert capsys.readouterr().out == ""
+    assert testee.find_in_flattened_tree(data, search_args, False, pos=3) == (None, False)
+    assert capsys.readouterr().out == ("called Editor.get_remaining_data_to_search with args"
+                                       " (3, [], ['xx', 'yy', 'zz', 'qq'])\n")
     data = [('item', 'a name', 'a text', 'a list')]
-    assert testee.find_in_flattened_tree(data, search_args) == (None, False)
+    assert testee.find_in_flattened_tree(data, search_args, True) == (None, False)
     assert capsys.readouterr().out == (
             "called apply_search_criteria_for_element with args ('xx', 'a name')\n"
             "called apply_search_criteria_for_attrs with args"
             " (['xx', 'yy', 'zz', 'qq'], 'a list', False)\n"
             "called apply_search_criteria_for_text with args ('qq', 'a text')\n")
     monkeypatch.setattr(testee, 'apply_search_criteria_for_element', mock_apply_ele_2)
-    assert testee.find_in_flattened_tree(data, search_args) == (None, False)
+    assert testee.find_in_flattened_tree(data, search_args, True) == (None, False)
     assert capsys.readouterr().out == (
             "called apply_search_criteria_for_element with args ('xx', 'a name')\n"
             "called apply_search_criteria_for_attrs with args"
             " (['xx', 'yy', 'zz', 'qq'], 'a list', False)\n"
             "called apply_search_criteria_for_text with args ('qq', 'a text')\n")
     monkeypatch.setattr(testee, 'apply_search_criteria_for_attrs', mock_apply_att_2)
-    assert testee.find_in_flattened_tree(data, search_args) == (None, False)
+    assert testee.find_in_flattened_tree(data, search_args, True) == (None, False)
     assert capsys.readouterr().out == (
             "called apply_search_criteria_for_element with args ('xx', 'a name')\n"
             "called apply_search_criteria_for_attrs with args"
             " (['xx', 'yy', 'zz', 'qq'], 'a list', False)\n"
             "called apply_search_criteria_for_text with args ('qq', 'a text')\n")
     monkeypatch.setattr(testee, 'apply_search_criteria_for_text', mock_apply_txt_2)
-    assert testee.find_in_flattened_tree(data, search_args) == ('node', True)
+    assert testee.find_in_flattened_tree(data, search_args, True) == ('node', True)
     assert capsys.readouterr().out == (
             "called apply_search_criteria_for_element with args ('xx', 'a name')\n"
             "called apply_search_criteria_for_attrs with args"
             " (['xx', 'yy', 'zz', 'qq'], 'a list', False)\n"
             "called apply_search_criteria_for_text with args ('qq', 'a text')\n")
     monkeypatch.setattr(testee, 'apply_search_criteria_for_attrs', mock_apply_att_3)
-    assert testee.find_in_flattened_tree(data, search_args) == ('item', False)
+    assert testee.find_in_flattened_tree(data, search_args, True) == ('item', False)
     assert capsys.readouterr().out == (
             "called apply_search_criteria_for_element with args ('xx', 'a name')\n"
             "called apply_search_criteria_for_attrs with args"
             " (['xx', 'yy', 'zz', 'qq'], 'a list', False)\n"
             "called apply_search_criteria_for_text with args ('qq', 'a text')\n")
     data = [('item', 'a name', 'a text', 'a list'), ('item 2', 'name 2', 'text 2', 'list 2')]
-    assert testee.find_in_flattened_tree(data, search_args) == ('item', False)
+    assert testee.find_in_flattened_tree(data, search_args, True) == ('item', False)
     assert capsys.readouterr().out == (
             "called apply_search_criteria_for_element with args ('xx', 'a name')\n"
             "called apply_search_criteria_for_attrs with args"
             " (['xx', 'yy', 'zz', 'qq'], 'a list', False)\n"
             "called apply_search_criteria_for_text with args ('qq', 'a text')\n")
-    assert testee.find_in_flattened_tree(data, search_args, True) == ('item 2', False)
+    assert testee.find_in_flattened_tree(data, search_args, True, True) == ('item 2', False)
     assert capsys.readouterr().out == (
             "called apply_search_criteria_for_element with args ('xx', 'name 2')\n"
             "called apply_search_criteria_for_attrs with args"
             " (['xx', 'yy', 'zz', 'qq'], 'list 2', True)\n"
             "called apply_search_criteria_for_text with args ('qq', 'text 2')\n")
     monkeypatch.setattr(testee, 'get_remaining_data_to_search', mock_get_2)
-    assert testee.find_in_flattened_tree(data, search_args, pos=3) == ('item 2', False)
+    assert testee.find_in_flattened_tree(data, search_args, True, pos=3) == ('item 2', False)
     assert capsys.readouterr().out == (
-            f"called Editor.get_remaining_data_to_search with args (3, {data})\n"
+            "called apply_search_criteria_for_element with args ('xx', 'name 2')\n"
+            "called apply_search_criteria_for_attrs with args"
+            " (['xx', 'yy', 'zz', 'qq'], 'list 2', False)\n"
+            "called apply_search_criteria_for_text with args ('qq', 'text 2')\n")
+    assert testee.find_in_flattened_tree(data, search_args, False, pos=3) == ('item 2', False)
+    assert capsys.readouterr().out == (
+            "called Editor.get_remaining_data_to_search with args"
+            f" (3, {data}, ['xx', 'yy', 'zz', 'qq'])\n"
             "called apply_search_criteria_for_element with args ('xx', 'name 2')\n"
             "called apply_search_criteria_for_attrs with args"
             " (['xx', 'yy', 'zz', 'qq'], 'list 2', False)\n"
@@ -108,46 +117,58 @@ def test_find_in_flattened_tree(monkeypatch, capsys):
 def test_get_remaining_data_to_search():
     """unittest for base.get_remaining_data_to_search
     """
-    # 55-76
     data = [(0, 'x'), (1, 'y'), (2, 'z')]
-    assert testee.get_remaining_data_to_search((0, False), data) == [(1, 'y'), (2, 'z')]
-    assert testee.get_remaining_data_to_search((1, False), data) == [(2, 'z')]
-    assert testee.get_remaining_data_to_search((2, False), data) == []
-    assert testee.get_remaining_data_to_search((3, False), data) == []
+    sargs = ['xx', 'yy', 'zz', 'qq']
+    assert testee.get_remaining_data_to_search((0, False), data, sargs) == [(1, 'y'), (2, 'z')]
+    assert testee.get_remaining_data_to_search((1, False), data, sargs) == [(2, 'z')]
+    assert testee.get_remaining_data_to_search((2, False), data, sargs) == []
+    assert testee.get_remaining_data_to_search((3, False), data, sargs) == []
     data = [(0, 'x', 'xx', [(1, 'a'), (2, 'b')]), (3, 'y', 'yy', [(4, 'c'), (5, 'd')]),
             (6, 'z', 'zz', [(7, 'e'), (8, 'f')])]
-    assert testee.get_remaining_data_to_search((0, False), data) == [
+    assert testee.get_remaining_data_to_search((0, False), data, sargs) == [
            (3, 'y', 'yy', [(4, 'c'), (5, 'd')]), (6, 'z', 'zz', [(7, 'e'), (8, 'f')])]
-    assert testee.get_remaining_data_to_search((0, True), data) == [(6, 'z', 'zz', [])]
-    assert testee.get_remaining_data_to_search((1, False), data) == []
-    assert testee.get_remaining_data_to_search((1, True), data) == [
+    sargs = ['', 'yy', 'zz', 'qq']
+    assert testee.get_remaining_data_to_search((0, False), data, sargs) == [
+           (3, 'y', 'yy', [(4, 'c'), (5, 'd')]), (6, 'z', 'zz', [(7, 'e'), (8, 'f')])]
+    sargs = ['xx', 'yy', 'zz', '']
+    assert testee.get_remaining_data_to_search((0, False), data, sargs) == [
+           (3, 'y', 'yy', [(4, 'c'), (5, 'd')]), (6, 'z', 'zz', [(7, 'e'), (8, 'f')])]
+    sargs = ['', 'yy', 'zz', '']
+    assert testee.get_remaining_data_to_search((0, False), data, sargs) == [
+           (0, 'x', 'xx', [(1, 'a'), (2, 'b')]), (3, 'y', 'yy', [(4, 'c'), (5, 'd')]),
+           (6, 'z', 'zz', [(7, 'e'), (8, 'f')])]
+    sargs = ['xx', 'yy', 'zz', 'qq']
+    assert testee.get_remaining_data_to_search((0, True), data, sargs) == [(6, 'z', 'zz', [])]
+    assert testee.get_remaining_data_to_search((1, False), data, sargs) == []
+    assert testee.get_remaining_data_to_search((1, True), data, sargs) == [
            (0, 'x', 'xx', [(2, 'b')]), (3, 'y', 'yy', [(4, 'c'), (5, 'd')]),
            (6, 'z', 'zz', [(7, 'e'), (8, 'f')])]
-    assert testee.get_remaining_data_to_search((2, False), data) == []
-    assert testee.get_remaining_data_to_search((2, True), data) == [
+
+    assert testee.get_remaining_data_to_search((2, False), data, sargs) == []
+    assert testee.get_remaining_data_to_search((2, True), data, sargs) == [
             (0, 'x', 'xx', []), (3, 'y', 'yy', [(4, 'c'), (5, 'd')]),
             (6, 'z', 'zz', [(7, 'e'), (8, 'f')])]
-    assert testee.get_remaining_data_to_search((3, False), data) == [
+    assert testee.get_remaining_data_to_search((3, False), data, sargs) == [
             (6, 'z', 'zz', [(7, 'e'), (8, 'f')])]
-    assert testee.get_remaining_data_to_search((3, True), data) == [(6, 'z', 'zz', [])]
-    assert testee.get_remaining_data_to_search((4, False), data) == []
-    assert testee.get_remaining_data_to_search((4, True), data) == [
+    assert testee.get_remaining_data_to_search((3, True), data, sargs) == [(6, 'z', 'zz', [])]
+    assert testee.get_remaining_data_to_search((4, False), data, sargs) == []
+    assert testee.get_remaining_data_to_search((4, True), data, sargs) == [
            (3, 'y', 'yy', [(5, 'd')]), (6, 'z', 'zz', [(7, 'e'), (8, 'f')])]
-    assert testee.get_remaining_data_to_search((5, False), data) == []
-    assert testee.get_remaining_data_to_search((5, True), data) == [
+    assert testee.get_remaining_data_to_search((5, False), data, sargs) == []
+    assert testee.get_remaining_data_to_search((5, True), data, sargs) == [
            (3, 'y', 'yy', []), (6, 'z', 'zz', [(7, 'e'), (8, 'f')])]
-    assert testee.get_remaining_data_to_search((6, False), data) == []
-    assert testee.get_remaining_data_to_search((6, True), data) == [(6, 'z', 'zz', [])]
-    assert testee.get_remaining_data_to_search((7, False), data) == []
-    assert testee.get_remaining_data_to_search((7, True), data) == [
+    assert testee.get_remaining_data_to_search((6, False), data, sargs) == []
+    assert testee.get_remaining_data_to_search((6, True), data, sargs) == [(6, 'z', 'zz', [])]
+    assert testee.get_remaining_data_to_search((7, False), data, sargs) == []
+    assert testee.get_remaining_data_to_search((7, True), data, sargs) == [
             (6, 'z', 'zz', [(8, 'f')])]
-    assert testee.get_remaining_data_to_search((8, False), data) == []
-    assert testee.get_remaining_data_to_search((8, True), data) == [(6, 'z', 'zz', [])]
-    assert testee.get_remaining_data_to_search((9, False), data) == []
+    assert testee.get_remaining_data_to_search((8, False), data, sargs) == []
+    assert testee.get_remaining_data_to_search((8, True), data, sargs) == [(6, 'z', 'zz', [])]
+    assert testee.get_remaining_data_to_search((9, False), data, sargs) == []
     # dit lijkt me ook niet goed:
-    assert testee.get_remaining_data_to_search((9, True), data) == [(6, 'z', 'zz', [])]
-    assert testee.get_remaining_data_to_search((10, True), data) == [(6, 'z', 'zz', [])]
-    assert testee.get_remaining_data_to_search((11, True), data) == [(6, 'z', 'zz', [])]
+    assert testee.get_remaining_data_to_search((9, True), data, sargs) == [(6, 'z', 'zz', [])]
+    assert testee.get_remaining_data_to_search((10, True), data, sargs) == [(6, 'z', 'zz', [])]
+    assert testee.get_remaining_data_to_search((11, True), data, sargs) == [(6, 'z', 'zz', [])]
 
 
 def test_apply_search_criteria_for_element():
@@ -336,6 +357,8 @@ class MockGui:
     def get_selected_item(self):
         """stub
         """
+        print('called Gui.get_selected_item')
+        return 'selected'
     def set_selected_item(self, item):
         """stub
         """
@@ -617,30 +640,45 @@ def test_editor_check_tree(monkeypatch, capsys):
 def test_editor_checkselection(monkeypatch, capsys):
     """unittest for base.editor_checkselection
     """
+    def mock_get():
+        """stub
+        """
+        print('called Gui.get_selected_item')
+        return None
+    def mock_get2():
+        """stub
+        """
+        print('called Gui.get_selected_item')
+        return 'top'
     testobj = mock_init_editor(monkeypatch, capsys)
-    monkeypatch.setattr(testobj.gui, 'get_selected_item', lambda *x: 'selected')
     testobj.readonly = True
     testobj.top = 'top'
     assert testobj.checkselection()
     assert testobj.item == 'selected'
-    assert capsys.readouterr().out == ''
+    assert capsys.readouterr().out == 'called Gui.get_selected_item\n'
 
     testobj.readonly = False
     assert testobj.checkselection()
     assert testobj.item == 'selected'
-    assert capsys.readouterr().out == ''
+    assert capsys.readouterr().out == 'called Gui.get_selected_item\n'
 
-    monkeypatch.setattr(testobj.gui, 'get_selected_item', lambda *x: None)
+    testobj.gui.get_selected_item = mock_get
     assert not testobj.checkselection()
     assert testobj.item is None
-    assert capsys.readouterr().out == ("called Gui.meldinfo with args ('You need"
+    assert capsys.readouterr().out == ("called Gui.get_selected_item\n"
+                                       "called Gui.meldinfo with args ('You need"
                                        " to select an element or attribute first',) {}\n")
 
-    monkeypatch.setattr(testobj.gui, 'get_selected_item', lambda *x: 'top')
+    testobj.gui.get_selected_item = mock_get2
     assert not testobj.checkselection()
     assert testobj.item == 'top'
-    assert capsys.readouterr().out == ("called Gui.meldinfo with args ('You need"
+    assert capsys.readouterr().out == ("called Gui.get_selected_item\n"
+                                       "called Gui.meldinfo with args ('You need"
                                        " to select an element or attribute first',) {}\n")
+
+    assert not testobj.checkselection(False)
+    assert testobj.item == 'top'
+    assert capsys.readouterr().out == "called Gui.get_selected_item\n"
 
 
 def test_editor_writexml(monkeypatch, capsys):
@@ -1049,13 +1087,15 @@ def test_editor_get_menu_data(monkeypatch, capsys):
                                          "&Delete", "C&ut", "&Copy", "Paste Before", "Paste After",
                                          "Paste Under", "Insert Attribute", 'Insert Element Before',
                                          'Insert Element After', 'Insert Element Under']
-    assert [x[0] for x in result[3]] == [ "&Find", "Find &Last", "Find &Next", "Find &Previous" ]
+    assert [x[0] for x in result[3]] == ["&Find", "Find from &Here", "Find &Next", "Find &Last",
+                                         "Find &Backwards from here", "Find &Previous"]
     testobj.readonly = True
     result = testobj.get_menu_data()
     assert len(result) == len(['File', 'View', 'Search'])
     assert [x[0] for x in result[0]] == ['&Open', 'E&xit']
     assert [x[0] for x in result[1]] == ["&Expand All (sub)Levels", "&Collapse All (sub)Levels"]
-    assert [x[0] for x in result[2]] == [ "&Find", "Find &Last", "Find &Next", "Find &Previous" ]
+    assert [x[0] for x in result[2]] == ["&Find", "Find from &Here", "Find &Next", "Find &Last",
+                                         "Find &Backwards from here", "Find &Previous"]
 
 
 def test_editor_flatten_tree(monkeypatch, capsys):
@@ -1107,10 +1147,15 @@ def test_editor_flatten_tree(monkeypatch, capsys):
 def test_editor_find_first(monkeypatch, capsys):
     """unittest for base.editor_find_first
     """
-    def mock_find_next(value):
+    def mock_get(node):
         """stub
         """
-        print(f'called Editor.find_next with arg `{value}`')
+        print(f'called Gui.get_node_title with arg `{node}`')
+        return '<> title'
+    def mock_find_next(*args):
+        """stub
+        """
+        print('called Editor.find_next with args', args)
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.find_next = mock_find_next
     testobj.find_first()
@@ -1119,17 +1164,25 @@ def test_editor_find_first(monkeypatch, capsys):
     monkeypatch.setattr(testobj, 'checkselection', lambda *x, **y: True)
     testobj.item = 'item'
     testobj.find_first()
-    assert testobj._search_pos == ('item', None)
-    assert capsys.readouterr().out == 'called Editor.find_next with arg `False`\n'
+    assert testobj._search_pos == ('item', True)
+    assert capsys.readouterr().out == ('called Gui.get_selected_item\n'
+                                       'called Gui.get_node_title with arg `selected`\n'
+                                       'called Editor.find_next with args (False, False)\n')
+    testobj.gui.get_node_title = mock_get
+    testobj.find_first()
+    assert testobj._search_pos == ('item', False)
+    assert capsys.readouterr().out == ('called Gui.get_selected_item\n'
+                                       'called Gui.get_node_title with arg `selected`\n'
+                                       'called Editor.find_next with args (False, False)\n')
     monkeypatch.setattr(testobj, 'checkselection', lambda *x, **y: False)
     testobj.find_first()
-    assert testobj._search_pos == ('child1', None)
-    assert capsys.readouterr().out == ('called Gui.get_node_children with arg `treetop`\n'
-                                       'called Editor.find_next with arg `False`\n')
+    assert testobj._search_pos == (None, None)  # was ('child1', None)
+    assert capsys.readouterr().out == (  # 'called Gui.get_node_children with arg `treetop`\n'
+                                       'called Editor.find_next with args (True, False)\n')
     testobj.find_first(reverse=True)
-    assert testobj._search_pos == ('child2', None)
-    assert capsys.readouterr().out == ('called Gui.get_node_children with arg `treetop`\n'
-                                       'called Editor.find_next with arg `True`\n')
+    assert testobj._search_pos == (None, None)  # was ('child2', None)
+    assert capsys.readouterr().out == (  # 'called Gui.get_node_children with arg `treetop`\n'
+                                       'called Editor.find_next with args (True, True)\n')
 
 
 def test_editor_find_next(monkeypatch, capsys):
@@ -1147,26 +1200,28 @@ def test_editor_find_next(monkeypatch, capsys):
     monkeypatch.setattr(testee, 'find_in_flattened_tree', mock_find_in_flattened_tree)
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.flatten_tree = mock_flatten_tree
-    testobj.find_next()
+    testobj.find_next(True)
     assert capsys.readouterr().out == ('called Gui.meldinfo with args'
                                        ' (\'You need to "Find" something first\',) {}\n')
     testobj.top = 'top'
     testobj.search_args = 'search_args'
     testobj._search_pos = ('node', True)
-    testobj.find_next()
+    testobj.find_next(True)
     assert capsys.readouterr().out == (
             "called Editor.flatten_tree with arg `top`\n"
-            "called find_in_flattened_tree with args (None, 'search_args', False, ('node', True))\n"
+            "called find_in_flattened_tree with args"
+            " (None, 'search_args', True, False, ('node', True))\n"
             "called Gui.set_selected_item with arg `itemfound`\n")
     testobj._search_pos = ('node', True)
-    testobj.find_next(reverse=True)
+    testobj.find_next(True, reverse=True)
     assert capsys.readouterr().out == (
             "called Editor.flatten_tree with arg `top`\n"
-            "called find_in_flattened_tree with args (None, 'search_args', True, ('node', True))\n"
+            "called find_in_flattened_tree with args"
+            " (None, 'search_args', True, True, ('node', True))\n"
             "called Gui.set_selected_item with arg `itemfound`\n")
     monkeypatch.setattr(testee, 'find_in_flattened_tree', lambda *x: (None, None))
     testobj._search_pos = ('node', True)
-    testobj.find_next()
+    testobj.find_next(True)
     assert capsys.readouterr().out == (
             "called Editor.flatten_tree with arg `top`\n"
             "called Gui.meldinfo with args ('Niks (meer) gevonden',) {}\n")
@@ -1496,7 +1551,7 @@ def test_editor_insert_child(monkeypatch, capsys):
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.insert = mock_insert
     testobj.insert_child()
-    assert capsys.readouterr().out == f"called Editor.insert with args () {{'below': True}}\n"
+    assert capsys.readouterr().out == "called Editor.insert with args () {'below': True}\n"
 
 
 def test_editor_insert(monkeypatch, capsys):
@@ -1533,17 +1588,52 @@ def test_editor_insert(monkeypatch, capsys):
 def test_editor_search(monkeypatch, capsys):
     """unittest for base.editor_search
     """
+    def mock_set(arg):
+        print(f"called EditorGui,set_selected_item with arg '{arg}'")
+    def mock_find_first(*args, **kwargs):
+        """stub        """
+        print('called Editor.find_first with args', args, kwargs)
+    testobj = mock_init_editor(monkeypatch, capsys)
+    testobj.top = 'top item'
+    testobj.gui.set_selected_item = mock_set
+    testobj.find_first = mock_find_first
+    testobj.search()
+    assert capsys.readouterr().out == ("called EditorGui,set_selected_item with arg 'top item'\n"
+                                       "called Editor.find_first with args () {}\n")
+
+
+def test_editor_search_from_here(monkeypatch, capsys):
+    """unittest for base.editor_search_from_here
+    """
     def mock_find_first(*args, **kwargs):
         """stub        """
         print('called Editor.find_first with args', args, kwargs)
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.find_first = mock_find_first
-    testobj.search()
+    testobj.search_from_here()
     assert capsys.readouterr().out == "called Editor.find_first with args () {}\n"
 
 
 def test_editor_search_last(monkeypatch, capsys):
     """unittest for base.editor_search_last
+    """
+    def mock_set(arg):
+        print(f"called EditorGui,set_selected_item with arg '{arg}'")
+    def mock_find_first(*args, **kwargs):
+        """stub
+        """
+        print('called Editor.find_first with args', args, kwargs)
+    testobj = mock_init_editor(monkeypatch, capsys)
+    testobj.top = 'top item'
+    testobj.gui.set_selected_item = mock_set
+    testobj.find_first = mock_find_first
+    testobj.search_last()
+    assert capsys.readouterr().out == ("called EditorGui,set_selected_item with arg 'top item'\n"
+                                       "called Editor.find_first with args () {'reverse': True}\n")
+
+
+def test_editor_search_backwards_from_here(monkeypatch, capsys):
+    """unittest for base.editor_search_backwards_from_here
     """
     def mock_find_first(*args, **kwargs):
         """stub
@@ -1551,7 +1641,7 @@ def test_editor_search_last(monkeypatch, capsys):
         print('called Editor.find_first with args', args, kwargs)
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.find_first = mock_find_first
-    testobj.search_last()
+    testobj.search_backwards_from_here()
     assert capsys.readouterr().out == "called Editor.find_first with args () {'reverse': True}\n"
 
 
@@ -1565,7 +1655,8 @@ def test_editor_search_next(monkeypatch, capsys):
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.find_next = mock_find_next
     testobj.search_next()
-    assert capsys.readouterr().out == "called Editor.find_next with args () {}\n"
+    assert capsys.readouterr().out == (
+            "called Editor.find_next with args () {'from_the_top': False}\n")
 
 
 def test_editor_search_prev(monkeypatch, capsys):
@@ -1578,17 +1669,18 @@ def test_editor_search_prev(monkeypatch, capsys):
     testobj = mock_init_editor(monkeypatch, capsys)
     testobj.find_next = mock_find_next
     testobj.search_prev()
-    assert capsys.readouterr().out == "called Editor.find_next with args () {'reverse': True}\n"
+    assert capsys.readouterr().out == (
+            "called Editor.find_next with args () {'from_the_top': False, 'reverse': True}\n")
 
 
 def test_editor_build_search_description(monkeypatch, capsys):
     """unittest for base.editor_get_search_text
     """
     testobj = mock_init_editor(monkeypatch, capsys)
-    assert testobj.build_search_description("", '', '', '') == ['' ]
+    assert testobj.build_search_description("", '', '', '') == ['']
     assert testobj.build_search_description("xxxx", '', '', '') == ['search for',
                                                                     ' an element that has a name',
-                                                                    '   containing `xxxx`' ]
+                                                                    '   containing `xxxx`']
     assert testobj.build_search_description("", 'yyyy', '', '') == [
             'search for an attribute that has a name',
             '   containing `yyyy`']
@@ -1638,14 +1730,14 @@ def test_editor_build_search_description(monkeypatch, capsys):
            ' with an attribute that has a name',
            '   containing `yyyy`',
            ' and a value',
-           '   containing `zzzz`' ]
+           '   containing `zzzz`']
     assert testobj.build_search_description("xxxx", 'yyyy', '', 'qqqq') == [
            'search for text',
            '   `qqqq`',
            ' under an element that has a name',
            '   containing `xxxx`',
            ' with an attribute that has a name',
-           '   containing `yyyy`' ]
+           '   containing `yyyy`']
     assert testobj.build_search_description("xxxx", '', 'zzzz', 'qqqq') == [
             'search for text',
             '   `qqqq`',
@@ -1660,7 +1752,7 @@ def test_editor_build_search_description(monkeypatch, capsys):
            ' an attribute that has a name',
            '   containing `yyyy`',
            ' and a value',
-           '   containing `zzzz`' ]
+           '   containing `zzzz`']
     assert testobj.build_search_description("xxxx", 'yyyy', 'zzzz', 'qqqq') == [
            'search for text',
            '   `qqqq`',
@@ -1669,7 +1761,7 @@ def test_editor_build_search_description(monkeypatch, capsys):
            ' with an attribute that has a name',
            '   containing `yyyy`',
            ' and a value',
-           '   containing `zzzz`' ]
+           '   containing `zzzz`']
 
 
 def test_editor_replace(monkeypatch, capsys):

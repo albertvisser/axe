@@ -773,7 +773,7 @@ class Gui(qtw.QMainWindow):
         return node.text(1), node.text(2)
 
     def get_treetop(self):
-        "return the visual tree's root element"
+        "return the visual tree's root element (below the filename)"
         top = self.tree.topLevelItem(0)
         rt = top.child(0)
         if rt.text(0) == 'namespaces':

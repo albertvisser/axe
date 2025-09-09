@@ -61,7 +61,7 @@ called HBox.addWidget with arg MockPushButton
 called HBox.addWidget with arg MockPushButton
 called HBox.addStretch
 called VBox.addLayout with arg MockHBoxLayout
-called Dialog.setLayout
+called Dialog.setLayout with arg MockVBoxLayout
 """
 attrdialog_start = """\
 called Dialog.__init__ with args {testobj.parent} () {{}}
@@ -115,7 +115,7 @@ called HBox.addWidget with arg MockPushButton
 called HBox.addWidget with arg MockPushButton
 called HBox.addStretch
 called VBox.addLayout with arg MockHBoxLayout
-called Dialog.setLayout
+called Dialog.setLayout with arg MockVBoxLayout
 """
 search = """\
 called Dialog.__init__ with args {testobj.parent} () {{}}
@@ -179,7 +179,7 @@ called Signal.connect with args (<bound method SearchDialog.clear_values of {tes
 called HBox.addWidget with arg MockPushButton
 called HBox.addStretch
 called VBox.addLayout with arg MockHBoxLayout
-called Dialog.setLayout
+called Dialog.setLayout with arg MockVBoxLayout
 called Signal.connect with args ({testobj.set_search},)
 called LineEdit.setText with arg `{name}`
 called Signal.connect with args ({testobj.set_search},)
@@ -1856,15 +1856,18 @@ class TestGui:
     def test_get_treetop(self, monkeypatch, capsys):
         """unittest for Gui.get_treetop
         """
+        def mock_item(arg):
+            print(f'called Tree.topLevelItem with arg `{arg}`')
+            return item
+        def mock_item_2(arg):
+            print(f'called Tree.topLevelItem with arg `{arg}`')
+            return item
         item = mockqtw.MockTreeItem()
         item2 = mockqtw.MockTreeItem('x')
         item.addChild(item2)
         assert capsys.readouterr().out == ("called TreeItem.__init__ with args ()\n"
                                            "called TreeItem.__init__ with args ('x',)\n"
                                            "called TreeItem.addChild\n")
-        def mock_item(arg):
-            print(f'called Tree.topLevelItem with arg `{arg}`')
-            return item
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.tree.topLevelItem = mock_item
         assert testobj.get_treetop() == item2
@@ -1875,11 +1878,8 @@ class TestGui:
         item.insertChild(0, mockqtw.MockTreeItem('namespaces'))
         assert capsys.readouterr().out == ("called TreeItem.__init__ with args ('namespaces',)\n"
                                            "called TreeItem.insertChild at pos 0\n")
-        def mock_item(arg):
-            print(f'called Tree.topLevelItem with arg `{arg}`')
-            return item
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.tree.topLevelItem = mock_item
+        testobj.tree.topLevelItem = mock_item_2
         assert testobj.get_treetop() == item2
         assert capsys.readouterr().out == ("called Tree.topLevelItem with arg `0`\n"
                                            "called TreeItem.child with arg 0\n"
@@ -2830,7 +2830,6 @@ class TestGui:
         testobj.quit()
         assert capsys.readouterr().out == "called Gui.close\n"
 
-# 1167->1170
     def test_on_keyup(self, monkeypatch, capsys):
         """unittest for Gui.on_keyup
         """

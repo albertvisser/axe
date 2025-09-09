@@ -22,27 +22,26 @@ TITLESTART = "Albert's (Simple) XML"
 ASKTOSAVE = "XML data has been modified - save before continuing?"
 
 
-def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
+def find_in_flattened_tree(data, search_args, from_the_top, reverse=False, pos=None):
     """searches the flattened tree from start or the given pos
     to find the next item that fulfills the search criteria
     """
-    # print('in find_in_flattened_tree:', search_args)
     wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
     if reverse:
         data.reverse()
 
-    if pos:
-        data = get_remaining_data_to_search(pos, data)
+    if pos and not from_the_top:
+        data = get_remaining_data_to_search(pos, data, search_args)
         if not data:
             return None, False  # no more data to search
 
     itemfound = False
+    # print(f'in find_in_flattened_tree: {wanted_ele=}, {wanted_attr=}, {wanted_value=},'
+    #       f' {wanted_text=}')
     for item, element_name, element_text, attr_list in data:
         ele_ok = apply_search_criteria_for_element(wanted_ele, element_name)
         attr_ok, attr_item = apply_search_criteria_for_attrs(search_args, attr_list, reverse)
         text_ok = apply_search_criteria_for_text(wanted_text, element_text)
-        # ok = ele_ok and text_ok and attr_ok
-        # if ok:
         if all((ele_ok, attr_ok, text_ok)):
             if attr_item:
                 itemfound, is_attr = attr_item, True
@@ -54,27 +53,40 @@ def find_in_flattened_tree(data, search_args, reverse=False, pos=None):
     return None, False
 
 
-def get_remaining_data_to_search(pos, data):
+def get_remaining_data_to_search(pos, data, search_args):
     "return the portion of the flattened tree that is still to be searched"
+    wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
     pos, is_attr = pos
-    ## found_item = False
-    for ix, item in enumerate(data):
+    attridx = -1
+    # print(f'\n{pos=}, {is_attr=}')
+    for elemidx, item in enumerate(data):
+        # print(f'{elemidx=}, {item[:3]=}')
         if is_attr:
             found_attr = False
-            for ix2, attr in enumerate(item[3]):
+            for attridx, attr in enumerate(item[3]):
+                # print(f'{attridx=}, {attr=}')
                 if attr[0] == pos:
                     found_attr = True
                     break
             if found_attr:
+                # print('found attr')
                 break
         elif item[0] == pos:
+            # print('found ele')
             break
+    # print(f"\nin get_remaining_data_to_search, {elemidx=}, {attridx=}", flush=True)
     if is_attr:
-        data = data[ix:]
+        data = data[elemidx:]
         id, name, text, attrs = data[0]
-        data[0] = id, name, text, attrs[ix2 + 1:]
-    elif ix < len(data) - 1:
-        data = data[ix + 1:]
+        data[0] = id, name, text, attrs[attridx + 1:]
+    elif elemidx < len(data) - 1:
+        # we zitten op een element - als we naar een attribuut zoeken moeten we hier beginnen
+        # if wanted_attr or wanted_value and not (wanted_ele or wanted_text):
+        #     data = data[elemidx:]
+        # else:
+        #     data = data[elemidx + 1:]
+        cutoff = elemidx + 1 if wanted_ele or wanted_text else elemidx
+        data = data[cutoff:]
     else:
         data = []
     return data
@@ -84,9 +96,11 @@ def apply_search_criteria_for_element(wanted_ele, element_name):
     """return True if an element is found that conforms to the criteria
     or if no criteria are provided, otherwise False
     """
+    # print(f'in apply_for_ele, {wanted_ele=} {element_name=}', end=' ')
     ele_ok = False
     if not wanted_ele or wanted_ele in element_name:
         ele_ok = True
+    # print(f'{ele_ok=}', flush=True)
     return ele_ok
 
 
@@ -94,9 +108,11 @@ def apply_search_criteria_for_text(wanted_text, element_text):
     """return True if element text is found that conforms to the criteria
     or if no criteria are provided, otherwise False
     """
+    # print(f'in apply_for_text, {wanted_text=} {element_text=}', end=' ')
     text_ok = False
     if not wanted_text or wanted_text in element_text:
         text_ok = True
+    # print(f'{text_ok=}', flush=True)
     return text_ok
 
 
@@ -109,9 +125,11 @@ def apply_search_criteria_for_attrs(search_args, attr_list, reverse):
     attr_name_ok = attr_value_ok = attr_ok = False
     attr_item = None
     if attr_list and (wanted_attr or wanted_value):
+        # print(f'in apply_for_attr, {wanted_attr=}, {wanted_value=},', end=' ')
         if reverse:
             attr_list.reverse()
         for attr, name, value in attr_list:
+            # print(f'{name=}, {value=}, {attr=}')
             attr_name_ok = attr_value_ok = False
             if not wanted_attr or wanted_attr in name:
                 attr_name_ok = True
@@ -126,6 +144,7 @@ def apply_search_criteria_for_attrs(search_args, attr_list, reverse):
                 break
     elif not wanted_attr and not wanted_value:
         attr_ok = True
+    # print(f'{attr_name_ok=}, {attr_value_ok=}, {attr_ok=}', flush=True)
     return attr_ok, attr_item
 
 
@@ -243,9 +262,10 @@ class Editor:
         sel = True
         self.item = self.gui.get_selected_item()  # self.tree.Selection
         if self.readonly:
-            return sel
-        if message and (self.item is None or self.item == self.top):
-            self.gui.meldinfo('You need to select an element or attribute first')
+            pass
+        elif self.item is None or self.item == self.top:
+            if message:
+                self.gui.meldinfo('You need to select an element or attribute first')
             sel = False
         return sel
 
@@ -422,8 +442,10 @@ class Editor:
                  ('Insert Element After', self.insert_after, 'Alt+Insert'),
                  ('Insert Element Under', self.insert_child, 'Insert')),
                 (("&Find", self.search, 'Ctrl+F'),
-                 ("Find &Last", self.search_last, 'Shift+Ctrl+F'),
+                 ("Find from &Here", self.search_from_here, 'Ctrl+H'),
                  ("Find &Next", self.search_next, 'F3'),
+                 ("Find &Last", self.search_last, 'Shift+Ctrl+F'),
+                 ("Find &Backwards from here", self.search_backwards_from_here, 'Shift+Ctrl+H'),
                  ("Find &Previous", self.search_prev, 'Shift+F3'))]
                  # ("&Replace", self.replace, 'Ctrl+H'))]
         if self.readonly:
@@ -458,27 +480,34 @@ class Editor:
                 # attr_list.append((subel, *self.gui.get_node_data(subel)))
                 x, y = self.gui.get_node_data(subel)
                 attr_list.append((subel, x, y))
-        # for item in elem_list:
-        #     print(item)
+        # print(f'in flatten_tree: {elem_list=}')
         return elem_list
 
     def find_first(self, reverse=False):
         "start search after asking for options"
         if self.gui.ask_for_search_args():
             if self.checkselection(message=False):
-                self._search_pos = self.item, None
+                # print('in find_first, an item was selected,', end=' ')
+                itemtext = self.gui.get_node_title(self.gui.get_selected_item())
+                is_attr = not itemtext.startswith(ELSTART)
+                # print(f'{itemtext}, {is_attr}', flush=True)
+                self._search_pos = self.item, is_attr
+                from_the_top = False
             else:
-                loc = -1 if reverse else 0
-                self._search_pos = self.gui.get_node_children(self.gui.get_treetop())[loc], None
-            self.find_next(reverse)
+                # print('in find_first, no item was selected,', flush=True)
+                # loc = -1 if reverse else 0
+                # self._search_pos = self.gui.get_node_children(self.gui.get_treetop())[loc], None
+                self._search_pos = None, None  # wordt genegeerd vanwege from_the_top
+                from_the_top = True
+            self.find_next(from_the_top, reverse)
 
-    def find_next(self, reverse=False):
+    def find_next(self, from_the_top, reverse=False):
         "find (default is forward)"
         if self._search_pos is None:
             self.gui.meldinfo('You need to "Find" something first')
             return
         found, is_attr = find_in_flattened_tree(self.flatten_tree(self.top), self.search_args,
-                                                reverse, self._search_pos)
+                                                from_the_top, reverse, self._search_pos)
         if found:
             self.gui.set_selected_item(found)
             self._search_pos = (found, is_attr)
@@ -632,19 +661,29 @@ class Editor:
 
     def search(self, event=None):
         "start forward search"
+        self.gui.set_selected_item(self.top)
+        self.find_first()
+
+    def search_from_here(self, event=None):
+        "start forward search"
         self.find_first()
 
     def search_last(self, event=None):
+        "start backwards search"
+        self.gui.set_selected_item(self.top)
+        self.find_first(reverse=True)
+
+    def search_backwards_from_here(self, event=None):
         "start backwards search"
         self.find_first(reverse=True)
 
     def search_next(self, event=None):
         "find forward"
-        self.find_next()
+        self.find_next(from_the_top=False)
 
     def search_prev(self, event=None):
         "find backwards"
-        self.find_next(reverse=True)
+        self.find_next(from_the_top=False, reverse=True)
 
     @staticmethod
     def build_search_description(ele, attr_name, attr_val, text):
