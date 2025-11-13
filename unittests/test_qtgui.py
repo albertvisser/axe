@@ -5,239 +5,6 @@ import pytest
 from mockgui import mockqtwidgets as mockqtw
 from axe import gui_qt as testee
 
-eldialog_start = """\
-called Dialog.__init__ with args {testobj.parent} () {{}}
-called Dialog.setWindowTitle with args ('{title}',)
-called Dialog.setWindowIcon with args ('appicon',)
-called Label.__init__ with args ('element name:  ', {testobj})
-called LineEdit.__init__
-called CheckBox.__init__ with text 'Namespace:'
-called ComboBox.__init__
-called ComboBox.setEditable with arg `False`
-called ComboBox.addItem with arg `-- none --`
-called ComboBox.addItems with arg {{'ns1': 'namespace1', 'ns2': 'namespace'}}
-called CheckBox.__init__ with text 'Bevat data:'
-called CheckBox.setCheckable with arg False
-called Editor.__init__ with args ({testobj},)
-called Editor.setTabChangesFocus with arg True
-called PushButton.__init__ with args ('&Save', {testobj}) {{}}
-called Signal.connect with args ({testobj.accept},)
-called PushButton.setDefault with arg `True`
-called PushButton.__init__ with args ('&Cancel', {testobj}) {{}}
-called Signal.connect with args ({testobj.reject},)
-"""
-eldialog_middle_1 = """\
-called CheckBox.toggle
-called CheckBox.toggle
-"""
-eldialog_middle_2 = """\
-called ComboBox.setCurrentIndex with arg `2`
-"""
-eldialog_end = """\
-called LineEdit.setText with arg `{tag}`
-called Editor.setText with arg `{text}`
-called VBox.__init__
-called HBox.__init__
-called Grid.__init__
-called Grid.addWidget with arg MockLabel at (0, 0)
-called HBox.__init__
-called HBox.addWidget with arg MockLineEdit
-called HBox.addStretch
-called Grid.addLayout with arg MockHBoxLayout at (0, 1)
-called Grid.addWidget with arg MockCheckBox at ()
-called Grid.addWidget with arg MockComboBox at ()
-called HBox.addLayout with arg MockGridLayout
-called HBox.addStretch
-called VBox.addLayout with arg MockHBoxLayout
-called HBox.__init__
-called VBox.__init__
-called VBox.addWidget with arg MockCheckBox
-called VBox.addWidget with arg MockEditorWidget
-called HBox.addLayout with arg MockVBoxLayout
-called VBox.addLayout with arg MockHBoxLayout
-called HBox.__init__
-called HBox.addStretch
-called HBox.addWidget with arg MockPushButton
-called HBox.addWidget with arg MockPushButton
-called HBox.addStretch
-called VBox.addLayout with arg MockHBoxLayout
-called Dialog.setLayout with arg MockVBoxLayout
-"""
-attrdialog_start = """\
-called Dialog.__init__ with args {testobj.parent} () {{}}
-called Dialog.setWindowTitle with args ('{title}',)
-called Dialog.setWindowIcon with args ('appicon',)
-called Label.__init__ with args ('Attribute name:', {testobj})
-called LineEdit.__init__
-called CheckBox.__init__ with text 'Namespace:'
-called ComboBox.__init__
-called ComboBox.setEditable with arg `False`
-called ComboBox.addItem with arg `-- none --`
-called ComboBox.addItems with arg {{'ns1': 'namespace1', 'ns2': 'namespace'}}
-called Label.__init__ with args ('Attribute value:', {testobj})
-called LineEdit.__init__
-called PushButton.__init__ with args ('&Save', {testobj}) {{}}
-called PushButton.setDefault with arg `True`
-called Signal.connect with args ({testobj.accept},)
-called PushButton.__init__ with args ('&Cancel', {testobj}) {{}}
-called Signal.connect with args ({testobj.reject},)
-"""
-attrdialog_middle_1 = """\
-called CheckBox.toggle
-"""
-attrdialog_middle_2 = """\
-called ComboBox.setCurrentIndex with arg `2`
-"""
-attrdialog_end = """\
-called LineEdit.setText with arg `{name}`
-called LineEdit.setText with arg `{value}`
-called VBox.__init__
-called HBox.__init__
-called Grid.__init__
-called Grid.addWidget with arg MockLabel at (0, 0)
-called HBox.__init__
-called HBox.addWidget with arg MockLineEdit
-called HBox.addStretch
-called Grid.addLayout with arg MockHBoxLayout at (0, 1)
-called Grid.addWidget with arg MockCheckBox at (1, 0)
-called Grid.addWidget with arg MockComboBox at (1, 1)
-called Grid.addWidget with arg MockLabel at (2, 0)
-called HBox.__init__
-called HBox.addWidget with arg MockLineEdit
-called HBox.addStretch
-called Grid.addLayout with arg MockHBoxLayout at (2, 1)
-called HBox.addLayout with arg MockGridLayout
-called HBox.addStretch
-called VBox.addLayout with arg MockHBoxLayout
-called HBox.__init__
-called HBox.addStretch
-called HBox.addWidget with arg MockPushButton
-called HBox.addWidget with arg MockPushButton
-called HBox.addStretch
-called VBox.addLayout with arg MockHBoxLayout
-called Dialog.setLayout with arg MockVBoxLayout
-"""
-search = """\
-called Dialog.__init__ with args {testobj.parent} () {{}}
-called Dialog.setWindowTitle with args ('{title}',)
-called VBox.__init__
-called Grid.__init__
-called Label.__init__ with args ('Element', {testobj})
-called Grid.addWidget with arg MockLabel at (0, 0)
-called VBox.__init__
-called HBox.__init__
-called Label.__init__ with args ('name:', {testobj})
-called HBox.addWidget with arg MockLabel
-called LineEdit.__init__
-called HBox.addWidget with arg MockLineEdit
-called VBox.addLayout with arg MockHBoxLayout
-called Grid.addLayout with arg MockVBoxLayout at (0, 1)
-called VBox.__init__
-called Label.__init__ with args ('Attribute', {testobj})
-called VBox.addWidget with arg MockLabel
-called Grid.addLayout with arg MockVBoxLayout at (1, 0)
-called VBox.__init__
-called HBox.__init__
-called Label.__init__ with args ('name:', {testobj})
-called HBox.addWidget with arg MockLabel
-called LineEdit.__init__
-called HBox.addWidget with arg MockLineEdit
-called VBox.addLayout with arg MockHBoxLayout
-called Grid.addLayout with arg MockVBoxLayout at (1, 1)
-called VBox.__init__
-called HBox.__init__
-called Label.__init__ with args ('value:', {testobj})
-called HBox.addWidget with arg MockLabel
-called LineEdit.__init__
-called HBox.addWidget with arg MockLineEdit
-called VBox.addLayout with arg MockHBoxLayout
-called Grid.addLayout with arg MockVBoxLayout at (2, 1)
-called Label.__init__ with args ('Text', {testobj})
-called Grid.addWidget with arg MockLabel at (3, 0)
-called HBox.__init__
-called Label.__init__ with args ('value:', {testobj})
-called HBox.addWidget with arg MockLabel
-called LineEdit.__init__
-called HBox.addWidget with arg MockLineEdit
-called Grid.addLayout with arg MockHBoxLayout at (3, 1)
-called VBox.addLayout with arg MockGridLayout
-called HBox.__init__
-called Label.__init__ with args ('', {testobj})
-called HBox.addWidget with arg MockLabel
-called VBox.addLayout with arg MockHBoxLayout
-called HBox.__init__
-called HBox.addStretch
-called PushButton.__init__ with args ('&Ok', {testobj}) {{}}
-called Signal.connect with args ({testobj.accept},)
-called PushButton.setDefault with arg `True`
-called HBox.addWidget with arg MockPushButton
-called PushButton.__init__ with args ('&Cancel', {testobj}) {{}}
-called Signal.connect with args ({testobj.reject},)
-called HBox.addWidget with arg MockPushButton
-called PushButton.__init__ with args ('C&lear Values', {testobj}) {{}}
-called Signal.connect with args (<bound method SearchDialog.clear_values of {testobj}>,)
-called HBox.addWidget with arg MockPushButton
-called HBox.addStretch
-called VBox.addLayout with arg MockHBoxLayout
-called Dialog.setLayout with arg MockVBoxLayout
-called Signal.connect with args ({testobj.set_search},)
-called LineEdit.setText with arg `{name}`
-called Signal.connect with args ({testobj.set_search},)
-called LineEdit.setText with arg `{attr}`
-called Signal.connect with args ({testobj.set_search},)
-called LineEdit.setText with arg `{attrval}`
-called Signal.connect with args ({testobj.set_search},)
-called LineEdit.setText with arg `{text}`
-"""
-undostack = """\
-called MainWindow.__init__
-called Application.__init__
-called Action.__init__ with args ({parent},)
-called Action.__init__ with args ({parent},)
-called UndoStack.__init__ with args ({parent},)
-called Signal.connect with args ({testobj.clean_changed},)
-called Signal.connect with args ({testobj.index_changed},)
-called UndoRedoStack.undoLimit
-called UndoRedoStack.setUndoLimit with arg 1
-called Action.setText with arg `Nothing to undo`
-called Action.setText with arg `Nothing to redo`
-called Action.setDisabled with arg `True`
-called Action.setDisabled with arg `True`
-"""
-main = """\
-called Icon.__init__ with arg `icon-name`
-called MainWindow.resize with args (620, 900)
-called MainWindow.setWindowIcon
-called MainWindow.statusBar
-called StatusBar.__init__ with args ()
-called StatusBar.showMessage with arg `Ready`
-called Gui.init_menus
-called Tree.__init__
-called Tree.headerItem
-called TreeItem.__init__ with args ()
-called TreeItem.setHidden with arg `True`
-called MainWidget.setCentralWindow with arg `VisualTree`
-"""
-main_edit = """\
-called Gui.enable_pasteitems with arg False
-called UndoredoStack.__init__ with arg {testobj}
-called Editor.mark_dirty with arg False
-"""
-
-@pytest.fixture
-def expected_output():
-    """fixture for output predictions
-    """
-    return {'element': eldialog_start + eldialog_end,
-            'element2': eldialog_start + eldialog_middle_1 + eldialog_end,
-            'element3': eldialog_start + eldialog_middle_1 + eldialog_middle_2 + eldialog_end,
-            'attrib': attrdialog_start + attrdialog_end,
-            'attrib2': attrdialog_start + attrdialog_middle_1 + attrdialog_end,
-            'attrib3': attrdialog_start + attrdialog_middle_1 + attrdialog_middle_2
-            + attrdialog_end,
-            'search': search, 'undostack': undostack,
-            'maingui': main, 'maingui2': main + main_edit}
-
 
 class MockEditor:
     """stub for base.Editor
@@ -2952,3 +2719,238 @@ class TestGui:
         assert capsys.readouterr().out == f"called UndoStack.__init__ with args ({testobj},)\n"
         testobj.do_redo()
         assert capsys.readouterr().out == "called UndoRedoStack.redo\n"
+
+
+eldialog_start = """\
+called Dialog.__init__ with args {testobj.parent} () {{}}
+called Dialog.setWindowTitle with args ('{title}',)
+called Dialog.setWindowIcon with args ('appicon',)
+called Label.__init__ with args ('element name:  ', {testobj})
+called LineEdit.__init__
+called CheckBox.__init__ with text 'Namespace:'
+called ComboBox.__init__
+called ComboBox.setEditable with arg `False`
+called ComboBox.addItem with arg `-- none --`
+called ComboBox.addItems with arg {{'ns1': 'namespace1', 'ns2': 'namespace'}}
+called CheckBox.__init__ with text 'Bevat data:'
+called CheckBox.setCheckable with arg False
+called Editor.__init__ with args ({testobj},)
+called Editor.setTabChangesFocus with arg True
+called PushButton.__init__ with args ('&Save', {testobj}) {{}}
+called Signal.connect with args ({testobj.accept},)
+called PushButton.setDefault with arg `True`
+called PushButton.__init__ with args ('&Cancel', {testobj}) {{}}
+called Signal.connect with args ({testobj.reject},)
+"""
+eldialog_middle_1 = """\
+called CheckBox.toggle
+called CheckBox.toggle
+"""
+eldialog_middle_2 = """\
+called ComboBox.setCurrentIndex with arg `2`
+"""
+eldialog_end = """\
+called LineEdit.setText with arg `{tag}`
+called Editor.setText with arg `{text}`
+called VBox.__init__
+called HBox.__init__
+called Grid.__init__
+called Grid.addWidget with arg MockLabel at (0, 0)
+called HBox.__init__
+called HBox.addWidget with arg MockLineEdit
+called HBox.addStretch
+called Grid.addLayout with arg MockHBoxLayout at (0, 1)
+called Grid.addWidget with arg MockCheckBox at ()
+called Grid.addWidget with arg MockComboBox at ()
+called HBox.addLayout with arg MockGridLayout
+called HBox.addStretch
+called VBox.addLayout with arg MockHBoxLayout
+called HBox.__init__
+called VBox.__init__
+called VBox.addWidget with arg MockCheckBox
+called VBox.addWidget with arg MockEditorWidget
+called HBox.addLayout with arg MockVBoxLayout
+called VBox.addLayout with arg MockHBoxLayout
+called HBox.__init__
+called HBox.addStretch
+called HBox.addWidget with arg MockPushButton
+called HBox.addWidget with arg MockPushButton
+called HBox.addStretch
+called VBox.addLayout with arg MockHBoxLayout
+called Dialog.setLayout with arg MockVBoxLayout
+"""
+attrdialog_start = """\
+called Dialog.__init__ with args {testobj.parent} () {{}}
+called Dialog.setWindowTitle with args ('{title}',)
+called Dialog.setWindowIcon with args ('appicon',)
+called Label.__init__ with args ('Attribute name:', {testobj})
+called LineEdit.__init__
+called CheckBox.__init__ with text 'Namespace:'
+called ComboBox.__init__
+called ComboBox.setEditable with arg `False`
+called ComboBox.addItem with arg `-- none --`
+called ComboBox.addItems with arg {{'ns1': 'namespace1', 'ns2': 'namespace'}}
+called Label.__init__ with args ('Attribute value:', {testobj})
+called LineEdit.__init__
+called PushButton.__init__ with args ('&Save', {testobj}) {{}}
+called PushButton.setDefault with arg `True`
+called Signal.connect with args ({testobj.accept},)
+called PushButton.__init__ with args ('&Cancel', {testobj}) {{}}
+called Signal.connect with args ({testobj.reject},)
+"""
+attrdialog_middle_1 = """\
+called CheckBox.toggle
+"""
+attrdialog_middle_2 = """\
+called ComboBox.setCurrentIndex with arg `2`
+"""
+attrdialog_end = """\
+called LineEdit.setText with arg `{name}`
+called LineEdit.setText with arg `{value}`
+called VBox.__init__
+called HBox.__init__
+called Grid.__init__
+called Grid.addWidget with arg MockLabel at (0, 0)
+called HBox.__init__
+called HBox.addWidget with arg MockLineEdit
+called HBox.addStretch
+called Grid.addLayout with arg MockHBoxLayout at (0, 1)
+called Grid.addWidget with arg MockCheckBox at (1, 0)
+called Grid.addWidget with arg MockComboBox at (1, 1)
+called Grid.addWidget with arg MockLabel at (2, 0)
+called HBox.__init__
+called HBox.addWidget with arg MockLineEdit
+called HBox.addStretch
+called Grid.addLayout with arg MockHBoxLayout at (2, 1)
+called HBox.addLayout with arg MockGridLayout
+called HBox.addStretch
+called VBox.addLayout with arg MockHBoxLayout
+called HBox.__init__
+called HBox.addStretch
+called HBox.addWidget with arg MockPushButton
+called HBox.addWidget with arg MockPushButton
+called HBox.addStretch
+called VBox.addLayout with arg MockHBoxLayout
+called Dialog.setLayout with arg MockVBoxLayout
+"""
+search = """\
+called Dialog.__init__ with args {testobj.parent} () {{}}
+called Dialog.setWindowTitle with args ('{title}',)
+called VBox.__init__
+called Grid.__init__
+called Label.__init__ with args ('Element', {testobj})
+called Grid.addWidget with arg MockLabel at (0, 0)
+called VBox.__init__
+called HBox.__init__
+called Label.__init__ with args ('name:', {testobj})
+called HBox.addWidget with arg MockLabel
+called LineEdit.__init__
+called HBox.addWidget with arg MockLineEdit
+called VBox.addLayout with arg MockHBoxLayout
+called Grid.addLayout with arg MockVBoxLayout at (0, 1)
+called VBox.__init__
+called Label.__init__ with args ('Attribute', {testobj})
+called VBox.addWidget with arg MockLabel
+called Grid.addLayout with arg MockVBoxLayout at (1, 0)
+called VBox.__init__
+called HBox.__init__
+called Label.__init__ with args ('name:', {testobj})
+called HBox.addWidget with arg MockLabel
+called LineEdit.__init__
+called HBox.addWidget with arg MockLineEdit
+called VBox.addLayout with arg MockHBoxLayout
+called Grid.addLayout with arg MockVBoxLayout at (1, 1)
+called VBox.__init__
+called HBox.__init__
+called Label.__init__ with args ('value:', {testobj})
+called HBox.addWidget with arg MockLabel
+called LineEdit.__init__
+called HBox.addWidget with arg MockLineEdit
+called VBox.addLayout with arg MockHBoxLayout
+called Grid.addLayout with arg MockVBoxLayout at (2, 1)
+called Label.__init__ with args ('Text', {testobj})
+called Grid.addWidget with arg MockLabel at (3, 0)
+called HBox.__init__
+called Label.__init__ with args ('value:', {testobj})
+called HBox.addWidget with arg MockLabel
+called LineEdit.__init__
+called HBox.addWidget with arg MockLineEdit
+called Grid.addLayout with arg MockHBoxLayout at (3, 1)
+called VBox.addLayout with arg MockGridLayout
+called HBox.__init__
+called Label.__init__ with args ('', {testobj})
+called HBox.addWidget with arg MockLabel
+called VBox.addLayout with arg MockHBoxLayout
+called HBox.__init__
+called HBox.addStretch
+called PushButton.__init__ with args ('&Ok', {testobj}) {{}}
+called Signal.connect with args ({testobj.accept},)
+called PushButton.setDefault with arg `True`
+called HBox.addWidget with arg MockPushButton
+called PushButton.__init__ with args ('&Cancel', {testobj}) {{}}
+called Signal.connect with args ({testobj.reject},)
+called HBox.addWidget with arg MockPushButton
+called PushButton.__init__ with args ('C&lear Values', {testobj}) {{}}
+called Signal.connect with args (<bound method SearchDialog.clear_values of {testobj}>,)
+called HBox.addWidget with arg MockPushButton
+called HBox.addStretch
+called VBox.addLayout with arg MockHBoxLayout
+called Dialog.setLayout with arg MockVBoxLayout
+called Signal.connect with args ({testobj.set_search},)
+called LineEdit.setText with arg `{name}`
+called Signal.connect with args ({testobj.set_search},)
+called LineEdit.setText with arg `{attr}`
+called Signal.connect with args ({testobj.set_search},)
+called LineEdit.setText with arg `{attrval}`
+called Signal.connect with args ({testobj.set_search},)
+called LineEdit.setText with arg `{text}`
+"""
+undostack = """\
+called MainWindow.__init__
+called Application.__init__
+called Action.__init__ with args ({parent},)
+called Action.__init__ with args ({parent},)
+called UndoStack.__init__ with args ({parent},)
+called Signal.connect with args ({testobj.clean_changed},)
+called Signal.connect with args ({testobj.index_changed},)
+called UndoRedoStack.undoLimit
+called UndoRedoStack.setUndoLimit with arg 1
+called Action.setText with arg `Nothing to undo`
+called Action.setText with arg `Nothing to redo`
+called Action.setDisabled with arg `True`
+called Action.setDisabled with arg `True`
+"""
+main = """\
+called Icon.__init__ with arg `icon-name`
+called MainWindow.resize with args (620, 900)
+called MainWindow.setWindowIcon
+called MainWindow.statusBar
+called StatusBar.__init__ with args ()
+called StatusBar.showMessage with arg `Ready`
+called Gui.init_menus
+called Tree.__init__
+called Tree.headerItem
+called TreeItem.__init__ with args ()
+called TreeItem.setHidden with arg `True`
+called MainWidget.setCentralWidget with arg `VisualTree`
+"""
+main_edit = """\
+called Gui.enable_pasteitems with arg False
+called UndoredoStack.__init__ with arg {testobj}
+called Editor.mark_dirty with arg False
+"""
+
+
+@pytest.fixture
+def expected_output():
+    """fixture for output predictions
+    """
+    return {'element': eldialog_start + eldialog_end,
+            'element2': eldialog_start + eldialog_middle_1 + eldialog_end,
+            'element3': eldialog_start + eldialog_middle_1 + eldialog_middle_2 + eldialog_end,
+            'attrib': attrdialog_start + attrdialog_end,
+            'attrib2': attrdialog_start + attrdialog_middle_1 + attrdialog_end,
+            'attrib3': attrdialog_start + attrdialog_middle_1 + attrdialog_middle_2
+            + attrdialog_end,
+            'search': search, 'undostack': undostack,
+            'maingui': main, 'maingui2': main + main_edit}
