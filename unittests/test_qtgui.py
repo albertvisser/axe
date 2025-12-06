@@ -2727,12 +2727,12 @@ called Dialog.setWindowTitle with args ('{title}',)
 called Dialog.setWindowIcon with args ('appicon',)
 called Label.__init__ with args ('element name:  ', {testobj})
 called LineEdit.__init__
-called CheckBox.__init__ with text 'Namespace:'
+called CheckBox.__init__ with args ('Namespace:', {testobj})
 called ComboBox.__init__
 called ComboBox.setEditable with arg `False`
 called ComboBox.addItem with arg `-- none --`
 called ComboBox.addItems with arg {{'ns1': 'namespace1', 'ns2': 'namespace'}}
-called CheckBox.__init__ with text 'Bevat data:'
+called CheckBox.__init__ with args ('Bevat data:', {testobj})
 called CheckBox.setCheckable with arg False
 called Editor.__init__ with args ({testobj},)
 called Editor.setTabChangesFocus with arg True
@@ -2785,7 +2785,7 @@ called Dialog.setWindowTitle with args ('{title}',)
 called Dialog.setWindowIcon with args ('appicon',)
 called Label.__init__ with args ('Attribute name:', {testobj})
 called LineEdit.__init__
-called CheckBox.__init__ with text 'Namespace:'
+called CheckBox.__init__ with args ('Namespace:', {testobj})
 called ComboBox.__init__
 called ComboBox.setEditable with arg `False`
 called ComboBox.addItem with arg `-- none --`
