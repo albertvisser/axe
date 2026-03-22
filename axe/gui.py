@@ -1,5 +1,5 @@
 from .toolkit import toolkit
 if toolkit == 'qt':
-    from .gui_qt import Gui
+    from .qtgui import Gui, DialogGui, show_dialog
 elif toolkit == 'wx':
-    from .gui_wx import Gui
+    from .wxgui import Gui, DialogGui, show_dialog

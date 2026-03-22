@@ -13,183 +13,13 @@ try:
 except ImportError:
     import xml.etree.ElementTree as et
 # import logging
-from .gui import Gui
+from .gui import Gui, DialogGui, show_dialog
 ELSTART = '<>'
 CMSTART = '<!>'
 axe_iconame = str(pathlib.Path(__file__).parent / "axe.ico")
 NEW_ROOT = 'new_root'
 TITLESTART = "Albert's (Simple) XML"
 ASKTOSAVE = "XML data has been modified - save before continuing?"
-
-
-def find_in_flattened_tree(data, search_args, from_the_top, reverse=False, pos=None):
-    """searches the flattened tree from start or the given pos
-    to find the next item that fulfills the search criteria
-    """
-    wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
-    if reverse:
-        data.reverse()
-
-    if pos and not from_the_top:
-        data = get_remaining_data_to_search(pos, data, search_args)
-        if not data:
-            return None, False  # no more data to search
-
-    itemfound = False
-    # print(f'in find_in_flattened_tree: {wanted_ele=}, {wanted_attr=}, {wanted_value=},'
-    #       f' {wanted_text=}')
-    for item, element_name, element_text, attr_list in data:
-        ele_ok = apply_search_criteria_for_element(wanted_ele, element_name)
-        attr_ok, attr_item = apply_search_criteria_for_attrs(search_args, attr_list, reverse)
-        text_ok = apply_search_criteria_for_text(wanted_text, element_text)
-        if all((ele_ok, attr_ok, text_ok)):
-            if attr_item:
-                itemfound, is_attr = attr_item, True
-            else:
-                itemfound, is_attr = item, False
-            break
-    if itemfound:
-        return itemfound, is_attr
-    return None, False
-
-
-def get_remaining_data_to_search(pos, data, search_args):
-    "return the portion of the flattened tree that is still to be searched"
-    wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
-    pos, is_attr = pos
-    attridx = -1
-    # print(f'\n{pos=}, {is_attr=}')
-    for elemidx, item in enumerate(data):
-        # print(f'{elemidx=}, {item[:3]=}')
-        if is_attr:
-            found_attr = False
-            for attridx, attr in enumerate(item[3]):
-                # print(f'{attridx=}, {attr=}')
-                if attr[0] == pos:
-                    found_attr = True
-                    break
-            if found_attr:
-                # print('found attr')
-                break
-        elif item[0] == pos:
-            # print('found ele')
-            break
-    # print(f"\nin get_remaining_data_to_search, {elemidx=}, {attridx=}", flush=True)
-    if is_attr:
-        data = data[elemidx:]
-        id, name, text, attrs = data[0]
-        data[0] = id, name, text, attrs[attridx + 1:]
-    elif elemidx < len(data) - 1:
-        # we zitten op een element - als we naar een attribuut zoeken moeten we hier beginnen
-        # if wanted_attr or wanted_value and not (wanted_ele or wanted_text):
-        #     data = data[elemidx:]
-        # else:
-        #     data = data[elemidx + 1:]
-        cutoff = elemidx + 1 if wanted_ele or wanted_text else elemidx
-        data = data[cutoff:]
-    else:
-        data = []
-    return data
-
-
-def apply_search_criteria_for_element(wanted_ele, element_name):
-    """return True if an element is found that conforms to the criteria
-    or if no criteria are provided, otherwise False
-    """
-    # print(f'in apply_for_ele, {wanted_ele=} {element_name=}', end=' ')
-    ele_ok = False
-    if not wanted_ele or wanted_ele in element_name:
-        ele_ok = True
-    # print(f'{ele_ok=}', flush=True)
-    return ele_ok
-
-
-def apply_search_criteria_for_text(wanted_text, element_text):
-    """return True if element text is found that conforms to the criteria
-    or if no criteria are provided, otherwise False
-    """
-    # print(f'in apply_for_text, {wanted_text=} {element_text=}', end=' ')
-    text_ok = False
-    if not wanted_text or wanted_text in element_text:
-        text_ok = True
-    # print(f'{text_ok=}', flush=True)
-    return text_ok
-
-
-def apply_search_criteria_for_attrs(search_args, attr_list, reverse):
-    """return True if an attribute is found that conforms to the criteria
-    or if no criteria are provided, otherwise False
-    also return the attribute's tree node (needed for positioning) or None if not found
-    """
-    wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
-    attr_name_ok = attr_value_ok = attr_ok = False
-    attr_item = None
-    if attr_list and (wanted_attr or wanted_value):
-        # print(f'in apply_for_attr, {wanted_attr=}, {wanted_value=},', end=' ')
-        if reverse:
-            attr_list.reverse()
-        for attr, name, value in attr_list:
-            # print(f'{name=}, {value=}, {attr=}')
-            attr_name_ok = attr_value_ok = False
-            if not wanted_attr or wanted_attr in name:
-                attr_name_ok = True
-                # print('attr name wanted:', wanted_attr, 'found:', attr_name_ok)
-            if not wanted_value or wanted_value in value:
-                attr_value_ok = True
-                # print('attr value wanted:', wanted_value, 'found:', attr_value_ok)
-            if attr_name_ok and attr_value_ok:
-                attr_ok = True
-                if not (wanted_ele or wanted_text):
-                    attr_item = attr
-                break
-    elif not wanted_attr and not wanted_value:
-        attr_ok = True
-    # print(f'{attr_name_ok=}, {attr_value_ok=}, {attr_ok=}', flush=True)
-    return attr_ok, attr_item
-
-
-def parse_nsmap(file):
-    """analyze namespaces
-    """
-    root = None
-    ns_prefixes = []
-    ns_uris = []
-
-    for event, elem in et.iterparse(file, ("start-ns", "start")):
-        if event == "start-ns":
-            ns_prefixes.append(elem[0])
-            ns_uris.append(elem[1])
-        elif event == "start":
-            if root is None:
-                root = elem
-
-    return et.ElementTree(root), ns_prefixes, ns_uris
-
-
-class XMLTree:
-    """class to store XMLdata
-    """
-    def __init__(self, data):
-        self.root = et.Element(data)
-
-    def expand(self, root, text, data):
-        "expand node"
-        if text.startswith(ELSTART):
-            node = et.SubElement(root, data[0])
-            if data[1]:
-                node.text = data[1]
-            return node
-        root.set(data[0], data[1])
-        return None
-
-    def write(self, fn, ns_data=None):
-        "write XML to tree"
-        tree = et.ElementTree(self.root)
-        if ns_data:
-            prefixes, uris = ns_data
-            for idx, prefix in enumerate(prefixes):
-                et.register_namespace(prefix, uris[idx])
-        tree.write(fn, encoding="utf-8", xml_declaration=True)
 
 
 class Editor:
@@ -485,7 +315,9 @@ class Editor:
 
     def find_first(self, reverse=False):
         "start search after asking for options"
-        if self.gui.ask_for_search_args():
+        # if self.gui.ask_for_search_args():
+        edt = show_dialog(SearchDialog(self, title='Search options').gui)
+        if edt:
             if self.checkselection(message=False):
                 # print('in find_first, an item was selected,', end=' ')
                 itemtext = self.gui.get_node_title(self.gui.get_selected_item())
@@ -580,7 +412,43 @@ class Editor:
         """
         if not self.checkselection():
             return
-        self.gui.edit_item(self.item)
+        # self.gui.edit_item(self.item)
+        # self.item = item
+        # data = str(self.item.text(0))  # self.item.get_text()
+        data = self.gui.get_node_title(self.item)
+        if data.startswith(self.elstart):
+            # tag, text = str(self.item.text(1)), str(self.item.text(2))
+            tag, text = self.gui.get_node_data(self.item)
+            state = data, tag, text   # current values to be passed to UndoAction
+            data = {'item': self.item, 'tag': tag}
+            if text:
+                data['data'] = True
+                data['text'] = text
+            # edt = ElementDialog(self, title='Edit an element', item=data).exec()
+            edt = show_dialog(ElementDialog(self, title='Edit an element', item=data).gui)
+            # if edt == qtw.QDialog.DialogCode.Accepted:
+            if edt:  # self.data wordt ingesteld door de dialoog
+                name = self.getshortname((self.data["tag"], self.data["text"]))
+                new_state = name, self.data["tag"], self.data["text"]
+                # command = EditCommand(self, state, new_state, "Edit Element")
+                # self.undo_stack.push(command)
+                self.gui.edit_item(self.item, state, new_state, "Edit Element")
+                self.mark_dirty(True)
+        else:
+            # nam, val = str(self.item.text(1)), str(self.item.text(2))
+            nam, val = self.gui.get_node_data(self.item)
+            state = data, nam, val   # current values to be passed to UndoAction
+            data = {'item': self.item, 'name': nam, 'value': val}
+            # edt = AttributeDialog(self, title='Edit an attribute', item=data).exec()
+            edt = show_dialog(AttributeDialog(self, title='Edit an attribute', item=data).gui)
+            # if edt == qtw.QDialog.DialogCode.Accepted:
+            if edt:  # self.data wordt ingesteld door de dialoog
+                name = self.getshortname((self.data["name"], self.data["value"]), is_attr=True)
+                new_state = name, self.data["name"], self.data["value"]
+                # command = EditCommand(self, state, new_state, "Edit Attribute")
+                # self.undo_stack.push(command)
+                self.gui.edit_item(self.item, state, new_state, "Edit Attribute")
+                self.mark_dirty(True)
 
     def cut(self, event=None):
         "cut is copy with remove and retain"
@@ -637,7 +505,12 @@ class Editor:
         if not self.gui.get_node_title(self.item).startswith(ELSTART):
             self.gui.meldfout("Can't add attribute to attribute")
             return
-        self.gui.add_attribute(self.item)
+        data = {'item': self.item, 'name': '', 'value': ''}
+        edt = show_dialog(AttributeDialog(self, title='New attribute', item=data).gui)
+        if edt:  # self.data wordt ingesteld door de dialoog
+            self.gui.add_attribute(self.item, self.data["name"], self.data["value"],
+                                   'Insert Attribute')
+            self.mark_dirty(True)
 
     def insert_after(self, event=None):
         "insert after instead of before"
@@ -657,7 +530,12 @@ class Editor:
         if below and not self.gui.get_node_title(self.item).startswith(ELSTART):
             self.gui.meldfout("Can't insert below an attribute")
             return
-        self.gui.insert(self.item, before=before, below=below)
+        data = {'item': self.item, 'tag': '', 'text': ''}
+        edt = show_dialog(ElementDialog(self, title='New element', item=data).gui)
+        if edt:  # self.data wordt ingesteld door de dialoog
+            self.gui.insert(self.item, self.data["tag"], self.data["text"], "Insert Element",
+                            before=before, below=below)
+            self.mark_dirty(True)
 
     def search(self, event=None):
         "start forward search"
@@ -736,3 +614,365 @@ class Editor:
     #     "Credits"
     #     ABOUT = "Started in 2008 by Albert Visser\nWritten in Python"
     #     self.gui.meldinfo(ABOUT)
+
+
+class XMLTree:
+    """class to store XMLdata
+    """
+    def __init__(self, data):
+        self.root = et.Element(data)
+
+    def expand(self, root, text, data):
+        "expand node"
+        if text.startswith(ELSTART):
+            node = et.SubElement(root, data[0])
+            if data[1]:
+                node.text = data[1]
+            return node
+        root.set(data[0], data[1])
+        return None
+
+    def write(self, fn, ns_data=None):
+        "write XML to tree"
+        tree = et.ElementTree(self.root)
+        if ns_data:
+            prefixes, uris = ns_data
+            for idx, prefix in enumerate(prefixes):
+                et.register_namespace(prefix, uris[idx])
+        tree.write(fn, encoding="utf-8", xml_declaration=True)
+
+
+def find_in_flattened_tree(data, search_args, from_the_top, reverse=False, pos=None):
+    """searches the flattened tree from start or the given pos
+    to find the next item that fulfills the search criteria
+    """
+    if reverse:
+        data.reverse()
+
+    if pos and not from_the_top:
+        data = get_remaining_data_to_search(pos, data, search_args)
+        if not data:
+            return None, False  # no more data to search
+
+    itemfound = False
+    # print(f'in find_in_flattened_tree: {wanted_ele=}, {wanted_attr=}, {wanted_value=},'
+    #       f' {wanted_text=}')
+    for item, element_name, element_text, attr_list in data:
+        ele_ok = apply_search_criteria_for_element(search_args[0], element_name)
+        attr_ok, attr_item = apply_search_criteria_for_attrs(search_args, attr_list, reverse)
+        text_ok = apply_search_criteria_for_text(search_args[-1], element_text)
+        if all((ele_ok, attr_ok, text_ok)):
+            if attr_item:
+                itemfound, is_attr = attr_item, True
+            else:
+                itemfound, is_attr = item, False
+            break
+    if itemfound:
+        return itemfound, is_attr
+    return None, False
+
+
+def get_remaining_data_to_search(pos, data, search_args):
+    "return the portion of the flattened tree that is still to be searched"
+    # wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
+    wanted_ele = search_args[0]
+    wanted_text = search_args[-1]
+    pos, is_attr = pos
+    attridx = -1
+    for elemidx, item in enumerate(data):
+        if is_attr:
+            found_attr = False
+            for attridx, attr in enumerate(item[3]):
+                if attr[0] == pos:
+                    found_attr = True
+                    break
+            if found_attr:
+                break
+        elif item[0] == pos:
+            break
+    if is_attr:
+        data = data[elemidx:]
+        id, name, text, attrs = data[0]
+        data[0] = id, name, text, attrs[attridx + 1:]
+    elif elemidx < len(data) - 1:
+        # we zitten op een element - als we naar een attribuut zoeken moeten we hier beginnen
+        # if wanted_attr or wanted_value and not (wanted_ele or wanted_text):
+        #     data = data[elemidx:]
+        # else:
+        #     data = data[elemidx + 1:]
+        cutoff = elemidx + 1 if wanted_ele or wanted_text else elemidx
+        data = data[cutoff:]
+    else:
+        data = []
+    return data
+
+
+def apply_search_criteria_for_element(wanted_ele, element_name):
+    """return True if an element is found that conforms to the criteria
+    or if no criteria are provided, otherwise False
+    """
+    # print(f'in apply_for_ele, {wanted_ele=} {element_name=}', end=' ')
+    ele_ok = False
+    if not wanted_ele or wanted_ele in element_name:
+        ele_ok = True
+    # print(f'{ele_ok=}', flush=True)
+    return ele_ok
+
+
+def apply_search_criteria_for_text(wanted_text, element_text):
+    """return True if element text is found that conforms to the criteria
+    or if no criteria are provided, otherwise False
+    """
+    # print(f'in apply_for_text, {wanted_text=} {element_text=}', end=' ')
+    text_ok = False
+    if not wanted_text or wanted_text in element_text:
+        text_ok = True
+    # print(f'{text_ok=}', flush=True)
+    return text_ok
+
+
+def apply_search_criteria_for_attrs(search_args, attr_list, reverse):
+    """return True if an attribute is found that conforms to the criteria
+    or if no criteria are provided, otherwise False
+    also return the attribute's tree node (needed for positioning) or None if not found
+    """
+    wanted_ele, wanted_attr, wanted_value, wanted_text = search_args
+    attr_name_ok = attr_value_ok = attr_ok = False
+    attr_item = None
+    if attr_list and (wanted_attr or wanted_value):
+        # print(f'in apply_for_attr, {wanted_attr=}, {wanted_value=},', end=' ')
+        if reverse:
+            attr_list.reverse()
+        for attr, name, value in attr_list:
+            # print(f'{name=}, {value=}, {attr=}')
+            attr_name_ok = attr_value_ok = False
+            if not wanted_attr or wanted_attr in name:
+                attr_name_ok = True
+                # print('attr name wanted:', wanted_attr, 'found:', attr_name_ok)
+            if not wanted_value or wanted_value in value:
+                attr_value_ok = True
+                # print('attr value wanted:', wanted_value, 'found:', attr_value_ok)
+            if attr_name_ok and attr_value_ok:
+                attr_ok = True
+                if not (wanted_ele or wanted_text):
+                    attr_item = attr
+                break
+    elif not wanted_attr and not wanted_value:
+        attr_ok = True
+    # print(f'{attr_name_ok=}, {attr_value_ok=}, {attr_ok=}', flush=True)
+    return attr_ok, attr_item
+
+
+def parse_nsmap(file):
+    """analyze namespaces
+    """
+    root = None
+    ns_prefixes = []
+    ns_uris = []
+
+    for event, elem in et.iterparse(file, ("start-ns", "start")):
+        if event == "start-ns":
+            ns_prefixes.append(elem[0])
+            ns_uris.append(elem[1])
+        elif event == "start":
+            if root is None:
+                root = elem
+
+    return et.ElementTree(root), ns_prefixes, ns_uris
+
+
+class ElementDialog:
+    """Dialog for editing an element
+    """
+    def __init__(self, parent, title="", item=None):
+        self.parent = parent
+        self.gui = DialogGui(self, parent.gui, title)
+        row = 0
+        self.gui.add_label("element name:  ", row, 0)
+        self.txt_tag = self.gui.add_lineinput(row, 1)
+        row += 1
+        self.cb_ns = self.gui.add_checkbox('Namespace:', row, 0)
+        self.cmb_ns = self.gui.add_combobox(['-- none --'] + parent.ns_uris, row, 1)
+        row += 1
+        self.cb_data = self.gui.add_checkbox('Bevat data:', row, 0, readonly=True)  # was self.cb
+        row += 1
+        self.txt_data = self.gui.add_textinput(row, 0)
+        self.gui.add_buttons([('&Save', self.gui.accept, True), ('&Cancel', self.gui.reject, False)])
+        self.gui.finish_display()
+        ns_tag = tag = ns_uri = ''
+        if item:
+            ns_tag = item["tag"]
+            if ns_tag.startswith('{'):
+                ns_uri, tag = ns_tag[1:].split('}')
+            else:
+                tag = ns_tag
+            self.gui.set_lineinput_text(self.txt_tag, tag)
+            if "text" in item:
+                self.gui.set_checkbox_state(self.cb_data, True)
+                self.gui.set_textinput_text(self.txt_data, item["text"])
+            if ns_uri:
+                self.gui.set_checkbox_state(self.cb_ns, True)
+                for ix, uri in enumerate(parent.ns_uris):
+                    if uri == ns_uri:
+                        self.gui.set_combobox_index(self.cmb_ns, ix + 1)
+                        break
+        self.gui.set_focus_to(self.txt_tag)
+
+    def confirm(self):
+        """final checks, send changed data to parent"""
+        self.parent.data = {}
+        tag = self.gui.get_lineinput_text(self.txt_tag)
+        fout = ''
+        if tag == '':
+            fout = 'Element name must not be empty'
+        elif len(tag.split()) > 1:
+            fout = 'Element name must not contain spaces'
+        elif tag[0].isdigit():
+            fout = 'Element name must not start with a digit'
+        if fout:
+            self.parent.gui.meldfout(fout)
+            self.gui.set_focus_to(self.txt_tag)
+            return False
+        if self.gui.get_checkbox_state(self.cb_ns):
+            seq = self.gui.get_combobox_index(self.cmb_ns)
+            if seq == 0:
+                self.parent.gui.meldfout('Namespace must be selected if checked')
+                self.gui.set_focus_to(self.cb_ns)
+                return False
+            tag = f'{{{self.gui.get_combobox_itemtext(self.cmb_ns, seq)}}}{tag}'
+        self.parent.data["tag"] = tag
+        self.parent.data["data"] = self.gui.get_checkbox_state(self.cb_data)
+        if self.parent.data['data']:
+            self.parent.data["text"] = self.gui.get_textinput_text(self.txt_data)
+        else:
+            self.parent.data['text'] = ''
+        return True
+
+
+class AttributeDialog:
+    """Dialog for editing an attribute
+    """
+    def __init__(self, parent, title="", item=None):
+        self.parent = parent
+        self.gui = DialogGui(self, parent.gui, title)
+        row = 0
+        self.gui.add_label("Attribute name:", row, 0)
+        self.txt_name = self.gui.add_lineinput(row, 1)
+        row += 1
+        self.cb_ns = self.gui.add_checkbox('Namespace:', row, 0)
+        self.cmb_ns = self.gui.add_combobox(['-- none --'] + parent.ns_uris, row, 1)
+        row += 1
+        self.gui.add_label("Attribute value:", row, 0)
+        self.txt_value = self.gui.add_lineinput(row, 1)
+        self.gui.add_buttons([('&Save', self.gui.accept, True), ('&Cancel', self.gui.reject, False)])
+        self.gui.finish_display()
+        ns_nam = nam = ns_uri = ''
+        if item:
+            ns_nam = item["name"]
+            if ns_nam.startswith('{'):
+                ns_uri, nam = ns_nam[1:].split('}')
+            else:
+                nam = ns_nam
+            self.gui.set_lineinput_text(self.txt_name, nam)
+            if ns_uri:
+                self.gui.set_checkbox_state(self.cb_ns, True)
+                for ix, uri in enumerate(parent.ns_uris):
+                    if uri == ns_uri:
+                        self.gui.set_combobox_index(self.cmb_ns, ix + 1)
+                        break
+            self.gui.set_lineinput_text(self.txt_name, item.get("value", ''))
+        self.gui.set_focus_to(self.txt_name)
+
+    def confirm(self):
+        """final checks, send changed data to parent"""
+        self.parent.data = {}
+        nam = self.gui.get_lineinput_text(self.txt_name)
+        fout = ''
+        if nam == '':
+            fout = 'Attribute name must not be empty'
+        elif len(nam.split()) > 1:
+            fout = 'Attribute name must not contain spaces'
+        elif nam[0].isdigit():
+            fout = 'Attribute name must not start with a digit'
+        if fout:
+            self.parent.gui.meldfout(fout)
+            self.gui.set_focus_to(self.txt_name)
+            return False
+        if self.gui.get_checkbox_value(self.cb_ns):
+            seq = self.gui.get_combobox_index(self.cmb_ns)
+            if seq == 0:
+                self.parent.gui.meldfout('Namespace must be selected if checked')
+                self.gui.set_focus_to(self.cb_ns)
+                return False
+            nam = f'{{{self.gui.get_combobox_itemtext(self.cmb_ns, seq)}}}{nam}'
+        self.parent.data["name"] = nam
+        self.parent.data["value"] = self.gui.get_lineinput_text(self.txt_value)
+        return True
+
+
+class SearchDialog:
+    """Dialog to get search arguments
+    """
+    def __init__(self, parent, title=""):
+        self.parent = parent
+        if parent.search_args:
+            ele_name, attr_name, attr_val, text_val = parent.search_args
+        else:
+            ele_name = attr_name = attr_val = text_val = ''
+        self.gui = DialogGui(self, parent.gui, title)
+        row = 0
+        self.gui.add_label("Element name:", row, 0)
+        self.gui.add_label("name:", row, 1)
+        self.txt_element = self.gui.add_lineinput(row, 2, ele_name, self.set_search)
+        row += 1
+        self.gui.add_label("Attribute name:", row, 0)
+        self.gui.add_label("name:", row, 1)
+        self.txt_attr_name = self.gui.add_lineinput(row, 2, attr_name, self.set_search)
+        row += 1
+        self.gui.add_label("", row, 0)
+        self.gui.add_label("value:", row, 1)
+        self.txt_attr_val = self.gui.add_lineinput(row, 2, attr_val, self.set_search)
+        row += 1
+        self.gui.add_label("Text:", row, 0)
+        self.gui.add_label("value:", row, 1)
+        self.txt_text = self.gui.add_lineinput(row, 2, text_val, self.set_search)
+        row += 1
+        self.lbl_search = self.gui.add_label('', row, 0, fullwidth=True)
+        self.gui.add_buttons([('&Save', self.gui.accept, True),
+                              ('&Cancel', self.gui.reject, False),
+                              ('C&lear Values', self.clear_values, False)])
+        self.gui.finish_display()
+        self.gui.set_focus_to(self.txt_element)
+
+    def set_search(self):
+        """build text describing search action"""
+        out = ''
+        ele = self.gui.get_lineinput_text(self.txt_element)
+        attr_name = self.gui.get_lineinput_text(self.txt_attr_name)
+        attr_val = self.gui.get_lineinput_text(self.txt_attr_val)
+        text = self.gui.get_lineinput_text(self.txt_text)
+        out = self.parent.build_search_description(ele, attr_name, attr_val, text)
+        self.gui.set_label_text(self.lbl_search, '\n'.join(out))
+
+    def clear_values(self, ):
+        "set empty search values"
+        self.gui.set_lineinput_text(self.txt_element, '')
+        self.gui.set_lineinput_text(self.txt_attr_name, '')
+        self.gui.set_lineinput_text(self.txt_attr_val, '')
+        self.gui.set_lineinput_text(self.txt_text, '')
+        self.gui.set_label_text(self.lbl_search, '')
+        self.gui.refresh()
+
+    def confirm(self):
+        """final checks, send changed data to parent"""
+        ele = self.gui.get_lineinput_text(self.txt_element)
+        attr_name = self.gui.get_lineinput_text(self.txt_attr_name)
+        attr_val = self.gui.get_lineinput_text(self.txt_attr_val)
+        text = self.gui.get_lineinput_text(self.txt_text)
+        if not any((ele, attr_name, attr_val, text)):
+            self.parent.gui.meldfout('Please enter search criteria or press cancel')
+            self.gui.set_focus_to(self.txt_element)
+            return False
+        self.parent.in_dialog = True
+        self.parent.search_args = (ele, attr_name, attr_val, text)
+        return True
