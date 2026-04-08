@@ -1,8 +1,0 @@
-
-    axedtd_wx.py: remove redundant code
-
-    axe_xxx: split off gui-independent code
-
-                   show/edit dtd - call axedtd
-
-    check out sharable code for axe and axedtd
