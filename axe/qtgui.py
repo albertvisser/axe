@@ -34,10 +34,10 @@ class Gui(qtw.QMainWindow):
         self.fn = fn
         self.editable = not readonly
         super().__init__()
-        self.show()
 
     def go(self):
         "start application event loop"
+        self.show()
         sys.exit(self.app.exec())
 
     # reimplemented methods from QMainWindow
@@ -238,7 +238,7 @@ class Gui(qtw.QMainWindow):
         self.undo_stack.push(command)
 
     # internals
-    def init_gui(self):
+    def setup_display(self):
         """Deze methode wordt aangeroepen door de __init__ van de mixin class
         """
         self.icon = gui.QIcon(self.editor.iconame)
@@ -352,17 +352,14 @@ class Gui(qtw.QMainWindow):
 
         for ix, act in enumerate(self.editmenu_actions[:6]):
             editmenu.addAction(act)
-            if ix == 2:
+            if ix == 1:
                 editmenu.addSeparator()
 
-        disable_menuitems = not (self.cut_el or self.cut_att)
-        # add_menuitem = not popup or not disable_menuitems
-        if disable_menuitems:
+        if not self.cut_el and not self.cut_att:
             self.pastebefore_item.setText("Nothing to Paste")
             self.pastebefore_item.setEnabled(False)
             self.pasteafter_item.setEnabled(False)
             self.pasteunder_item.setEnabled(False)
-        # if add_menuitem:
         editmenu.addAction(self.pastebefore_item)
         editmenu.addAction(self.pasteafter_item)
         editmenu.addAction(self.pasteunder_item)

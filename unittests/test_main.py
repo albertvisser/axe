@@ -26,10 +26,10 @@ class MockGui:
         """stub
         """
         print('called Gui.meldfout with args', args, kwargs)
-    def init_gui(self, *args):
+    def setup_display(self, *args):
         """stub
         """
-        print('called Gui.init_gui with args', args)
+        print('called Gui.setup_display with args', args)
     def init_tree(self, *args):
         """stub
         """
@@ -268,8 +268,21 @@ class TestEditor:
         assert (testobj.gui.cut_att, testobj.gui.cut_el) == (None, None)
         assert (testobj.search_args, testobj._search_pos) == ([], None)
         assert capsys.readouterr().out == ("called Gui.__init__\n"
-                                           "called Gui.init_gui with args ()\n"
+                                           "called Gui.setup_display with args ()\n"
                                            "called Editor.init_tree with args ('new_root',)\n"
+                                           "called Gui.go\n")
+        testobj = testee.Editor('', readonly=True)
+        assert testobj.title == f'{testee.TITLESTART} Viewer'
+        assert testobj.xmlfn == ''
+        assert not testobj.tree_dirty
+        assert testobj.readonly
+        assert isinstance(testobj.gui, testee.Gui)
+        assert (testobj.ns_prefixes, testobj.ns_uris) == ([], [])
+        assert not hasattr(testobj.gui, 'cut_att')
+        assert not hasattr(testobj.gui, 'cut_el')
+        assert (testobj.search_args, testobj._search_pos) == ([], None)
+        assert capsys.readouterr().out == ("called Gui.__init__\n"
+                                           "called Gui.setup_display with args ()\n"
                                            "called Gui.go\n")
         testobj = testee.Editor('testfile.xml', readonly=True)
         assert testobj.title == f'{testee.TITLESTART} Viewer'
@@ -282,12 +295,12 @@ class TestEditor:
         assert not hasattr(testobj.gui, 'cut_att')
         assert not hasattr(testobj.gui, 'cut_el')
         assert (testobj.search_args, testobj._search_pos) == ([], None)
-        assert capsys.readouterr().out == ("called Gui.__init__\n"
-                                           "called Gui.init_gui with args ()\n"
-                                           # "called Editor.init_tree with args ('new_root',)\n"
-                                           f"called parse_nsmap with arg {testobj.xmlfn}\n"
-                                           "called Editor.init_tree with args ('got root from tree',)\n"
-                                           "called Gui.go\n")
+        assert capsys.readouterr().out == (
+                "called Gui.__init__\n"
+                "called Gui.setup_display with args ()\n"
+                f"called parse_nsmap with arg {testobj.xmlfn}\n"
+                "called Editor.init_tree with args ('got root from tree',)\n"
+                "called Gui.go\n")
         testobj = testee.Editor('testfile.xml')
         assert testobj.title == f'{testee.TITLESTART} Editor'
         assert testobj.xmlfn == os.path.join(os.path.dirname(os.path.dirname(__file__)),
@@ -298,34 +311,31 @@ class TestEditor:
         assert (testobj.ns_prefixes, testobj.ns_uris) == (['ns_prefix'], ['ns_uri'])
         assert (testobj.gui.cut_att, testobj.gui.cut_el) == (None, None)
         assert (testobj.search_args, testobj._search_pos) == ([], None)
-        assert capsys.readouterr().out == ("called Gui.__init__\n"
-                                           "called Gui.init_gui with args ()\n"
-                                           "called Editor.init_tree with args ('new_root',)\n"
-                                           f"called parse_nsmap with arg {testobj.xmlfn}\n"
-                                           "called Editor.init_tree with args ('got root from tree',)\n"
-                                           "called Gui.go\n")
+        assert capsys.readouterr().out == (
+                "called Gui.__init__\n"
+                "called Gui.setup_display with args ()\n"
+                f"called parse_nsmap with arg {testobj.xmlfn}\n"
+                "called Editor.init_tree with args ('got root from tree',)\n"
+                "called Gui.go\n")
         monkeypatch.setattr(testee, 'parse_nsmap', mock_parse_nsmap_2)
         testobj = testee.Editor('testfile.xml')
         assert (testobj.ns_prefixes, testobj.ns_uris) == ([], [])
-        assert capsys.readouterr().out == ("called Gui.__init__\n"
-                                           "called Gui.init_gui with args ()\n"
-                                           "called Editor.init_tree with args ('new_root',)\n"
-                                           f"called parse_nsmap with arg {testobj.xmlfn}\n"
-                                           "called Gui.meldfout with args ('got an OSError',)"
-                                           " {'abort': True}\n"
-                                           "called Gui.init_tree with args (None,)\n")
+        assert capsys.readouterr().out == (
+                "called Gui.__init__\n"
+                "called Gui.setup_display with args ()\n"
+                f"called parse_nsmap with arg {testobj.xmlfn}\n"
+                "called Gui.meldfout with args ('got an OSError',) {'abort': True}\n"
+                "called Gui.init_tree with args (None,)\n")
         monkeypatch.setattr(testee, 'parse_nsmap', mock_parse_nsmap_3)
         # breakpoint()
         testobj = testee.Editor('testfile.xml')
         assert (testobj.ns_prefixes, testobj.ns_uris) == ([], [])
-        assert capsys.readouterr().out == ("called Gui.__init__\n"
-                                           "called Gui.init_gui with args ()\n"
-                                           "called Editor.init_tree with args ('new_root',)\n"
-                                           f"called parse_nsmap with arg {testobj.xmlfn}\n"
-                                           # "called Gui.meldfout with args ('got a ParseError',)"
-                                           "called Gui.meldfout with args ('got a ParseError (line 0)',)"
-                                           " {'abort': True}\n"
-                                           "called Gui.init_tree with args (None,)\n")
+        assert capsys.readouterr().out == (
+                "called Gui.__init__\n"
+                "called Gui.setup_display with args ()\n"
+                f"called parse_nsmap with arg {testobj.xmlfn}\n"
+                "called Gui.meldfout with args ('got a ParseError (line 0)',) {'abort': True}\n"
+                "called Gui.init_tree with args (None,)\n")
 
     def test_mark_dirty(self, monkeypatch, capsys):
         """unittest for Editor.mark_dirty
@@ -922,6 +932,7 @@ class TestEditor:
             """
             print('called Editor.find_next with args', args)
         class MockDialog:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called SearchDialog.__init__ with args', args, kwargs)
                 self.gui = 'SearchDialogGui'
@@ -1080,13 +1091,13 @@ class TestEditor:
         monkeypatch.setattr(testobj.gui, 'file_to_read', lambda *x: (True, 'fname'))
         monkeypatch.setattr(testee, 'parse_nsmap', mock_parse_nsmap)
         testobj.openxml()
-        assert capsys.readouterr().out == ("called parse_nsmap with arg `fname`\n"
-                                           "called Gui.meldfout with args"
-                                           " ('got a ParseError (line 0)',) {}\n")
+        assert capsys.readouterr().out == (
+                "called parse_nsmap with arg `fname`\n"
+                "called Gui.meldfout with args ('got a ParseError (line 0)',) {}\n")
         monkeypatch.setattr(testee, 'parse_nsmap', mock_parse_nsmap_ok)
         testobj.openxml()
-        assert capsys.readouterr().out == ("called Editor.init_tree with args ('element_root',"
-                                           " 'prefixes', 'uris')\n")
+        assert capsys.readouterr().out == (
+                "called Editor.init_tree with args ('element_root',)\n")
 
     def test_savexml(self, monkeypatch, capsys):
         """unittest for Editor.savexml
@@ -1188,6 +1199,7 @@ class TestEditor:
         def mock_mark(*args):
             print('called Editor.mark_dirty with args', args)
         class MockDialog:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called ElementDialog.__init__ with args', args, kwargs)
                 self.gui = 'ElementDialogGui'
@@ -1269,6 +1281,7 @@ class TestEditor:
         def mock_mark(*args):
             print('called Editor.mark_dirty with args', args)
         class MockDialog:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called AttributeDialog.__init__ with args', args, kwargs)
                 self.gui = 'AttributeDialogGui'
@@ -1457,6 +1470,7 @@ class TestEditor:
         def mock_mark(*args):
             print('called Editor.mark_dirty with args', args)
         class MockDialog:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called AttributeDialog.__init__ with args', args, kwargs)
                 self.gui = 'AttributeDialogGui'
@@ -1532,6 +1546,7 @@ class TestEditor:
         def mock_mark(*args):
             print('called Editor.mark_dirty with args', args)
         class MockDialog:
+            "stub"
             def __init__(self, *args, **kwargs):
                 print('called ElementDialog.__init__ with args', args, kwargs)
                 self.gui = 'ElementDialogGui'
@@ -2185,6 +2200,7 @@ class TestElementDialog:
         """unittest for ElementDialog.confirm
         """
         class MockGui:
+            "stub"
             def get_lineinput_text(self, *args):
                 print("called ElementDialogGui.get_lineinput_text with args", args)
                 return tag_text
@@ -2365,6 +2381,7 @@ class TestAttributeDialog:
         """unittest for AttributeDialog.confirm
         """
         class MockGui:
+            "stub"
             def get_lineinput_text(self, *args):
                 print("called ElementDialogGui.get_lineinput_text with args", args)
                 return attr_text
@@ -2487,7 +2504,7 @@ class TestSearchDialog:
             f" ('C&lear Values', {testobj.clear_values}, False)],)\n"
             "called DialogGui.finish_display\n"
             "called DialogGui.set_focus_to with args ('lineinput',)\n")
-        parent.search_args= ('xxx', 'yyy', 'zzz', 'qqq')
+        parent.search_args = ('xxx', 'yyy', 'zzz', 'qqq')
         testobj = testee.SearchDialog(parent, title="xxxx")
         assert testobj.parent == parent
         assert capsys.readouterr().out == (

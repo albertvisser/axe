@@ -16,10 +16,10 @@ class Gui(wx.Frame):
         self.fn = fn
         self.editable = not readonly
         super().__init__(parent=None, pos=(2, 2))  # , size=(620, 900))
-        self.Show()
 
     def go(self):
         "start application event loop"
+        self.Show()
         self.app.MainLoop()
 
     # event handlers
@@ -172,43 +172,41 @@ class Gui(wx.Frame):
 
     def copy(self, item, cut=False, retain=True):  # retain is t.b.v. delete functie
         """execute cut/delete/copy action"""
-        def push_el(el, result):
-            "copy element data recursively"
-            # print "start: ",result
-            text = self.tree.GetItemText(el)
-            data = self.tree.GetItemData(el)
-            children = []
-            # print "before looping over contents:",text,y
-            if text.startswith(self.parent.elstart):
-                subel, whereami = self.tree.GetFirstChild(el)
-                while subel.IsOk():
-                    _ = push_el(subel, children)
-                    subel, whereami = self.tree.GetNextChild(el, whereami)
-            # print "after  looping over contents: ",text,y
-            result.append((text, data, children))
-            # print "end:  ",result
-            return result
         self.item = item
         text = self.tree.GetItemText(self.item)
         data = self.tree.GetItemData(self.item)
         if retain:
             if text.startswith(self.parent.elstart):
                 self.cut_el = []
-                self.cut_el = push_el(self.item, self.cut_el)
+                self.cut_el = self.push_el(self.item, self.cut_el)
                 self.cut_att = None
             else:
                 self.cut_el = None
                 self.cut_att = data
             self.enable_pasteitems(True)
         if cut:
-            prev = self.tree.GetPrevSibling(self.item)
-            if not prev.IsOk():
-                prev = self.tree.GetItemParent(self.item)
-                if prev == self.editor.rt:
-                    prev = self.tree.GetNextSibling(self.item)
+            # prev = self.tree.GetPrevSibling(self.item)
+            # if not prev.IsOk():
+            #     prev = self.tree.GetItemParent(self.item)
+            #     if prev == self.editor.rt:
+            #         prev = self.tree.GetNextSibling(self.item)
             self.tree.Delete(self.item)
             self.editor.mark_dirty(True)
             # self.tree.SelectItem(prev)
+
+    def push_el(self, el, result):
+        "copy element data recursively"
+        text = self.tree.GetItemText(el)
+        data = self.tree.GetItemData(el)
+        children = []
+        if text.startswith(self.parent.elstart):
+            subel, whereami = self.tree.GetFirstChild(el)
+            while subel.IsOk():
+                # _ = self.push_el(subel, children)
+                children = self.push_el(subel, children)
+                subel, whereami = self.tree.GetNextChild(el, whereami)
+        result.append((text, data, children))
+        return result
 
     def paste(self, item, before=True, below=False):
         """execute paste action"""
@@ -236,16 +234,6 @@ class Gui(wx.Frame):
                     node = self.tree.AppendItem(add_to, item)
                     self.tree.SetItemData(node, data)
         else:
-            def zetzeronder(node, el, pos=-1):
-                "add elements recursively"
-                if pos == -1:
-                    subnode = self.tree.AppendItem(node, el[0])
-                    self.tree.SetItemData(subnode, el[1])
-                else:
-                    subnode = self.tree.InsertItem(node, i, el[0])
-                    self.tree.SetItemData(subnode, el[1])
-                for x in el[2]:
-                    zetzeronder(subnode, x)
             if below:
                 node = self.item
                 i = -1
@@ -253,16 +241,31 @@ class Gui(wx.Frame):
                 node = self.tree.GetItemParent(self.item)  # self.item.get_parent()
                 x, c = self.tree.GetFirstChild(node)
                 cnt = self.tree.GetChildrenCount(node)
-                for i in range(cnt):
-                    if x == self.item:
-                        if not before:
-                            i += 1
-                        break
-                    x, c = self.tree.GetNextChild(node, c)
+                if cnt:
+                    for i in range(cnt):
+                        if x == self.item:
+                            if not before:
+                                i += 1
+                            break
+                        x, c = self.tree.GetNextChild(node, c)
+                else:
+                    i = 0
                 if i == cnt:
                     i = -1
-            zetzeronder(node, self.cut_el[0], i)
+            self.zetzeronder(node, self.cut_el[0], i)
+            # self.zetzeronder(node, self.cut_el, i)
         self.editor.mark_dirty(True)
+
+    def zetzeronder(self, node, el, pos=-1):
+        "add elements recursively"
+        if pos == -1:
+            subnode = self.tree.AppendItem(node, el[0])
+            self.tree.SetItemData(subnode, el[1])
+        else:
+            subnode = self.tree.InsertItem(node, pos, el[0])
+            self.tree.SetItemData(subnode, el[1])
+        for x in el[2]:
+            self.zetzeronder(subnode, x)
 
     def add_attribute(self, item, name, value, command_text):
         "ask for attibute, then start add action"
@@ -290,7 +293,7 @@ class Gui(wx.Frame):
         #         self.editor.mark_dirty(True)
 
     # internals
-    def init_gui(self):
+    def setup_display(self):
         """Deze methode wordt aangeroepen door de __init__ van de mixin class
         """
         self.icon = wx.Icon(self.editor.iconame, wx.BITMAP_TYPE_ICO)
@@ -298,7 +301,8 @@ class Gui(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.afsl)
 
         # set up statusbar
-        self.SetStatusBar(wx.StatusBar(self))
+        self.statusbar = wx.StatusBar(self)   # attribuut van gemaakt t.b.v. unittest
+        self.SetStatusBar(self.statusbar)
         self.SetStatusText('Ready.')
 
         # self.init_menus()
@@ -310,6 +314,7 @@ class Gui(wx.Frame):
             menu_bar.Append(editmenu, "&Edit")
         menu_bar.Append(searchmenu, "&Search")
         self.SetMenuBar(menu_bar)
+        self.menubar = menu_bar     # attribuut van gemaakt t.b.v. unittest
 
         ## self.helpmenu.append('About', callback = self.about)
 
@@ -354,8 +359,6 @@ class Gui(wx.Frame):
         else:
             editmenu = wx.Menu() if self.editable else None
             searchmenu = wx.Menu()
-        if self.editable:
-            disable_menu = not self.cut_el and not self.cut_att
 
         for ix, menudata in enumerate(self.editor.get_menu_data()):
             for ix2, data in enumerate(menudata):
@@ -371,10 +374,10 @@ class Gui(wx.Frame):
                     #     filemenu.AppendSeparator()
                     #     self.setundo_action = mitem
                     mitem = filemenu.Append(-1, text)
-                elif ix == 1:
-                    mitem = viewmenu.Append(-1, text)
+                # elif ix == 1:
+                #     mitem = viewmenu.Append(-1, text)
                 elif ix == 2 and self.editable:
-                    if ix2 == 0:
+                    if ix2 == 0 and popup:
                         editmenu.AppendSeparator()
                     mitem = editmenu.Append(-1, text)
                     if ix2 == 0:
@@ -391,18 +394,21 @@ class Gui(wx.Frame):
                         self.pasteunder_item = mitem
                         editmenu.AppendSeparator()
                 elif (ix == 2 and not self.editable) or ix == 3:
-                    if ix2 == 0:
+                    if ix2 == 0 and popup:
                         searchmenu.AppendSeparator()
                     mitem = searchmenu.Append(-1, text)
+                else:
+                    mitem = viewmenu.Append(-1, text)
                 self.Bind(wx.EVT_MENU, callback, mitem)
-                if shortcuts:  # voorlopig alleen voor edit en delete
+                if shortcuts and not popup:
                     for item in shortcuts:
                         accel = wx.AcceleratorEntry(cmd=mitem.GetId())
                         if accel.FromString(item):
                             accels.append(accel)
-                self.SetAcceleratorTable(wx.AcceleratorTable(accels))
+        if accels:
+            self.SetAcceleratorTable(wx.AcceleratorTable(accels))
 
-        if self.editable and disable_menu:
+        if self.editable and not self.cut_el and not self.cut_att:
             self.enable_pasteitems(False)
 
         if popup:

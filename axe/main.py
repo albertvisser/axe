@@ -40,9 +40,7 @@ class Editor:
             self.gui.cut_el = None
         self.search_args = []
         self._search_pos = None
-        self.gui.init_gui()
-        if not readonly:
-            self.init_tree(et.Element(NEW_ROOT))
+        self.gui.setup_display()
         if self.xmlfn:
             try:
                 tree, self.ns_prefixes, self.ns_uris = parse_nsmap(self.xmlfn)
@@ -51,6 +49,8 @@ class Editor:
                 self.gui.init_tree(None)
                 return
             self.init_tree(tree.getroot())
+        elif not readonly:
+            self.init_tree(et.Element(NEW_ROOT))
         self.gui.go()
 
     def mark_dirty(self, state):
@@ -365,12 +365,12 @@ class Editor:
             ok, fname = self.gui.file_to_read()
             if ok:
                 try:
-                    tree, prefixes, uris = parse_nsmap(fname)
+                    tree, self.ns_prefixes, self.ns_uris = parse_nsmap(fname)
                 except et.ParseError as e:
                     self.gui.meldfout(str(e))
                 else:
                     self.xmlfn = fname
-                    self.init_tree(tree.getroot(), prefixes, uris)
+                    self.init_tree(tree.getroot())
 
     def savexml(self, event=None):
         "(re)save XML; ask for filename if unknown"

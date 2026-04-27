@@ -111,31 +111,30 @@ class TestGui:
             print('called MainWindow.__init__ with args', args, kwargs)
         monkeypatch.setattr(testee.qtw.QApplication, '__init__', mockqtw.MockApplication.__init__)
         monkeypatch.setattr(testee.qtw.QMainWindow, '__init__', mock_init)
-        monkeypatch.setattr(testee.qtw.QMainWindow, 'show', mockqtw.MockMainWindow.show)
         testobj = testee.Gui()
         assert testobj.editor is None
         assert isinstance(testobj.app, testee.qtw.QApplication)
         assert testobj.fn == ''
         assert testobj.editable
         assert capsys.readouterr().out == ("called Application.__init__\n"
-                                           "called MainWindow.__init__ with args () {}\n"
-                                           "called MainWindow.show\n")
+                                           "called MainWindow.__init__ with args () {}\n")
         testobj = testee.Gui('parent', 'fname', True)
         assert testobj.editor == 'parent'
         assert isinstance(testobj.app, testee.qtw.QApplication)
         assert testobj.fn == 'fname'
         assert not testobj.editable
         assert capsys.readouterr().out == ("called Application.__init__\n"
-                                           "called MainWindow.__init__ with args () {}\n"
-                                           "called MainWindow.show\n")
+                                           "called MainWindow.__init__ with args () {}\n")
 
     def test_go(self, monkeypatch, capsys):
         """unittest for Gui.go
         """
+        monkeypatch.setattr(testee.qtw.QMainWindow, 'show', mockqtw.MockMainWindow.show)
         testobj = self.setup_testobj(monkeypatch, capsys)
         with pytest.raises(SystemExit):
             testobj.go()
-        assert capsys.readouterr().out == ("called Application.exec\n")
+        assert capsys.readouterr().out == ("called MainWindow.show\n"
+                                           "called Application.exec\n")
 
     def test_keyReleaseEvent(self, monkeypatch, capsys):
         """unittest for Gui.keyReleaseEvent
@@ -683,7 +682,7 @@ class TestGui:
                 " {'before': False, 'below': True, 'description': 'command'}\n"
                 "called UndoRedoStack.push\n")
 
-    def test_init_gui(self, monkeypatch, capsys):
+    def test_setup_display(self, monkeypatch, capsys):
         """unittest for Gui.init_gui
         """
         def mock_init_menus():
@@ -710,7 +709,7 @@ class TestGui:
         testobj.init_menus = mock_init_menus
         testobj.enable_pasteitems = mock_enable
         testobj.editable = False
-        testobj.init_gui()
+        testobj.setup_display()
         assert isinstance(testobj.tree, testee.qtw.QTreeWidget)
         assert not testobj.in_dialog
         assert capsys.readouterr().out == (
@@ -727,7 +726,7 @@ class TestGui:
                 "called TreeItem.setHidden with arg `True`\n"
                 "called MainWidget.setCentralWidget with arg `VisualTree`\n")
         testobj.editable = True
-        testobj.init_gui()
+        testobj.setup_display()
         assert isinstance(testobj.tree, testee.qtw.QTreeWidget)
         assert not testobj.in_dialog
         assert capsys.readouterr().out == (
@@ -1016,10 +1015,10 @@ class TestGui:
                                            "called Action.__init__ with args ('1', None)\n"
                                            "called Menu.addAction with args `2` None\n"
                                            "called Action.__init__ with args ('2', None)\n"
-                                           "called Menu.addAction with args `3` None\n"
-                                           "called Action.__init__ with args ('3', None)\n"
                                            "called Menu.addSeparator\n"
                                            "called Action.__init__ with args ('-----', None)\n"
+                                           "called Menu.addAction with args `3` None\n"
+                                           "called Action.__init__ with args ('3', None)\n"
                                            "called Menu.addAction with args `4` None\n"
                                            "called Action.__init__ with args ('4', None)\n"
                                            "called Menu.addAction with args `5` None\n"
@@ -1041,10 +1040,10 @@ class TestGui:
                                            "called Action.__init__ with args ('1', None)\n"
                                            "called Menu.addAction with args `2` None\n"
                                            "called Action.__init__ with args ('2', None)\n"
-                                           "called Menu.addAction with args `3` None\n"
-                                           "called Action.__init__ with args ('3', None)\n"
                                            "called Menu.addSeparator\n"
                                            "called Action.__init__ with args ('-----', None)\n"
+                                           "called Menu.addAction with args `3` None\n"
+                                           "called Action.__init__ with args ('3', None)\n"
                                            "called Menu.addAction with args `4` None\n"
                                            "called Action.__init__ with args ('4', None)\n"
                                            "called Menu.addAction with args `5` None\n"
@@ -2354,7 +2353,7 @@ def test_show_dialog():
         return testee.qtw.QDialog.DialogCode.Accepted
     dlg = types.SimpleNamespace(exec=mock_exec)
     assert not testee.show_dialog(dlg)
-    dlg.exec  = mock_exec_2
+    dlg.exec = mock_exec_2
     assert testee.show_dialog(dlg)
 
 
