@@ -1483,7 +1483,7 @@ def test_calculate_location(capsys):
         def indexOfChild(self, node):
             return self.children.index(node)
     level0 = Node('level0')
-    level1 = Node('level1', level0)
+    _level1 = Node('level1', level0)
     level1a = Node('level1a', level0)
     level2 = Node('level2', level1a)
     win = types.SimpleNamespace(top=level0)
