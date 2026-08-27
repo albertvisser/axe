@@ -871,8 +871,8 @@ class DialogGui(qtw.QDialog):
         "add fixed text to grid"
         lbl_name = qtw.QLabel(text, self)
         if fullwidth:
-            # self.gsizer.addWidget(lbl_name, row, col, 1, self.gsizer.columnCount())
-            self.gsizer.addWidget(lbl_name, row, col, 1, 2)
+            self.gsizer.addWidget(lbl_name, row, col, 1, self.gsizer.columnCount())
+            # self.gsizer.addWidget(lbl_name, row, col, 1, 2)
         else:
             self.gsizer.addWidget(lbl_name, row, col)
         return lbl_name

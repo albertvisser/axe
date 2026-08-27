@@ -2414,8 +2414,8 @@ class TestDialogGui:
         assert isinstance(result, testee.qtw.QLabel)
         assert capsys.readouterr().out == (
                 f"called Label.__init__ with args ('text', {testobj})\n"
-                # "called Grid.columnCount\n"
-                "called Grid.addWidget with arg MockLabel at ('row', 'col', 1, 2)\n")
+                "called Grid.columnCount\n"
+                "called Grid.addWidget with arg MockLabel at ('row', 'col', 1, 1)\n")
 
     def test_add_lineinput(self, monkeypatch, capsys):
         """unittest for DialogGui.add_lineinput
